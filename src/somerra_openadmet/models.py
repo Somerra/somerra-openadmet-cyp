@@ -12,7 +12,7 @@ REGRESSION_MODELS = ("ridge", "extra_trees", "lightgbm")
 CLASSIFICATION_MODELS = ("logistic", "extra_trees", "lightgbm")
 
 
-def make_regressor(name: str, seed: int = 42):
+def make_regressor(name: str, seed: int = 42, n_jobs: int = 8):
     if name == "ridge":
         return make_pipeline(StandardScaler(), Ridge(alpha=10.0))
     if name == "extra_trees":
@@ -20,7 +20,7 @@ def make_regressor(name: str, seed: int = 42):
             n_estimators=400,
             min_samples_leaf=2,
             max_features="sqrt",
-            n_jobs=-1,
+            n_jobs=n_jobs,
             random_state=seed,
         )
     if name == "lightgbm":
@@ -33,13 +33,13 @@ def make_regressor(name: str, seed: int = 42):
             colsample_bytree=0.8,
             reg_lambda=1.0,
             random_state=seed,
-            n_jobs=-1,
+            n_jobs=n_jobs,
             verbosity=-1,
         )
     raise ValueError(f"Unknown regression model {name!r}; choose from {REGRESSION_MODELS}")
 
 
-def make_classifier(name: str, seed: int = 42):
+def make_classifier(name: str, seed: int = 42, n_jobs: int = 8):
     if name == "logistic":
         return make_pipeline(
             StandardScaler(),
@@ -56,7 +56,7 @@ def make_classifier(name: str, seed: int = 42):
             min_samples_leaf=2,
             max_features="sqrt",
             class_weight="balanced",
-            n_jobs=-1,
+            n_jobs=n_jobs,
             random_state=seed,
         )
     if name == "lightgbm":
@@ -70,7 +70,7 @@ def make_classifier(name: str, seed: int = 42):
             reg_lambda=1.0,
             class_weight="balanced",
             random_state=seed,
-            n_jobs=-1,
+            n_jobs=n_jobs,
             verbosity=-1,
         )
     raise ValueError(f"Unknown classifier {name!r}; choose from {CLASSIFICATION_MODELS}")

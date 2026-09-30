@@ -10,13 +10,17 @@ def test_all_model_families_fit_small_problem():
     classification_target = (regression_target > np.median(regression_target)).astype(int)
 
     for name in ("ridge", "extra_trees", "lightgbm"):
-        prediction = make_regressor(name, seed=7).fit(features, regression_target).predict(features)
+        prediction = (
+            make_regressor(name, seed=7, n_jobs=1)
+            .fit(features, regression_target)
+            .predict(features)
+        )
         assert prediction.shape == (40,)
         assert np.isfinite(prediction).all()
 
     for name in ("logistic", "extra_trees", "lightgbm"):
         probability = (
-            make_classifier(name, seed=7)
+            make_classifier(name, seed=7, n_jobs=1)
             .fit(features, classification_target)
             .predict_proba(features)[:, 1]
         )

@@ -42,6 +42,7 @@ class BaselineConfig:
     seed: int = 42
     radius: int = 2
     n_bits: int = 2048
+    n_jobs: int = 8
 
 
 def _best_mcc_threshold(labels: np.ndarray, probabilities: np.ndarray) -> tuple[float, float]:
@@ -82,7 +83,7 @@ def _activity_baseline(
         split_iterator = regression_splits(frame["SMILES"].tolist(), config.n_splits)
         for fold, (fit_idx, val_idx) in enumerate(split_iterator):
             assert_group_disjoint(frame["SMILES"].tolist(), fit_idx, val_idx)
-            model = make_regressor(config.model, config.seed + fold)
+            model = make_regressor(config.model, config.seed + fold, config.n_jobs)
             model.fit(features[fit_idx], labels[fit_idx])
             oof[val_idx] = model.predict(features[val_idx])
             folds[val_idx] = fold
@@ -110,7 +111,7 @@ def _activity_baseline(
             )
         )
 
-        final_model = make_regressor(config.model, config.seed)
+        final_model = make_regressor(config.model, config.seed, config.n_jobs)
         final_model.fit(features, labels)
         submission[endpoint] = final_model.predict(test_features)
         joblib.dump(final_model, output_dir / f"{endpoint}.joblib")
@@ -149,7 +150,7 @@ def _tdi_baseline(
         fold_scores: list[float] = []
         for fold, (fit_idx, val_idx) in enumerate(split_iterator):
             assert_group_disjoint(frame["SMILES"].tolist(), fit_idx, val_idx)
-            model = make_classifier(config.model, config.seed + fold)
+            model = make_classifier(config.model, config.seed + fold, config.n_jobs)
             model.fit(features[fit_idx], labels[fit_idx])
             oof[val_idx] = model.predict_proba(features[val_idx])[:, 1]
             folds[val_idx] = fold
@@ -181,7 +182,7 @@ def _tdi_baseline(
             )
         )
 
-        final_model = make_classifier(config.model, config.seed)
+        final_model = make_classifier(config.model, config.seed, config.n_jobs)
         final_model.fit(features, labels)
         probabilities = final_model.predict_proba(test_features)[:, 1]
         submission[endpoint] = probabilities >= threshold

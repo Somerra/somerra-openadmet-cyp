@@ -9,7 +9,7 @@ from pathlib import Path
 import pandas as pd
 
 from .data import audit_data, load_test
-from .download import download_activity_data
+from .download import download_activity_data, verify_activity_data
 from .metrics import score_activity, score_tdi
 from .models import CLASSIFICATION_MODELS, REGRESSION_MODELS
 from .pipeline import BaselineConfig, run_baseline
@@ -31,6 +31,9 @@ def build_parser() -> argparse.ArgumentParser:
     audit = commands.add_parser("audit", help="Validate and summarize local challenge data")
     audit.add_argument("--data-dir", type=Path, default=Path("data/raw"))
 
+    verify = commands.add_parser("verify-data", help="Verify downloaded files against manifest")
+    verify.add_argument("--data-dir", type=Path, default=Path("data/raw"))
+
     baseline = commands.add_parser("baseline", help="Run CV, fit full models, and build a CSV")
     baseline.add_argument("track", choices=("activity", "tdi"))
     baseline.add_argument("--data-dir", type=Path, default=Path("data/raw"))
@@ -40,6 +43,12 @@ def build_parser() -> argparse.ArgumentParser:
     baseline.add_argument("--seed", type=int, default=42)
     baseline.add_argument("--radius", type=int, default=2)
     baseline.add_argument("--n-bits", type=int, default=2048)
+    baseline.add_argument(
+        "--n-jobs",
+        type=int,
+        default=8,
+        help="Maximum model-training threads (recorded in the run manifest)",
+    )
 
     validate = commands.add_parser("validate", help="Validate a submission against test IDs")
     validate.add_argument("track", choices=("activity", "tdi"))
@@ -62,6 +71,12 @@ def main(argv: list[str] | None = None) -> None:
     if args.command == "audit":
         _json(audit_data(args.data_dir).to_dict())
         return
+    if args.command == "verify-data":
+        report = verify_activity_data(args.data_dir)
+        _json(report.to_dict())
+        if not report.valid:
+            raise SystemExit(1)
+        return
     if args.command == "baseline":
         allowed = REGRESSION_MODELS if args.track == "activity" else CLASSIFICATION_MODELS
         if args.model not in allowed:
@@ -73,6 +88,7 @@ def main(argv: list[str] | None = None) -> None:
             seed=args.seed,
             radius=args.radius,
             n_bits=args.n_bits,
+            n_jobs=args.n_jobs,
         )
         _json(run_baseline(config, args.data_dir, args.output_dir))
         return

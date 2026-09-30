@@ -1,6 +1,6 @@
 # Baseline research
 
-Research snapshot: 2026-09-28. This document distinguishes reproducible code from
+Research snapshot: 2026-09-30. This document distinguishes reproducible code from
 method reports and leaderboard anecdotes.
 
 ## Official sources
@@ -9,6 +9,7 @@ method reports and leaderboard anecdotes.
 
 - Source: [OpenADMET CYP challenge dataset](https://huggingface.co/datasets/openadmet/cyp-challenge-train-test)
 - Pinned Git revision: `146282d2ce1532f1803679a834a9bec9dac1e482`
+- The Hugging Face API still reported that revision as current on 2026-09-30.
 - Activity regression: 4,905 compounds with sparse pIC50 values and credible intervals.
 - TDI: 6,145 compounds with CYP2D6/CYP3A4 labels and paired assay measurements.
 - Test: 750 compounds.

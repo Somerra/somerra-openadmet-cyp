@@ -23,6 +23,30 @@ The structure track is intentionally out of scope for this first phase.
 
 Nothing in this repository uploads a challenge submission.
 
+## Environment choice
+
+Both **uv** and **Conda** are supported. `uv` is the default for CI because it is fast,
+uses the committed cross-platform `uv.lock`, and current RDKit releases provide Linux
+wheels. Conda remains an excellent choice for scientific workstations—especially when
+native chemistry libraries or GPU packages stop being wheel-friendly. It is broader,
+not inherently "more updated"; the two tools solve somewhat different layers.
+
+Use either path:
+
+```bash
+# Fast locked path used by CI
+uv sync --locked --dev
+
+# Conda-forge path (mamba can replace conda)
+conda env create -f environment.yml
+conda activate somerra-openadmet-cyp
+python -m pip install --no-deps -e .
+```
+
+The Conda environment pins the Python minor version and dependency ranges. The uv path
+is the stricter byte-for-byte resolver snapshot and remains the reproducibility
+reference for CI.
+
 ## Quick start
 
 Requires Python 3.11–3.13 and [uv](https://docs.astral.sh/uv/).
@@ -30,6 +54,7 @@ Requires Python 3.11–3.13 and [uv](https://docs.astral.sh/uv/).
 ```bash
 make setup
 make download
+make verify-data
 make audit
 
 # Fast transparent controls
@@ -78,12 +103,16 @@ model variants.
 
 ```bash
 uv run openadmet-cyp download --output data/raw
+uv run openadmet-cyp verify-data --data-dir data/raw
 uv run openadmet-cyp audit --data-dir data/raw
 uv run openadmet-cyp baseline activity --model lightgbm --output-dir runs/activity-lgbm
 uv run openadmet-cyp baseline tdi --model lightgbm --output-dir runs/tdi-lgbm
 uv run openadmet-cyp validate activity runs/activity-lgbm/activity_submission.csv
 uv run openadmet-cyp score activity path/to/labeled_truth.csv path/to/predictions.csv
 ```
+
+Baseline commands default to eight model-training threads. Use `--n-jobs` to change the
+budget; the selected value is written into `run_manifest.json`.
 
 ## Why these baselines
 
@@ -94,12 +123,15 @@ scaffold/cluster splits, class balancing, and per-endpoint handling of sparse la
 Those are the lowest-complexity methods worth trusting.
 
 See [docs/baseline-research.md](docs/baseline-research.md) for the source audit and
-[docs/roadmap.md](docs/roadmap.md) for the planned path toward a competitive Somerra
-model.
+[docs/baseline-results.md](docs/baseline-results.md) for the first full baseline run.
+[docs/roadmap.md](docs/roadmap.md) describes the planned path toward a competitive
+Somerra model.
 
 ## Data and licensing
 
 Challenge data are downloaded directly from
 [`openadmet/cyp-challenge-train-test`](https://huggingface.co/datasets/openadmet/cyp-challenge-train-test)
-at a pinned Git revision and remain under the dataset's Apache-2.0 terms. Raw files,
-model artifacts, and submissions are gitignored.
+at pinned revision `146282d2ce1532f1803679a834a9bec9dac1e482` (confirmed current on
+2026-09-30) and remain under the dataset's Apache-2.0 terms. The manifest verifier
+checks every expected file's size and SHA-256 before modeling. Raw files, model
+artifacts, and submissions are gitignored.

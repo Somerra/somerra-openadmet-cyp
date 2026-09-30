@@ -1,7 +1,11 @@
-.PHONY: setup lint test download audit baseline-activity baseline-tdi
+.PHONY: setup setup-conda lint test download verify-data audit baseline-activity baseline-tdi
 
 setup:
 	uv sync --dev
+
+setup-conda:
+	conda env create -f environment.yml
+	conda run -n somerra-openadmet-cyp python -m pip install --no-deps -e .
 
 lint:
 	uv run ruff check .
@@ -12,6 +16,9 @@ test:
 
 download:
 	uv run openadmet-cyp download --output data/raw
+
+verify-data:
+	uv run openadmet-cyp verify-data --data-dir data/raw
 
 audit:
 	uv run openadmet-cyp audit --data-dir data/raw
