@@ -23,33 +23,25 @@ The structure track is intentionally out of scope for this first phase.
 
 Nothing in this repository uploads a challenge submission.
 
-## Environment choice
+## Environment
 
-Both **uv** and **Conda** are supported. `uv` is the default for CI because it is fast,
-uses the committed cross-platform `uv.lock`, and current RDKit releases provide Linux
-wheels. Conda remains an excellent choice for scientific workstations—especially when
-native chemistry libraries or GPU packages stop being wheel-friendly. It is broader,
-not inherently "more updated"; the two tools solve somewhat different layers.
+Conda is the sole supported environment manager. The authoritative specification is
+`environment.yml`, resolved from conda-forge. Python is pinned to 3.12 and runtime plus
+development dependencies are declared together so local runs and CI use the same stack.
 
-Use either path:
+Create or update the environment and install this project in editable mode:
 
 ```bash
-# Fast locked path used by CI
-uv sync --locked --dev
-
-# Conda-forge path (mamba can replace conda)
-conda env create -f environment.yml
-conda activate somerra-openadmet-cyp
-python -m pip install --no-deps -e .
+make setup
 ```
 
-The Conda environment pins the Python minor version and dependency ranges. The uv path
-is the stricter byte-for-byte resolver snapshot and remains the reproducibility
-reference for CI.
+This runs `conda env update --prune` and then installs only the local package without
+build isolation or dependency resolution; all third-party dependencies remain
+Conda-managed.
 
 ## Quick start
 
-Requires Python 3.11–3.13 and [uv](https://docs.astral.sh/uv/).
+Requires Conda; Miniforge is recommended for a clean conda-forge installation.
 
 ```bash
 make setup
@@ -58,22 +50,14 @@ make verify-data
 make audit
 
 # Fast transparent controls
-uv run openadmet-cyp baseline activity \
+conda run -n somerra-openadmet-cyp openadmet-cyp baseline activity \
   --model ridge --data-dir data/raw --output-dir runs/activity-ridge
-uv run openadmet-cyp baseline tdi \
+conda run -n somerra-openadmet-cyp openadmet-cyp baseline tdi \
   --model logistic --data-dir data/raw --output-dir runs/tdi-logistic
 
 # Stronger simple CPU baselines
 make baseline-activity
 make baseline-tdi
-```
-
-Equivalent pip setup, if `uv` is unavailable:
-
-```bash
-python3 -m venv .venv
-.venv/bin/pip install -e . pytest pytest-cov ruff
-.venv/bin/openadmet-cyp download --output data/raw
 ```
 
 Each baseline run writes:
@@ -102,13 +86,13 @@ model variants.
 ## Commands
 
 ```bash
-uv run openadmet-cyp download --output data/raw
-uv run openadmet-cyp verify-data --data-dir data/raw
-uv run openadmet-cyp audit --data-dir data/raw
-uv run openadmet-cyp baseline activity --model lightgbm --output-dir runs/activity-lgbm
-uv run openadmet-cyp baseline tdi --model lightgbm --output-dir runs/tdi-lgbm
-uv run openadmet-cyp validate activity runs/activity-lgbm/activity_submission.csv
-uv run openadmet-cyp score activity path/to/labeled_truth.csv path/to/predictions.csv
+conda run -n somerra-openadmet-cyp openadmet-cyp download --output data/raw
+conda run -n somerra-openadmet-cyp openadmet-cyp verify-data --data-dir data/raw
+conda run -n somerra-openadmet-cyp openadmet-cyp audit --data-dir data/raw
+conda run -n somerra-openadmet-cyp openadmet-cyp baseline activity --model lightgbm --output-dir runs/activity-lgbm
+conda run -n somerra-openadmet-cyp openadmet-cyp baseline tdi --model lightgbm --output-dir runs/tdi-lgbm
+conda run -n somerra-openadmet-cyp openadmet-cyp validate activity runs/activity-lgbm/activity_submission.csv
+conda run -n somerra-openadmet-cyp openadmet-cyp score activity path/to/labeled_truth.csv path/to/predictions.csv
 ```
 
 Baseline commands default to eight model-training threads. Use `--n-jobs` to change the

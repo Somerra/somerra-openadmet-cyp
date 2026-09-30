@@ -1,30 +1,30 @@
-.PHONY: setup setup-conda lint test download verify-data audit baseline-activity baseline-tdi
+.PHONY: setup lint test download verify-data audit baseline-activity baseline-tdi
+
+CONDA_ENV ?= somerra-openadmet-cyp
+CONDA_RUN = conda run --no-capture-output -n $(CONDA_ENV)
 
 setup:
-	uv sync --dev
-
-setup-conda:
-	conda env create -f environment.yml
-	conda run -n somerra-openadmet-cyp python -m pip install --no-deps -e .
+	conda env update --file environment.yml --prune
+	$(CONDA_RUN) python -m pip install --no-build-isolation --no-deps -e .
 
 lint:
-	uv run ruff check .
-	uv run ruff format --check .
+	$(CONDA_RUN) ruff check .
+	$(CONDA_RUN) ruff format --check .
 
 test:
-	uv run pytest --cov=somerra_openadmet --cov-report=term-missing
+	$(CONDA_RUN) pytest --cov=somerra_openadmet --cov-report=term-missing
 
 download:
-	uv run openadmet-cyp download --output data/raw
+	$(CONDA_RUN) openadmet-cyp download --output data/raw
 
 verify-data:
-	uv run openadmet-cyp verify-data --data-dir data/raw
+	$(CONDA_RUN) openadmet-cyp verify-data --data-dir data/raw
 
 audit:
-	uv run openadmet-cyp audit --data-dir data/raw
+	$(CONDA_RUN) openadmet-cyp audit --data-dir data/raw
 
 baseline-activity:
-	uv run openadmet-cyp baseline activity --data-dir data/raw --output-dir runs/activity-lgbm
+	$(CONDA_RUN) openadmet-cyp baseline activity --data-dir data/raw --output-dir runs/activity-lgbm
 
 baseline-tdi:
-	uv run openadmet-cyp baseline tdi --data-dir data/raw --output-dir runs/tdi-lgbm
+	$(CONDA_RUN) openadmet-cyp baseline tdi --data-dir data/raw --output-dir runs/tdi-lgbm

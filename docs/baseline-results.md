@@ -17,7 +17,7 @@ leaderboard scores.
 Command:
 
 ```bash
-uv run openadmet-cyp baseline activity --model lightgbm --n-splits 5 \
+conda run -n somerra-openadmet-cyp openadmet-cyp baseline activity --model lightgbm --n-splits 5 \
   --seed 42 --radius 2 --n-bits 2048 --n-jobs 8 \
   --data-dir data/raw --output-dir runs/baseline-20260930-activity-lgbm-v1
 ```
@@ -41,7 +41,7 @@ SHA-256:
 Command:
 
 ```bash
-uv run openadmet-cyp baseline tdi --model lightgbm --n-splits 5 \
+conda run -n somerra-openadmet-cyp openadmet-cyp baseline tdi --model lightgbm --n-splits 5 \
   --seed 42 --radius 2 --n-bits 2048 --n-jobs 8 \
   --data-dir data/raw --output-dir runs/baseline-20260930-tdi-lgbm-v1
 ```

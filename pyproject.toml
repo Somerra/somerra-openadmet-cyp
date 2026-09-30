@@ -21,13 +21,6 @@ dependencies = [
 [project.scripts]
 openadmet-cyp = "somerra_openadmet.cli:main"
 
-[dependency-groups]
-dev = [
-  "pytest>=8.3,<9",
-  "pytest-cov>=6,<7",
-  "ruff>=0.12,<1",
-]
-
 [tool.hatch.build.targets.wheel]
 packages = ["src/somerra_openadmet"]
 
