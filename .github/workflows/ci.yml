@@ -29,7 +29,7 @@ jobs:
           activate-environment: somerra-openadmet-cyp
           environment-file: environment.yml
           channel-priority: strict
-          auto-activate-base: false
+          auto-activate: false
       - name: Install project
         run: python -m pip install --no-build-isolation --no-deps -e .
       - name: Lint
