@@ -10,6 +10,7 @@ import pandas as pd
 
 from .data import audit_data, load_test
 from .download import download_activity_data, verify_activity_data
+from .ensemble import run_activity_ensemble
 from .metrics import score_activity, score_tdi
 from .models import CLASSIFICATION_MODELS, REGRESSION_MODELS
 from .pipeline import BaselineConfig, run_baseline
@@ -49,6 +50,23 @@ def build_parser() -> argparse.ArgumentParser:
         default=8,
         help="Maximum model-training threads (recorded in the run manifest)",
     )
+
+    ensemble = commands.add_parser(
+        "ensemble", help="Cross-fit metric-aligned weights over completed baseline runs"
+    )
+    ensemble.add_argument("track", choices=("activity",))
+    ensemble.add_argument(
+        "--run-dir",
+        type=Path,
+        nargs="+",
+        action="append",
+        required=True,
+        help="Two or more baseline run directories; the flag may be repeated",
+    )
+    ensemble.add_argument("--data-dir", type=Path, default=Path("data/raw"))
+    ensemble.add_argument("--output-dir", type=Path, required=True)
+    ensemble.add_argument("--seed", type=int, default=42)
+    ensemble.add_argument("--search-samples", type=int, default=4096)
 
     validate = commands.add_parser("validate", help="Validate a submission against test IDs")
     validate.add_argument("track", choices=("activity", "tdi"))
@@ -91,6 +109,18 @@ def main(argv: list[str] | None = None) -> None:
             n_jobs=args.n_jobs,
         )
         _json(run_baseline(config, args.data_dir, args.output_dir))
+        return
+    if args.command == "ensemble":
+        run_dirs = [run_dir for group in args.run_dir for run_dir in group]
+        _json(
+            run_activity_ensemble(
+                run_dirs,
+                args.data_dir,
+                args.output_dir,
+                seed=args.seed,
+                search_samples=args.search_samples,
+            )
+        )
         return
     if args.command == "validate":
         report = validate_submission(args.submission, load_test(args.data_dir), args.track)

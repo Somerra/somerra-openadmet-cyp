@@ -12,6 +12,7 @@ under chemistry-aware validation.
 - scaffold-disjoint OOF predictions;
 - official ST-RAE and MCC;
 - TDI threshold selection and serialized models.
+- cross-fitted, endpoint-specific ST-RAE ensemble weights.
 
 ## Phase 1 — validation hardening
 

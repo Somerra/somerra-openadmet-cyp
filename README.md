@@ -20,6 +20,7 @@ The structure track is intentionally out of scope for this first phase.
 - leakage-aware out-of-fold MCC threshold selection for TDI;
 - strict activity/TDI submission validation;
 - saved models, OOF predictions, metrics, and run manifests.
+- cross-fitted, ST-RAE-aligned activity ensembles over completed baseline runs.
 
 Nothing in this repository uploads a challenge submission.
 
@@ -91,6 +92,9 @@ conda run -n somerra-openadmet-cyp openadmet-cyp verify-data --data-dir data/raw
 conda run -n somerra-openadmet-cyp openadmet-cyp audit --data-dir data/raw
 conda run -n somerra-openadmet-cyp openadmet-cyp baseline activity --model lightgbm --output-dir runs/activity-lgbm
 conda run -n somerra-openadmet-cyp openadmet-cyp baseline tdi --model lightgbm --output-dir runs/tdi-lgbm
+conda run -n somerra-openadmet-cyp openadmet-cyp ensemble activity \
+  --run-dir runs/activity-lgbm runs/activity-extra-trees runs/activity-ridge \
+  --output-dir runs/activity-ensemble
 conda run -n somerra-openadmet-cyp openadmet-cyp validate activity runs/activity-lgbm/activity_submission.csv
 conda run -n somerra-openadmet-cyp openadmet-cyp score activity path/to/labeled_truth.csv path/to/predictions.csv
 ```
@@ -108,6 +112,8 @@ Those are the lowest-complexity methods worth trusting.
 
 See [docs/baseline-research.md](docs/baseline-research.md) for the source audit and
 [docs/baseline-results.md](docs/baseline-results.md) for the first full baseline run.
+[docs/next-submission.md](docs/next-submission.md) records the Scigantic method audit
+and the cross-fitted ensemble candidate derived from it.
 [docs/roadmap.md](docs/roadmap.md) describes the planned path toward a competitive
 Somerra model.
 
