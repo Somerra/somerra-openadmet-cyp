@@ -104,6 +104,10 @@ budget; the selected value is written into `run_manifest.json`.
 
 ## Why these baselines
 
+The [classification improvement plan](docs/classification-campaign.md) records the
+TDI experiment sequence, validation protocol, promotion gates, and paused restart
+checkpoint.
+
 The official tutorial starts with RDKit descriptors and LightGBM but explicitly warns
 that random splits are optimistic and recommends chemistry-aware splits. Public
 competition work independently converges on Morgan fingerprints, tree models,
