@@ -77,11 +77,108 @@ def build_parser() -> argparse.ArgumentParser:
     score.add_argument("track", choices=("activity", "tdi"))
     score.add_argument("truth", type=Path)
     score.add_argument("predictions", type=Path)
+    campaign = commands.add_parser("regression", help="Persisted splits and nested evaluation")
+    stages = campaign.add_subparsers(dest="stage", required=True)
+    status = stages.add_parser("status", help="Summarize saved experiment metrics and allocations")
+    status.add_argument("--runs-dir", type=Path, default=Path("runs"))
+    prepare = stages.add_parser("prepare")
+    prepare.add_argument("--data-dir", type=Path, default=Path("data/raw"))
+    prepare.add_argument("--output-dir", type=Path, required=True)
+    prepare.add_argument("--n-folds", type=int, default=5)
+    evaluate = stages.add_parser("evaluate")
+    evaluate.add_argument("--config", type=Path, required=True)
+    compare = stages.add_parser("compare")
+    compare.add_argument("--run-dir", type=Path, required=True)
+    compare.add_argument("--reference", default="lightgbm")
+    compare.add_argument("--reference-run", type=Path)
+    compare.add_argument("--output", type=Path, help="New report path; refuses to overwrite")
+    diagnose = stages.add_parser("diagnose")
+    diagnose.add_argument("--data-dir", type=Path, default=Path("data/raw"))
+    diagnose.add_argument("--run-dir", type=Path, required=True)
+    diagnose.add_argument("--output-dir", type=Path, required=True)
+    auxiliary = stages.add_parser("auxiliary")
+    auxiliary.add_argument("--data-dir", type=Path, default=Path("data/raw"))
+    auxiliary.add_argument("--output-dir", type=Path, required=True)
+    embed = stages.add_parser("embed")
+    embed.add_argument("--prepared-dir", type=Path, required=True)
+    embed.add_argument("--checkpoint", type=Path, required=True)
+    embed.add_argument("--output-dir", type=Path, required=True)
+    screen = stages.add_parser("screen-neural")
+    screen.add_argument("--config", type=Path, required=True)
+    merge = stages.add_parser("merge-neural", help="Validate disjoint recovered screening folds")
+    merge.add_argument("--original-config", type=Path, required=True)
+    merge.add_argument("--recovered-dir", type=Path, required=True)
+    merge.add_argument("--output-dir", type=Path, required=True)
+    merge.add_argument("--audit", type=Path, required=True)
+    external = stages.add_parser("fetch-chembl")
+    external.add_argument("--data-dir", type=Path, default=Path("data/raw"))
+    external.add_argument("--output-dir", type=Path, required=True)
+    external.add_argument("--release", default="ChEMBL_37")
+    pubchem = stages.add_parser("fetch-pubchem")
+    pubchem.add_argument("--data-dir", type=Path, default=Path("data/raw"))
+    pubchem.add_argument("--output-dir", type=Path, required=True)
+    export = stages.add_parser("export")
+    export.add_argument("--run-dir", type=Path, required=True)
+    export.add_argument("--data-dir", type=Path, default=Path("data/raw"))
+    export.add_argument("--output-dir", type=Path, required=True)
+    export.add_argument("--checkpoint", type=Path)
     return parser
 
 
 def main(argv: list[str] | None = None) -> None:
     args = build_parser().parse_args(argv)
+    if args.command == "regression":
+        from .campaign import evaluate, prepare
+
+        if args.stage == "status":
+            from .campaign_status import status
+
+            _json(status(args.runs_dir))
+        elif args.stage == "prepare":
+            _json(prepare(args.data_dir, args.output_dir, args.n_folds))
+        elif args.stage == "compare":
+            from .regression_report import compare
+
+            _json(compare(args.run_dir, args.reference, args.reference_run, args.output))
+        elif args.stage == "diagnose":
+            from .regression_report import diagnose
+
+            _json(diagnose(args.data_dir, args.run_dir, args.output_dir))
+        elif args.stage == "auxiliary":
+            from .assays import auxiliary
+
+            _json(auxiliary(args.data_dir, args.output_dir))
+        elif args.stage == "embed":
+            from .neural import embeddings
+
+            _json(embeddings(args.prepared_dir, args.checkpoint, args.output_dir))
+        elif args.stage == "screen-neural":
+            from .neural import screen
+
+            _json(screen(args.config))
+        elif args.stage == "merge-neural":
+            from .recovery import merge_recovered
+
+            _json(
+                merge_recovered(
+                    args.original_config, args.recovered_dir, args.output_dir, args.audit
+                )
+            )
+        elif args.stage == "fetch-chembl":
+            from .external import chembl
+
+            _json(chembl(args.data_dir, args.output_dir, args.release))
+        elif args.stage == "fetch-pubchem":
+            from .external import pubchem
+
+            _json(pubchem(args.data_dir, args.output_dir))
+        elif args.stage == "export":
+            from .campaign import export
+
+            _json(export(args.run_dir, args.data_dir, args.output_dir, args.checkpoint))
+        else:
+            _json(evaluate(args.config))
+        return
     if args.command == "download":
         kwargs = {} if args.revision is None else {"revision": args.revision}
         print(download_activity_data(args.output, **kwargs))

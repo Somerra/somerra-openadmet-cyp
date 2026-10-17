@@ -1,0 +1,12 @@
+{
+  "prepared_dir": "runs/regression-corpus-v1",
+  "output_dir": "runs/regression-chemeleon-official-auxiliary-10epoch-v1",
+  "checkpoint": "runs/chemeleon_mp.pt",
+  "auxiliary_dirs": [
+    "runs/regression-auxiliary-v1"
+  ],
+  "epochs": 10,
+  "seed": 42,
+  "learning_rate": 0.0001,
+  "max_gpu_hours": 1
+}

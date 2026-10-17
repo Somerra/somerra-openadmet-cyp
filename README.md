@@ -104,6 +104,11 @@ budget; the selected value is written into `run_manifest.json`.
 
 ## Why these baselines
 
+The ongoing regression campaign adds persisted molecular cluster folds, nested
+CPU evaluation, paired cluster bootstrap, auxiliary assay preparation, and optional
+CheMeleon experiments. See [the campaign runbook](docs/regression-campaign.md) for
+commands, results, and outstanding promotion gates.
+
 The official tutorial starts with RDKit descriptors and LightGBM but explicitly warns
 that random splits are optimistic and recommends chemistry-aware splits. Public
 competition work independently converges on Morgan fingerprints, tree models,

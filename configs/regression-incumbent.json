@@ -1,0 +1,9 @@
+{
+  "prepared_dir": "runs/regression-corpus-v1",
+  "output_dir": "runs/regression-nested-incumbent-v1",
+  "models": ["lightgbm_r2", "lightgbm_r3", "extra_trees_r2", "ridge_r2"],
+  "seed": 42,
+  "n_jobs": 8,
+  "inner_folds": 3,
+  "search_samples": 4096
+}

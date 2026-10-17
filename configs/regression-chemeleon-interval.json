@@ -1,0 +1,10 @@
+{
+  "prepared_dir": "runs/regression-corpus-v1",
+  "output_dir": "runs/regression-chemeleon-interval-screen-v1",
+  "checkpoint": "runs/chemeleon_mp.pt",
+  "epochs": 30,
+  "seed": 42,
+  "learning_rate": 0.0001,
+  "max_gpu_hours": 2,
+  "loss": "interval"
+}
