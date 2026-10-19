@@ -109,6 +109,8 @@ model recipe in `train.py`, keep the evaluator fixed, and retain only the best
 configurations. [Data profiles](configs/README.md) independently select official,
 auxiliary, and external assays. Model experiments freeze data; data experiments
 freeze the model. Each invocation runs one trial, not an unattended loop.
+The [data-source guide](docs/data-sources.md) explains what each source contributes,
+why it might help regression, and what our experiments have actually established.
 
 The ongoing regression campaign adds persisted molecular cluster folds, nested
 CPU evaluation, paired cluster bootstrap, auxiliary assay preparation, and optional

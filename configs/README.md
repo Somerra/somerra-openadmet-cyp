@@ -1,5 +1,8 @@
 # Maintained recipes and data profiles
 
+See [the data-source guide](../docs/data-sources.md) for each source's targets,
+potential modeling value, preparation rules, limitations and measured evidence.
+
 Only two model recipes are maintained: `models/incumbent.json` (nested MA-ST-RAE
 0.743511) and `models/frozen-challenger.json` (0.739029, not promoted). Embeddings
 are model features, not an additional assay source. See `../program.md` for the

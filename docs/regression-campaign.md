@@ -9,6 +9,8 @@ not promote or upload it. Screening scores are model-selection evidence.
 Follow [program.md](../program.md): `train.py` is the editable model recipe;
 data profiles select sources independently, and the evaluation harness stays fixed.
 See [the catalog](../configs/README.md) for source locations and best recipes.
+See [the data-source guide](data-sources.md) for source-specific value, limitations,
+and the distinction between biological relevance and demonstrated modeling gains.
 
 ```bash
 openadmet-cyp regression prepare --output-dir data/prepared/official-direct
