@@ -24,8 +24,8 @@ examples available in every training fold.
 
 These are conventional locations for new snapshots. The completed campaign's
 original snapshots remain under `runs/regression-{corpus,auxiliary,chembl37,pubchem1851}-v1/`.
-Paths are selected by [data profiles](../configs/README.md), independently of model
-recipes. CPU evaluation accepts direct labels only. Auxiliary sources currently
+One [shared catalog](../configs/README.md) registers these paths; each model recipe
+selects named `data_sources`. CPU evaluation accepts direct labels only. Auxiliary sources currently
 feed the neural multitask screen, not the CPU incumbent.
 
 ## 1. Official direct-inhibition labels: the task-defining source
@@ -187,8 +187,9 @@ To test data usefulness next, establish one fully traced, fixed model/control,
 then add one source at a time with the same folds, metric and predeclared compute
 policy. TDI, Emax and single-concentration signals would require separate prepared
 subsets of the current official bundle; they are not independently selectable
-named profiles yet. ChEMBL and PubChem can already be selected independently in
-a local data profile. These are proposed experiments, not runs launched here.
+named sources yet. ChEMBL and PubChem can already be selected independently through
+the model recipe's `data_sources`. Keep all other recipe settings fixed in these
+data ablations. These are proposed experiments, not runs launched here.
 
 ## Shared safeguards and boundaries
 

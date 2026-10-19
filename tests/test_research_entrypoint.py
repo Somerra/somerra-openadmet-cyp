@@ -20,7 +20,7 @@ def test_one_trial_snapshots_inputs(tmp_path, monkeypatch):
 
     runner = load_runner()
     recipe, profile = tmp_path / "recipe.json", tmp_path / "profile.json"
-    recipe.write_text('{"models": ["ridge"]}')
+    recipe.write_text('{"models": ["ridge"], "data_sources": ["official_direct"]}')
     profile.write_text('{"prepared_dir": "unchanged-data"}')
     runner.MODEL_RECIPE = recipe
     runner.MODEL_OVERRIDES = {"n_jobs": 1}

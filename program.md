@@ -14,14 +14,15 @@ for an unlimited loop from this file. Stop at the agreed limit or a blocker.
 
 | Axis | Editable surface | Hold fixed |
 | --- | --- | --- |
-| Model usefulness | Recipe block in `train.py` | Data profile and snapshots, folds, labels, metric, evaluation code, resource limits |
-| Data usefulness | A local data profile, selecting named sources | `train.py`, model recipe/checkpoint, optimizer, loss, folds, metric, resource limits |
+| Model usefulness | Model knobs in the `train.py` recipe block | Recipe's `data_sources`, catalog and snapshots, folds, labels, metric, evaluation code, resource limits |
+| Data usefulness | Only `data_sources` in the recipe / `MODEL_OVERRIDES` | All other model/training settings, checkpoint, catalog and snapshots, folds, metric, resource limits |
 
 Do not change both axes in the same comparison. For a data trial, use a neural
-recipe that supports auxiliary targets; CPU evaluation rejects auxiliary profiles.
+recipe that supports auxiliary targets; CPU evaluation rejects auxiliary selections.
 Choose that recipe before establishing the matched baseline, not after looking at
 data-trial results. Source-specific ablations can select any subset of the named
-sources in a local profile under `runs/`; they are not new maintained model configs.
+sources through the recipe's `data_sources`. One shared `configs/data.json` exposes
+all source locations. Do not create per-trial catalogs or maintained model configs.
 
 ## Fixed infrastructure
 
@@ -47,11 +48,10 @@ for data comparisons, or explicitly design a matched-step experiment separately.
 2. State one hypothesis; change only the selected axis. Run from the repository root:
 
    ```bash
-   python train.py --data-config configs/data/official-direct.json \
-     --output-dir runs/regression-trial-001
+   python train.py --output-dir runs/regression-trial-001
    ```
 
-   The runner saves the effective recipe, profile, and editable script in an ignored
+   The runner saves the effective recipe, catalog, and editable script in an ignored
    sibling `-inputs/` directory. Evaluators retain resolved configuration, hashes,
    predictions and metrics. Use a fresh output path for every attempt. Keep neural
    outputs directly under the shared `runs/` directory, not separate budget roots.

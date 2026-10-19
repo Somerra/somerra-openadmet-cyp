@@ -1,4 +1,5 @@
 {
+  "data_sources": ["official_direct"],
   "models": ["lightgbm", "extra_trees", "ridge"],
   "embeddings_dir": "models/chemeleon/official-direct-embeddings",
   "seed": 42,

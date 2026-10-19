@@ -106,9 +106,10 @@ budget; the selected value is written into `run_manifest.json`.
 
 Regression research follows an [autoresearch-style protocol](program.md): edit one
 model recipe in `train.py`, keep the evaluator fixed, and retain only the best
-configurations. [Data profiles](configs/README.md) independently select official,
-auxiliary, and external assays. Model experiments freeze data; data experiments
-freeze the model. Each invocation runs one trial, not an unattended loop.
+configurations. One [data catalog](configs/README.md) registers all sources; each
+model recipe chooses its `data_sources`. Model experiments freeze that selection;
+data experiments change only the selection, keeping model/training settings fixed.
+Each invocation runs one trial, not an unattended loop.
 The [data-source guide](docs/data-sources.md) explains what each source contributes,
 why it might help regression, and what our experiments have actually established.
 

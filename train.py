@@ -9,7 +9,7 @@ from pathlib import Path
 
 from somerra_openadmet.configuration import resolve_config
 
-# Model research edits this block only. Data research freezes this entire file.
+# Model research changes model knobs; data research changes only data_sources.
 BACKEND = "cpu"  # "cpu" (nested evaluation) or "neural" (screening only)
 MODEL_RECIPE = Path("configs/models/incumbent.json")
 MODEL_OVERRIDES = {}
@@ -17,7 +17,7 @@ MODEL_OVERRIDES = {}
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--data-config", type=Path, required=True)
+    parser.add_argument("--data-config", type=Path, default=Path("configs/data.json"))
     parser.add_argument("--output-dir", type=Path, required=True)
     args = parser.parse_args()
     if BACKEND not in {"cpu", "neural"}:

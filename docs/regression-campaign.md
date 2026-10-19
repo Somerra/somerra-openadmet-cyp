@@ -7,17 +7,16 @@ not promote or upload it. Screening scores are model-selection evidence.
 ## Current workflow
 
 Follow [program.md](../program.md): `train.py` is the editable model recipe;
-data profiles select sources independently, and the evaluation harness stays fixed.
+its `data_sources` selects inputs from one shared catalog, and the evaluator stays fixed.
 See [the catalog](../configs/README.md) for source locations and best recipes.
 See [the data-source guide](data-sources.md) for source-specific value, limitations,
 and the distinction between biological relevance and demonstrated modeling gains.
 
 ```bash
 openadmet-cyp regression prepare --output-dir data/prepared/official-direct
-python train.py --data-config configs/data/official-direct.json \
-  --output-dir runs/regression-trial-001
+python train.py --output-dir runs/regression-trial-001
 openadmet-cyp regression evaluate --model-config configs/models/frozen-challenger.json \
-  --data-config configs/data/official-direct.json --output-dir runs/regression-frozen-trial-001
+  --data-config configs/data.json --output-dir runs/regression-frozen-trial-001
 ```
 
 The frozen recipe requires embeddings prepared at its configured path. Use
@@ -25,7 +24,8 @@ The frozen recipe requires embeddings prepared at its configured path. Use
 runs/chemeleon_mp.pt --output-dir models/chemeleon/official-direct-embeddings`.
 Prepare auxiliary/external snapshots explicitly with `regression auxiliary`,
 `fetch-chembl`, or `fetch-pubchem` and the output locations in the catalog.
-Existing snapshots and runs are unchanged; local profiles can reference them.
+For fresh setup of all sources, use `make prepare-regression-data`.
+Existing snapshots and runs are unchanged; the shared catalog can reference them.
 
 ## Historical reproduction
 

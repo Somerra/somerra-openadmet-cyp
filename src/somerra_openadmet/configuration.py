@@ -1,4 +1,4 @@
-"""Compose independent model recipes and named data profiles into legacy run settings."""
+"""Resolve model-selected sources against one shared data-location catalog."""
 
 import json
 from pathlib import Path
@@ -27,12 +27,14 @@ def resolve_config(
         raise ValueError("Provide --model-config, --data-config, and --output-dir together")
     model = json.loads(model_config.read_text())
     profile = json.loads(data_config.read_text())
+    if not isinstance(model, dict) or not isinstance(profile, dict):
+        raise ValueError("Model recipe and data catalog must be JSON objects")
     if set(model) & (DATA_FIELDS | {"output_dir"}):
-        raise ValueError("Model recipes must not contain dataset selection or output_dir")
+        raise ValueError("Model recipes select data_sources by name, not paths or output_dir")
     if set(profile) - {"prepared_dir", "auxiliary_sources"}:
-        raise ValueError("Data profiles may contain only prepared_dir and auxiliary_sources")
+        raise ValueError("Data catalog may contain only prepared_dir and auxiliary_sources")
     if not isinstance(profile.get("prepared_dir"), str) or not profile["prepared_dir"]:
-        raise ValueError("Data profile requires a nonempty prepared_dir")
+        raise ValueError("Data catalog requires a nonempty prepared_dir")
     sources = profile.get("auxiliary_sources", {})
     if not isinstance(sources, dict) or set(sources) - SOURCE_NAMES:
         raise ValueError(f"Unknown auxiliary source; choose from {sorted(SOURCE_NAMES)}")
@@ -40,13 +42,26 @@ def resolve_config(
         raise ValueError("Auxiliary source paths must be nonempty strings")
     if len(set(sources.values())) != len(sources):
         raise ValueError("Each auxiliary source needs a distinct snapshot directory")
+    selected = model.pop("data_sources", None)
+    if (
+        not isinstance(selected, list)
+        or any(not isinstance(name, str) for name in selected)
+        or len(set(selected)) != len(selected)
+        or "official_direct" not in selected
+    ):
+        raise ValueError("Model data_sources must be a unique list including official_direct")
+    missing = set(selected) - {"official_direct", *sources}
+    if missing:
+        raise ValueError(f"Selected data sources unavailable in catalog: {sorted(missing)}")
+    selected_auxiliary = {name: sources[name] for name in selected if name != "official_direct"}
     config = {**model, "prepared_dir": profile["prepared_dir"], "output_dir": str(output_dir)}
-    if sources:
-        config["auxiliary_dirs"] = list(sources.values())
+    if selected_auxiliary:
+        config["auxiliary_dirs"] = list(selected_auxiliary.values())
     provenance = {
         "model_recipe": {"path": str(model_config), "sha256": sha256_file(model_config)},
-        "data_profile": {"path": str(data_config), "sha256": sha256_file(data_config)},
-        "auxiliary_sources": sources,
+        "data_catalog": {"path": str(data_config), "sha256": sha256_file(data_config)},
+        "selected_data_sources": selected,
+        "auxiliary_sources": selected_auxiliary,
     }
     return config, provenance
 

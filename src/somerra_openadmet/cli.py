@@ -24,8 +24,8 @@ def _json(value: object) -> None:
 def _run_config_arguments(parser: argparse.ArgumentParser) -> None:
     recipe = parser.add_mutually_exclusive_group(required=True)
     recipe.add_argument("--config", type=Path, help="Legacy flat run config")
-    recipe.add_argument("--model-config", type=Path, help="Model recipe without dataset selection")
-    parser.add_argument("--data-config", type=Path, help="Independent named data-source profile")
+    recipe.add_argument("--model-config", type=Path, help="Model recipe including data_sources")
+    parser.add_argument("--data-config", type=Path, help="Shared data-location catalog")
     parser.add_argument("--output-dir", type=Path, help="New run directory for composed configs")
 
 
