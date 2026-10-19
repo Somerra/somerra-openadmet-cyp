@@ -1,6 +1,6 @@
 import pytest
 
-from somerra_openadmet.assays import allowed_auxiliary, potency
+from somerra_openadmet.data_sources.common import allowed_auxiliary, potency
 
 
 def test_potency_reverses_censoring_and_units():

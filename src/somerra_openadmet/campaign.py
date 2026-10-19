@@ -13,112 +13,25 @@ from pathlib import Path
 import joblib
 import numpy as np
 import pandas as pd
-from rdkit import Chem, DataStructs
-from rdkit.Chem import rdFingerprintGenerator
-from rdkit.Chem.MolStandardize import rdMolStandardize
-from rdkit.ML.Cluster import Butina
 from sklearn.dummy import DummyRegressor
 from sklearn.model_selection import GroupKFold
 from sklearn.neighbors import KNeighborsRegressor
 
-from .constants import ACTIVITY_ENDPOINTS, ACTIVITY_TRAIN_FILE, TEST_FILE
-from .data import load_activity, load_test
-from .download import sha256_file, verify_activity_data
+from .constants import ACTIVITY_ENDPOINTS
+from .data import load_test
+from .data_sources.common import (  # noqa: F401
+    balanced_folds,
+    cluster_ids,
+    parent_smiles,
+    write_json,
+)
+from .data_sources.official import prepare  # noqa: F401
+from .download import sha256_file
 from .ensemble import _metric_weights
 from .features import featurize_smiles
 from .metrics import soft_threshold_rae
 from .models import make_regressor
 from .validation import validate_submission
-
-
-def write_json(path: Path, value: object) -> None:
-    path.write_text(json.dumps(value, indent=2, sort_keys=True, allow_nan=False) + "\n")
-
-
-def parent_smiles(value: str, *, stereo: bool = False) -> str:
-    mol = Chem.MolFromSmiles(value)
-    if mol is None or mol.GetNumAtoms() == 0:
-        raise ValueError(f"Invalid molecular structure: {value!r}")
-    mol = rdMolStandardize.Cleanup(mol)
-    mol = rdMolStandardize.LargestFragmentChooser(preferOrganic=True).choose(mol)
-    mol = rdMolStandardize.Uncharger().uncharge(mol)
-    return Chem.MolToSmiles(mol, isomericSmiles=stereo)
-
-
-def cluster_ids(smiles: list[str], distance: float = 0.4) -> np.ndarray:
-    """Deterministic Butina groups; input order is canonicalized by the caller."""
-    generator = rdFingerprintGenerator.GetMorganGenerator(radius=2, fpSize=2048)
-    fps = [generator.GetFingerprint(Chem.MolFromSmiles(s)) for s in smiles]
-    distances = []
-    for i in range(1, len(fps)):
-        distances.extend(1.0 - np.asarray(DataStructs.BulkTanimotoSimilarity(fps[i], fps[:i])))
-    clusters = Butina.ClusterData(distances, len(fps), distance, isDistData=True)
-    result = np.empty(len(fps), dtype=int)
-    for group, indices in enumerate(clusters):
-        result[list(indices)] = group
-    return result
-
-
-def balanced_folds(groups: np.ndarray, observed: np.ndarray, n_folds: int) -> np.ndarray:
-    unique = np.unique(groups)
-    if len(unique) < n_folds or n_folds < 2:
-        raise ValueError("Need at least two folds and at least one molecular group per fold")
-    counts = np.stack([observed[groups == group].sum(axis=0) for group in unique])
-    sizes = np.asarray([(groups == group).sum() for group in unique])
-    loads = np.zeros((n_folds, observed.shape[1] + 1))
-    totals = np.maximum(np.r_[counts.sum(axis=0), sizes.sum()], 1)
-    assignment = {}
-    order = sorted(range(len(unique)), key=lambda i: (-int(counts[i].sum()), -sizes[i], i))
-    for position, index in enumerate(order):
-        weight = np.r_[counts[index], sizes[index]]
-        costs = []
-        for fold in range(n_folds):
-            proposed = loads.copy()
-            proposed[fold] += weight
-            costs.append(float(np.sum((proposed / totals) ** 2)))
-        fold = position if position < n_folds else int(np.argmin(costs))
-        assignment[unique[index]] = fold
-        loads[fold] += weight
-    return np.asarray([assignment[group] for group in groups])
-
-
-def prepare(data_dir: Path, output_dir: Path, n_folds: int = 5) -> dict:
-    report = verify_activity_data(data_dir)
-    if not report.valid:
-        raise ValueError(f"Dataset verification failed: {report.errors}")
-    train, test = load_activity(data_dir), load_test(data_dir)
-    train["parent"] = train.SMILES.map(parent_smiles)
-    test_parents = set(test.SMILES.map(parent_smiles))
-    overlap = train.parent.isin(test_parents)
-    excluded = train.loc[overlap, ["Molecule_Name", "parent"]]
-    train = train.loc[~overlap].copy()
-    parents = sorted(train.parent.unique())
-    groups = dict(zip(parents, cluster_ids(parents), strict=True))
-    train["cluster"] = train.parent.map(groups)
-    train = train.sort_values(["parent", "Molecule_Name"]).reset_index(drop=True)
-    train["fold"] = balanced_folds(
-        train.cluster.to_numpy(), train[list(ACTIVITY_ENDPOINTS)].notna().to_numpy(), n_folds
-    )
-    output_dir.mkdir(parents=True, exist_ok=False)
-    train.to_csv(output_dir / "training.csv", index=False)
-    excluded.to_csv(output_dir / "excluded_test_overlap.csv", index=False)
-    manifest = {
-        "schema_version": 1,
-        "method": "ecfp4_2048_butina_distance_0.4",
-        "n_folds": n_folds,
-        "rows": len(train),
-        "parents": len(parents),
-        "clusters": len(set(groups.values())),
-        "excluded_test_overlap": len(excluded),
-        "input_sha256": {
-            name: sha256_file(data_dir / name) for name in (ACTIVITY_TRAIN_FILE, TEST_FILE)
-        },
-        "training_sha256": sha256_file(output_dir / "training.csv"),
-        "rdkit_version": version("rdkit"),
-        "fold_label_counts": train.groupby("fold")[list(ACTIVITY_ENDPOINTS)].count().to_dict(),
-    }
-    write_json(output_dir / "manifest.json", manifest)
-    return manifest
 
 
 def fit_predict(name, x, y, query, seed, n_jobs):
@@ -168,8 +81,22 @@ def nested_endpoint(frame, x, names, *, seed=42, n_jobs=8, inner_folds=3, search
     return base, blend, weights_by_fold
 
 
-def evaluate(config_path: Path) -> dict:
-    config = json.loads(config_path.read_text())
+def evaluate(
+    config_path: Path | None = None,
+    *,
+    model_config: Path | None = None,
+    data_config: Path | None = None,
+    output_dir: Path | None = None,
+) -> dict:
+    from .configuration import resolve_config, source_hashes
+
+    config, provenance = resolve_config(
+        config_path, model_config=model_config, data_config=data_config, output_dir=output_dir
+    )
+    if config.get("auxiliary_dirs") or config.get("auxiliary_dir"):
+        raise ValueError(
+            "CPU evaluation supports official-direct only; use screen-neural for auxiliary data"
+        )
     allowed = {
         "prepared_dir",
         "output_dir",
@@ -265,7 +192,8 @@ def evaluate(config_path: Path) -> dict:
                 for p in ("numpy", "pandas", "rdkit", "scikit-learn", "lightgbm", "scipy")
             },
             "gpu_hours": 0,
-            "source_sha256": {p.name: sha256_file(p) for p in Path(__file__).parent.glob("*.py")},
+            "source_sha256": source_hashes(),
+            "configuration_provenance": provenance,
             "embedding_manifest": embedding_manifest,
             "oof_sha256": sha256_file(output / "oof_predictions.csv"),
         },

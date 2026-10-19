@@ -11,9 +11,14 @@ build/
 
 # Challenge data, model artifacts, and submissions are reproducible but not committed.
 data/raw/
+data/prepared/
+data/external/
 runs/
 submissions/
 models/
+!configs/models/
+!configs/models/*.json
+results.tsv
 
 # Local IDE and OS files.
 .DS_Store

@@ -1,29 +1,63 @@
-"""Official auxiliary regression targets and fold-safe molecular exclusions."""
+"""Prepare the official challenge data and its official auxiliary assays."""
 
 from __future__ import annotations
 
+from importlib.metadata import version
 from pathlib import Path
 
 import numpy as np
 import pandas as pd
-from rdkit import Chem, DataStructs
-from rdkit.Chem import rdFingerprintGenerator
 
-from .campaign import parent_smiles, write_json
-from .constants import EMAX_TRAIN_FILE, SINGLE_CONCENTRATION_FILE, TDI_TRAIN_FILE
-from .data import load_test
-from .download import sha256_file
+from ..constants import (
+    ACTIVITY_ENDPOINTS,
+    ACTIVITY_TRAIN_FILE,
+    EMAX_TRAIN_FILE,
+    SINGLE_CONCENTRATION_FILE,
+    TDI_TRAIN_FILE,
+    TEST_FILE,
+)
+from ..data import load_activity, load_test
+from ..download import sha256_file, verify_activity_data
+from .common import balanced_folds, cluster_ids, parent_smiles, write_json
 
 
-def potency(value: float, units: str, relation: str = "=") -> tuple[float, str]:
-    """Convert molar concentration to p-scale, reversing inequality direction."""
-    factors = {"M": 1.0, "mM": 1e-3, "uM": 1e-6, "nM": 1e-9, "pM": 1e-12}
-    if units not in factors or relation not in {"=", "<", ">", "<=", ">="}:
-        raise ValueError("Unsupported potency units or censoring relation")
-    if not np.isfinite(value) or value <= 0:
-        raise ValueError("Potency must be finite and positive")
-    reverse = {"=": "=", "<": ">", ">": "<", "<=": ">=", ">=": "<="}
-    return -float(np.log10(value * factors[units])), reverse[relation]
+def prepare(data_dir: Path, output_dir: Path, n_folds: int = 5) -> dict:
+    report = verify_activity_data(data_dir)
+    if not report.valid:
+        raise ValueError(f"Dataset verification failed: {report.errors}")
+    train, test = load_activity(data_dir), load_test(data_dir)
+    train["parent"] = train.SMILES.map(parent_smiles)
+    test_parents = set(test.SMILES.map(parent_smiles))
+    overlap = train.parent.isin(test_parents)
+    excluded = train.loc[overlap, ["Molecule_Name", "parent"]]
+    train = train.loc[~overlap].copy()
+    parents = sorted(train.parent.unique())
+    groups = dict(zip(parents, cluster_ids(parents), strict=True))
+    train["cluster"] = train.parent.map(groups)
+    train = train.sort_values(["parent", "Molecule_Name"]).reset_index(drop=True)
+    train["fold"] = balanced_folds(
+        train.cluster.to_numpy(), train[list(ACTIVITY_ENDPOINTS)].notna().to_numpy(), n_folds
+    )
+    output_dir.mkdir(parents=True, exist_ok=False)
+    train.to_csv(output_dir / "training.csv", index=False)
+    excluded.to_csv(output_dir / "excluded_test_overlap.csv", index=False)
+    manifest = {
+        "schema_version": 1,
+        "method": "ecfp4_2048_butina_distance_0.4",
+        "n_folds": n_folds,
+        "rows": len(train),
+        "parents": len(parents),
+        "clusters": len(set(groups.values())),
+        "excluded_test_overlap": len(excluded),
+        "input_sha256": {
+            name: sha256_file(data_dir / name) for name in (ACTIVITY_TRAIN_FILE, TEST_FILE)
+        },
+        "training_sha256": sha256_file(output_dir / "training.csv"),
+        "rdkit_version": version("rdkit"),
+        "fold_label_counts": train.groupby("fold")[list(ACTIVITY_ENDPOINTS)].count().to_dict(),
+    }
+    write_json(output_dir / "manifest.json", manifest)
+    return manifest
 
 
 def auxiliary(data_dir: Path, output_dir: Path) -> dict:
@@ -90,23 +124,3 @@ def auxiliary(data_dir: Path, output_dir: Path) -> dict:
     }
     write_json(output_dir / "manifest.json", manifest)
     return manifest
-
-
-def allowed_auxiliary(parents: list[str], heldout: list[str], threshold: float = 0.6):
-    """Exclude exact parents and analogs of every held-out molecule, across sources.
-
-    Unlike assigning a new molecule to its nearest cluster center, this prevents
-    an external molecule bridging a training cluster and a validation cluster.
-    """
-    generator = rdFingerprintGenerator.GetMorganGenerator(radius=2, fpSize=2048)
-    holdout_fps = [generator.GetFingerprint(Chem.MolFromSmiles(s)) for s in sorted(set(heldout))]
-    holdout_set = set(heldout)
-    result = []
-    for parent in parents:
-        fp = generator.GetFingerprint(Chem.MolFromSmiles(parent))
-        similar = (
-            bool(holdout_fps)
-            and max(DataStructs.BulkTanimotoSimilarity(fp, holdout_fps)) >= threshold
-        )
-        result.append(parent not in holdout_set and not similar)
-    return np.asarray(result, dtype=bool)

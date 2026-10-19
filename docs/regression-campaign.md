@@ -4,7 +4,33 @@ The campaign uses public data and a maximum planned allocation of 72 GPU-hours.
 Existing runs remain immutable. `regression export` creates a candidate; it does
 not promote or upload it. Screening scores are model-selection evidence.
 
-## Reproduction
+## Current workflow
+
+Follow [program.md](../program.md): `train.py` is the editable model recipe;
+data profiles select sources independently, and the evaluation harness stays fixed.
+See [the catalog](../configs/README.md) for source locations and best recipes.
+
+```bash
+openadmet-cyp regression prepare --output-dir data/prepared/official-direct
+python train.py --data-config configs/data/official-direct.json \
+  --output-dir runs/regression-trial-001
+openadmet-cyp regression evaluate --model-config configs/models/frozen-challenger.json \
+  --data-config configs/data/official-direct.json --output-dir runs/regression-frozen-trial-001
+```
+
+The frozen recipe requires embeddings prepared at its configured path. Use
+`regression embed --prepared-dir data/prepared/official-direct --checkpoint
+runs/chemeleon_mp.pt --output-dir models/chemeleon/official-direct-embeddings`.
+Prepare auxiliary/external snapshots explicitly with `regression auxiliary`,
+`fetch-chembl`, or `fetch-pubchem` and the output locations in the catalog.
+Existing snapshots and runs are unchanged; local profiles can reference them.
+
+## Historical reproduction
+
+The commands below document the completed campaign, not the maintained config
+catalog. Before using a historical command, retrieve its exact flat config from
+commit `9b43c07c2c9c3afc79a445634097b4481b79d0ac` into ignored `runs/` and replace
+the `configs/` argument accordingly. Do not recreate failed trial configs in Git.
 
 Run CPU commands in the existing supported Conda environment. Neural commands need
 the separate `environment-neural.yml` environment; install this package there with
@@ -75,7 +101,7 @@ does not yet reserve allocations, so this is not a universal GPU-time governor.
 The CUDA allocator
 is capped at 25% of GPU memory to coexist with the existing GPU workload.
 
-## Initial evidence
+## Model usefulness: evidence
 
 Nested CPU controls: MA-ST-RAE 0.748555, compared with 0.794059 for LightGBM in the
 same run. The historical cross-fitted score was 0.746650 on different folds, so this
@@ -159,9 +185,9 @@ Only CYP3A4 improved in this comparison. This is not evidence of an overall gain
 from external data, and the screen does not isolate external data from differences
 in architecture or training duration. No model was promoted or uploaded.
 
-### Matched external-data control (fixed before viewing results)
+## Data usefulness: matched external-data control
 
-The next authorized run uses `configs/regression-chemeleon-official-auxiliary-10epoch.json`:
+The completed matched run used `regression-chemeleon-official-auxiliary-10epoch.json`:
 five existing folds, 10 epochs, seed 42 plus fold, the same CheMeleon checkpoint,
 learning rate, optimizer, Huber/BCE implementation, and neural environment. It
 retains official direct and official auxiliary TDI/Emax/log2fc targets, removing
@@ -218,8 +244,8 @@ reusing these OOF results. No further training was launched with this control ru
 The implementation and run artifacts record actual progress, not completion of
 the full proposed campaign. Censored-target training, source-balanced batches,
 secondary analog evaluation, fully nested neural selection, universal GPU accounting,
-and final multi-seed neural fitting remain unimplemented. Scratch, interval, external,
-and incumbent-parity configurations are runnable; consult their `metrics.json` and
+and final multi-seed neural fitting remain unimplemented. Historical trial recipes
+remain available from Git history and run provenance; consult their `metrics.json` and
 `run_manifest.json` for completion, not the existence of an output directory. Final
 promotion requires comparison against the completed incumbent-parity run. No failed
 screen should be promoted merely because its experiment finished.

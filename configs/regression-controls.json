@@ -1,8 +1,0 @@
-{
-  "prepared_dir": "runs/regression-corpus-v1",
-  "output_dir": "runs/regression-nested-controls-v1",
-  "models": ["lightgbm", "extra_trees", "constant", "nearest"],
-  "seed": 42,
-  "n_jobs": 8,
-  "inner_folds": 3
-}

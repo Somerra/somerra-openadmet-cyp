@@ -21,6 +21,14 @@ def _json(value: object) -> None:
     print(json.dumps(value, indent=2, sort_keys=True))
 
 
+def _run_config_arguments(parser: argparse.ArgumentParser) -> None:
+    recipe = parser.add_mutually_exclusive_group(required=True)
+    recipe.add_argument("--config", type=Path, help="Legacy flat run config")
+    recipe.add_argument("--model-config", type=Path, help="Model recipe without dataset selection")
+    parser.add_argument("--data-config", type=Path, help="Independent named data-source profile")
+    parser.add_argument("--output-dir", type=Path, help="New run directory for composed configs")
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(prog="openadmet-cyp")
     commands = parser.add_subparsers(dest="command", required=True)
@@ -86,7 +94,7 @@ def build_parser() -> argparse.ArgumentParser:
     prepare.add_argument("--output-dir", type=Path, required=True)
     prepare.add_argument("--n-folds", type=int, default=5)
     evaluate = stages.add_parser("evaluate")
-    evaluate.add_argument("--config", type=Path, required=True)
+    _run_config_arguments(evaluate)
     compare = stages.add_parser("compare")
     compare.add_argument("--run-dir", type=Path, required=True)
     compare.add_argument("--reference", default="lightgbm")
@@ -104,7 +112,7 @@ def build_parser() -> argparse.ArgumentParser:
     embed.add_argument("--checkpoint", type=Path, required=True)
     embed.add_argument("--output-dir", type=Path, required=True)
     screen = stages.add_parser("screen-neural")
-    screen.add_argument("--config", type=Path, required=True)
+    _run_config_arguments(screen)
     merge = stages.add_parser("merge-neural", help="Validate disjoint recovered screening folds")
     merge.add_argument("--original-config", type=Path, required=True)
     merge.add_argument("--recovered-dir", type=Path, required=True)
@@ -145,7 +153,7 @@ def main(argv: list[str] | None = None) -> None:
 
             _json(diagnose(args.data_dir, args.run_dir, args.output_dir))
         elif args.stage == "auxiliary":
-            from .assays import auxiliary
+            from .data_sources.official import auxiliary
 
             _json(auxiliary(args.data_dir, args.output_dir))
         elif args.stage == "embed":
@@ -155,7 +163,14 @@ def main(argv: list[str] | None = None) -> None:
         elif args.stage == "screen-neural":
             from .neural import screen
 
-            _json(screen(args.config))
+            _json(
+                screen(
+                    args.config,
+                    model_config=args.model_config,
+                    data_config=args.data_config,
+                    output_dir=args.output_dir,
+                )
+            )
         elif args.stage == "merge-neural":
             from .recovery import merge_recovered
 
@@ -165,11 +180,11 @@ def main(argv: list[str] | None = None) -> None:
                 )
             )
         elif args.stage == "fetch-chembl":
-            from .external import chembl
+            from .data_sources.chembl import chembl
 
             _json(chembl(args.data_dir, args.output_dir, args.release))
         elif args.stage == "fetch-pubchem":
-            from .external import pubchem
+            from .data_sources.pubchem import pubchem
 
             _json(pubchem(args.data_dir, args.output_dir))
         elif args.stage == "export":
@@ -177,7 +192,14 @@ def main(argv: list[str] | None = None) -> None:
 
             _json(export(args.run_dir, args.data_dir, args.output_dir, args.checkpoint))
         else:
-            _json(evaluate(args.config))
+            _json(
+                evaluate(
+                    args.config,
+                    model_config=args.model_config,
+                    data_config=args.data_config,
+                    output_dir=args.output_dir,
+                )
+            )
         return
     if args.command == "download":
         kwargs = {} if args.revision is None else {"revision": args.revision}

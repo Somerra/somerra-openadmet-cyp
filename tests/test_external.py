@@ -1,19 +1,19 @@
 import pandas as pd
 import pytest
 
-from somerra_openadmet import external
+from somerra_openadmet.data_sources import chembl
 
 
 def test_chembl_release_mismatch_stops_before_writing(tmp_path, monkeypatch):
-    monkeypatch.setattr(external, "request_json", lambda _: {"chembl_db_version": "unexpected"})
+    monkeypatch.setattr(chembl, "request_json", lambda _: {"chembl_db_version": "unexpected"})
     output = tmp_path / "output"
     with pytest.raises(ValueError, match="Expected"):
-        external.chembl(tmp_path, output)
+        chembl.chembl(tmp_path, output)
     assert not output.exists()
 
 
 def test_chembl_preserves_censoring_and_excludes_test_parents(tmp_path, monkeypatch):
-    monkeypatch.setattr(external, "load_test", lambda _: pd.DataFrame({"SMILES": ["CCO"]}))
+    monkeypatch.setattr(chembl, "load_test", lambda _: pd.DataFrame({"SMILES": ["CCO"]}))
 
     def response(url):
         if "status.json" in url:
@@ -38,9 +38,9 @@ def test_chembl_preserves_censoring_and_excludes_test_parents(tmp_path, monkeypa
             )
         return {"activities": entries, "page_meta": {"total_count": 3, "next": None}}
 
-    monkeypatch.setattr(external, "request_json", response)
+    monkeypatch.setattr(chembl, "request_json", response)
     output = tmp_path / "output"
-    result = external.chembl(tmp_path, output)
+    result = chembl.chembl(tmp_path, output)
     assert result["rows"] == 2
     assert result["exact_rows"] == 1
     records = pd.read_csv(output / "records.csv")

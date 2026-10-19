@@ -165,17 +165,26 @@ def embeddings(prepared_dir: Path, checkpoint: Path, output_dir: Path) -> dict:
     return result
 
 
-def screen(config_path: Path) -> dict:
+def screen(
+    config_path: Path | None = None,
+    *,
+    model_config: Path | None = None,
+    data_config: Path | None = None,
+    output_dir: Path | None = None,
+) -> dict:
     """Fixed-epoch outer CV for screening; meta-model selection remains nested."""
     import torch
     from chemprop import nn
 
-    from .assays import allowed_auxiliary
     from .budget import GPUBudget
+    from .configuration import resolve_config, source_hashes
     from .constants import ACTIVITY_ENDPOINTS
+    from .data_sources.common import allowed_auxiliary
     from .metrics import soft_threshold_rae
 
-    config = json.loads(config_path.read_text())
+    config, provenance = resolve_config(
+        config_path, model_config=model_config, data_config=data_config, output_dir=output_dir
+    )
     allowed = {
         "prepared_dir",
         "output_dir",
@@ -238,14 +247,14 @@ def screen(config_path: Path) -> dict:
     rows = []
     allocation = GPUBudget(output.parent / "regression-gpu-budget.json", output, budget / 3600)
     allocation.reserve()
-    source_hashes = {p.name: sha256_file(p) for p in Path(__file__).parent.glob("*.py")}
     run_record = {
         "config": config,
         "prepared_manifest": manifest,
         "auxiliary_manifest": aux_manifest,
         "checkpoint_sha256": sha256_file(checkpoint) if checkpoint else None,
         "gpu_hours": None,
-        "source_sha256": source_hashes,
+        "source_sha256": source_hashes(),
+        "configuration_provenance": provenance,
         "selected_folds": folds_to_run,
         "completed_folds": [],
         "requested_folds_complete": False,
