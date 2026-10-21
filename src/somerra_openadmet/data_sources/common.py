@@ -3,9 +3,7 @@
 from __future__ import annotations
 
 import json
-import time
 from pathlib import Path
-from urllib.request import urlopen
 
 import numpy as np
 from rdkit import Chem, DataStructs
@@ -65,17 +63,6 @@ def balanced_folds(groups: np.ndarray, observed: np.ndarray, n_folds: int) -> np
     return np.asarray([assignment[group] for group in groups])
 
 
-def potency(value: float, units: str, relation: str = "=") -> tuple[float, str]:
-    """Convert molar concentration to p-scale, reversing inequality direction."""
-    factors = {"M": 1.0, "mM": 1e-3, "uM": 1e-6, "nM": 1e-9, "pM": 1e-12}
-    if units not in factors or relation not in {"=", "<", ">", "<=", ">="}:
-        raise ValueError("Unsupported potency units or censoring relation")
-    if not np.isfinite(value) or value <= 0:
-        raise ValueError("Potency must be finite and positive")
-    reverse = {"=": "=", "<": ">", ">": "<", "<=": ">=", ">=": "<="}
-    return -float(np.log10(value * factors[units])), reverse[relation]
-
-
 def allowed_auxiliary(parents: list[str], heldout: list[str], threshold: float = 0.6):
     """Exclude exact parents and analogs of every held-out molecule, across sources.
 
@@ -94,15 +81,3 @@ def allowed_auxiliary(parents: list[str], heldout: list[str], threshold: float =
         )
         result.append(parent not in holdout_set and not similar)
     return np.asarray(result, dtype=bool)
-
-
-def request_json(url):
-    """Retrieve a JSON response with bounded retries for transient source errors."""
-    for attempt in range(3):
-        try:
-            with urlopen(url, timeout=60) as response:
-                return json.load(response)
-        except (OSError, ValueError):
-            if attempt == 2:
-                raise
-            time.sleep(attempt + 1)

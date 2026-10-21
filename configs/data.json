@@ -1,8 +1,6 @@
 {
   "prepared_dir": "data/prepared/official-direct",
   "auxiliary_sources": {
-    "official_auxiliary": "data/prepared/official-auxiliary",
-    "chembl37": "data/external/chembl37",
-    "pubchem1851": "data/external/pubchem1851"
+    "official_auxiliary": "data/prepared/official-auxiliary"
   }
 }

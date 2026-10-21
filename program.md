@@ -86,5 +86,6 @@ Research `keep` does not change the incumbent or authorize export/upload. Promot
 still requires the campaign's 3% macro gain, paired 95% delta bound below zero,
 no endpoint regression above 0.02, complete provenance, and remaining validation
 gates. The frozen-feature recipe is the best observed challenger, **not promoted**.
-External data has not shown a clear benefit in the matched comparison. Preserve
+External data is deferred to issues #3 and #4 and is not supported by this PR.
+It has not shown a clear benefit in the matched comparison. Preserve
 these distinct conclusions; availability of a source is not evidence of usefulness.

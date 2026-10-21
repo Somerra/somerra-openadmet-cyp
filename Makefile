@@ -24,8 +24,6 @@ verify-data:
 prepare-regression-data: download
 	$(CONDA_RUN) openadmet-cyp regression prepare --output-dir data/prepared/official-direct
 	$(CONDA_RUN) openadmet-cyp regression auxiliary --output-dir data/prepared/official-auxiliary
-	$(CONDA_RUN) openadmet-cyp regression fetch-chembl --output-dir data/external/chembl37
-	$(CONDA_RUN) openadmet-cyp regression fetch-pubchem --output-dir data/external/pubchem1851
 
 audit:
 	$(CONDA_RUN) openadmet-cyp audit --data-dir data/raw

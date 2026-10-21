@@ -26,6 +26,10 @@ def predict_checkpoint(checkpoint: Path, smiles: list[str], *, device: str = "cp
     mp.load_state_dict(saved["encoder_state"])
     mp = mp.to(device).eval()
     tasks = saved["tasks"]
+    if any(t.startswith(("ChEMBL_", "PubChem_")) for t in tasks):
+        raise ValueError(
+            "External checkpoints require archived code at fb848c4; datasets are deferred"
+        )
     head = torch.nn.Sequential(
         torch.nn.Linear(mp.output_dim, 256),
         torch.nn.ReLU(),
@@ -42,9 +46,8 @@ def predict_checkpoint(checkpoint: Path, smiles: list[str], *, device: str = "cp
     if not rows:
         return pd.DataFrame(columns=tasks, dtype=float)
     values = np.concatenate(rows) * np.asarray(saved["scales"]) + np.asarray(saved["means"])
-    for index, task in enumerate(tasks):
-        if task.startswith("PubChem_"):
-            values[:, index] = 1 / (1 + np.exp(-np.clip(values[:, index], -80, 80)))
+    # Current checkpoints contain regression heads only. Historical external
+    # checkpoints require the archived implementation at fb848c4 for full decoding.
     if not np.isfinite(values).all():
         raise ValueError("Non-finite checkpoint predictions")
     return pd.DataFrame(values, columns=tasks)

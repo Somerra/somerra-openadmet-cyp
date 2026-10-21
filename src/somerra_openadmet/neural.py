@@ -16,6 +16,17 @@ from .campaign import write_json
 from .download import sha256_file
 
 
+def validate_official_auxiliary(frame):
+    """Reject deferred sources even when a historical flat config supplies paths."""
+    from .constants import EMAX_TRAIN_FILE, SINGLE_CONCENTRATION_FILE, TDI_TRAIN_FILE
+
+    allowed = {EMAX_TRAIN_FILE, SINGLE_CONCENTRATION_FILE, TDI_TRAIN_FILE}
+    if "source" not in frame or not set(frame.source).issubset(allowed):
+        raise ValueError(
+            "Only official auxiliary assays are supported; external sources are deferred"
+        )
+
+
 def masked_huber(prediction, target):
     import torch
 
@@ -29,17 +40,13 @@ def masked_huber(prediction, target):
     return ((losses * observed).sum(dim=0) / count.clamp_min(1))[active].mean()
 
 
-def mixed_loss(prediction, target, binary, sources):
-    """Balance source families, then observed heads; binary heads use logits."""
+def source_balanced_huber(prediction, target, sources):
+    """Balance official direct/auxiliary families, then observed regression heads."""
     import torch
 
     observed = torch.isfinite(target)
     safe = torch.where(observed, target, torch.zeros_like(target))
     losses = torch.nn.functional.huber_loss(prediction, safe, reduction="none")
-    if binary.any():
-        losses[:, binary] = torch.nn.functional.binary_cross_entropy_with_logits(
-            prediction[:, binary], safe[:, binary], reduction="none"
-        )
     counts = observed.sum(dim=0)
     head_loss = (losses * observed).sum(dim=0) / counts.clamp_min(1)
     families = []
@@ -218,7 +225,9 @@ def screen(
         if sha256_file(aux_dir / "assays.csv") != evidence["assays_sha256"]:
             raise ValueError("Auxiliary checksum mismatch")
         aux_manifest.append(evidence)
-        frames.append(pd.read_csv(aux_dir / "assays.csv"))
+        frame = pd.read_csv(aux_dir / "assays.csv")
+        validate_official_auxiliary(frame)
+        frames.append(frame)
     if frames:
         aux = pd.concat(frames, ignore_index=True)
     loss_name = config.get("loss", "huber")
@@ -286,19 +295,7 @@ def screen(
             if not np.isfinite(means).all():
                 raise ValueError("An assay head has no training labels")
             scales = np.maximum(scales, 1e-6)
-            binary_np = np.asarray([task.startswith("PubChem_") for task in tasks])
-            means[binary_np], scales[binary_np] = 0.0, 1.0
-            binary = torch.tensor(binary_np, device=device)
-            source_ids = [
-                2
-                if t.startswith("ChEMBL_")
-                else 3
-                if t.startswith("PubChem_")
-                else 0
-                if t in ACTIVITY_ENDPOINTS
-                else 1
-                for t in tasks
-            ]
+            source_ids = [0 if t in ACTIVITY_ENDPOINTS else 1 for t in tasks]
             sources = torch.tensor(source_ids, device=device)
             targets = (values - means) / scales
             if loss_name == "interval":
@@ -334,7 +331,7 @@ def screen(
                         target, lower, upper = batch.Y.to(device).chunk(3, dim=1)
                         loss = interval_loss(prediction, target, lower, upper)
                     else:
-                        loss = mixed_loss(prediction, batch.Y.to(device), binary, sources)
+                        loss = source_balanced_huber(prediction, batch.Y.to(device), sources)
                     if not torch.isfinite(loss):
                         raise ValueError("Non-finite neural training loss")
                     optimizer.zero_grad()

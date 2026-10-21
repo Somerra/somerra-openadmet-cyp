@@ -9,7 +9,7 @@ are model features, not an additional assay source. See `../program.md` for the
 single-axis research workflow. Trial recipes and results belong under ignored
 `runs/`, not here.
 
-`configs/data.json` registers all available source locations. Each model recipe
+`configs/data.json` registers the official bundle’s direct and auxiliary locations. Each model recipe
 chooses which to consume through `data_sources`; merely registering a source does
 not load it. Official direct labels are required for training and evaluation.
 
@@ -17,11 +17,9 @@ not load it. Official direct labels are required for training and evaluation.
 | --- | --- | --- |
 | `official_direct` | `data/prepared/official-direct` | `official.py` |
 | `official_auxiliary` | `data/prepared/official-auxiliary` | `official.py` |
-| `chembl37` | `data/external/chembl37` | `chembl.py` |
-| `pubchem1851` | `data/external/pubchem1851` | `pubchem.py` |
 
 For example, a neural recipe can specify
-`"data_sources": ["official_direct", "official_auxiliary", "chembl37"]`.
+`"data_sources": ["official_direct", "official_auxiliary"]`.
 The two maintained CPU recipes select only `official_direct`; selecting auxiliary
 sources with a CPU recipe raises an error rather than silently ignoring them.
 Unknown, duplicate or unavailable selections are rejected. Unselected sources
@@ -29,8 +27,8 @@ need not exist on disk for a run. Provenance records both the catalog hash and
 the selected source names/paths; evaluators hash the inputs they actually consume.
 
 For a fresh installation, `make prepare-regression-data` downloads the official
-files and prepares all four registered sources. This includes external network
-requests and may take time. Snapshot directories must be new; the command stops
+files and prepares the official direct and auxiliary measurements as one OpenADMET bundle.
+It downloads official challenge files, not external datasets. Snapshot directories must be new; the command stops
 instead of replacing existing evidence. If setup is interrupted, resume the missing
 stages individually using the commands in the Makefile. Training never downloads
 or refreshes a source implicitly.
@@ -40,7 +38,10 @@ snapshots are not moved; update the catalog paths to reuse them without refetchi
 `python autoresearch.py plan --output-dir runs/regression-trial-001` previews the
 recipe; replace `plan` with `run` to execute it. Both use the shared catalog
 by default; `--data-config` can override its location for another installation.
-There is no separate data config per experiment.
+There is no separate data config per experiment. ChEMBL and PubChem integrations
+are deferred to [#3](https://github.com/Somerra/somerra-openadmet-cyp/issues/3) and
+[#4](https://github.com/Somerra/somerra-openadmet-cyp/issues/4); their names and
+catalog paths are rejected by the current configuration resolver.
 
 Historical per-trial configs were removed from the maintained catalog, not from
 run artifacts or Git history. Exact old flat JSON remains at commit

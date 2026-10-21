@@ -6,8 +6,8 @@ pytest.importorskip("chemprop")
 from somerra_openadmet.neural import (  # noqa: E402
     interval_loss,
     masked_huber,
-    mixed_loss,
     selected_folds,
+    source_balanced_huber,
 )
 
 
@@ -26,11 +26,11 @@ def test_empty_target_batch_rejected():
         masked_huber(torch.zeros((2, 2)), torch.full((2, 2), float("nan")))
 
 
-def test_binary_head_uses_bce_with_finite_missing_gradients():
+def test_source_balanced_huber_with_finite_missing_gradients():
     prediction = torch.zeros((2, 2), requires_grad=True)
     target = torch.tensor([[1.0, 1.0], [float("nan"), 0.0]])
-    loss = mixed_loss(prediction, target, torch.tensor([False, True]), torch.tensor([0, 1]))
-    assert loss.item() == pytest.approx((0.5 + 0.69314718) / 2)
+    loss = source_balanced_huber(prediction, target, torch.tensor([0, 1]))
+    assert loss.item() == pytest.approx((0.5 + 0.25) / 2)
     loss.backward()
     assert torch.isfinite(prediction.grad).all()
     assert prediction.grad[1, 0] == 0

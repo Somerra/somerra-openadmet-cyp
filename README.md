@@ -124,11 +124,12 @@ Completed trials await review: comparison, keep/discard, and promotion are separ
 There is no autonomous scheduler or automatic repetition. The older `python train.py`
 invocation remains a compatibility alias for one run.
 
-**External data is optional, not a proven improvement.** The matched neural screen
+**External datasets are deferred, not supported by this PR.** The matched neural screen
 scored 0.772899 with ChEMBL/PubChem versus 0.770953 without them (lower is better).
 The paired delta CI crosses zero, and the recovered external run has incomplete
-provenance. Neither source has an isolated matched ablation. Maintained recipes
-therefore leave external sources off; see [the evidence](docs/data-sources.md#what-the-data-comparison-actually-established).
+provenance. Neither source has an isolated matched ablation. Follow [ChEMBL #3](https://github.com/Somerra/somerra-openadmet-cyp/issues/3) and
+[PubChem #4](https://github.com/Somerra/somerra-openadmet-cyp/issues/4) for reconsideration
+criteria; see [the evidence](docs/data-sources.md#deferred-external-datasets).
 
 ## Why these baselines
 

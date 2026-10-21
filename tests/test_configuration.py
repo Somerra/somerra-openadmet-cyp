@@ -12,7 +12,7 @@ def files(tmp_path, model=None, profile=None):
         json.dumps(
             model
             if model is not None
-            else {"seed": 42, "data_sources": ["official_direct", "chembl37"]}
+            else {"seed": 42, "data_sources": ["official_direct", "official_auxiliary"]}
         )
     )
     data.write_text(
@@ -21,7 +21,7 @@ def files(tmp_path, model=None, profile=None):
             if profile is not None
             else {
                 "prepared_dir": "data/prepared/official-direct",
-                "auxiliary_sources": {"chembl37": "data/external/chembl37"},
+                "auxiliary_sources": {"official_auxiliary": "data/prepared/official-auxiliary"},
             }
         )
     )
@@ -32,11 +32,13 @@ def test_compose_preserves_source_identity_and_hashes(tmp_path):
     kwargs = files(tmp_path)
     config, provenance = resolve_config(**kwargs)
     assert config["seed"] == 42
-    assert config["auxiliary_dirs"] == ["data/external/chembl37"]
-    assert provenance["auxiliary_sources"] == {"chembl37": "data/external/chembl37"}
+    assert config["auxiliary_dirs"] == ["data/prepared/official-auxiliary"]
+    assert provenance["auxiliary_sources"] == {
+        "official_auxiliary": "data/prepared/official-auxiliary"
+    }
     assert len(provenance["model_recipe"]["sha256"]) == 64
     assert len(provenance["data_catalog"]["sha256"]) == 64
-    assert provenance["selected_data_sources"] == ["official_direct", "chembl37"]
+    assert provenance["selected_data_sources"] == ["official_direct", "official_auxiliary"]
     assert "auxiliary_sources" not in config
     assert "data_sources" not in config
 
@@ -48,19 +50,19 @@ def test_compose_preserves_source_identity_and_hashes(tmp_path):
         ({"output_dir": "runs/foo"}, None),
         ({"seed": 42}, None),
         ({"data_sources": "official_direct"}, None),
-        ({"data_sources": ["chembl37"]}, None),
+        ({"data_sources": ["official_auxiliary"]}, None),
         ({"data_sources": ["official_direct", "official_direct"]}, None),
         ({"data_sources": ["official_direct", {}]}, None),
         ({"data_sources": ["official_direct", "unknown"]}, None),
         ({"data_sources": ["official_direct", "pubchem1851"]}, None),
         (None, {"prepared_dir": "data", "seed": 1}),
         (None, {"prepared_dir": "data", "auxiliary_sources": {"unknown": "x"}}),
-        (None, {"prepared_dir": "data", "auxiliary_sources": {"chembl37": ""}}),
+        (None, {"prepared_dir": "data", "auxiliary_sources": {"official_auxiliary": ""}}),
         (
             None,
             {
                 "prepared_dir": "data",
-                "auxiliary_sources": {"chembl37": "same", "pubchem1851": "same"},
+                "auxiliary_sources": {"official_auxiliary": "same", "pubchem1851": "same"},
             },
         ),
     ],
@@ -84,7 +86,7 @@ def test_legacy_and_missing_arguments(tmp_path):
 
 def test_source_hashes_cover_adapters():
     hashes = source_hashes()
-    for source in ("official", "chembl", "pubchem", "common"):
+    for source in ("official", "common"):
         assert f"data_sources/{source}.py" in hashes
     assert "campaign.py" in hashes
 
@@ -113,14 +115,11 @@ def test_same_catalog_different_recipe_selections(tmp_path):
         "prepared_dir": "primary",
         "auxiliary_sources": {
             "official_auxiliary": "not-downloaded-official",
-            "chembl37": "not-downloaded-chembl",
-            "pubchem1851": "not-downloaded-pubchem",
         },
     }
     for selected in (
         ["official_direct"],
-        ["official_direct", "pubchem1851"],
-        ["official_direct", "chembl37", "official_auxiliary"],
+        ["official_direct", "official_auxiliary"],
     ):
         kwargs = files(tmp_path, {"data_sources": selected}, catalog)
         config, provenance = resolve_config(**kwargs)
@@ -128,3 +127,35 @@ def test_same_catalog_different_recipe_selections(tmp_path):
         assert config.get("auxiliary_dirs", []) == list(expected.values())
         assert provenance["auxiliary_sources"] == expected
         assert provenance["selected_data_sources"] == selected
+
+
+@pytest.mark.parametrize("source", ["chembl37", "pubchem1851"])
+def test_deferred_sources_rejected_even_if_catalog_contains_them(tmp_path, source):
+    with pytest.raises(ValueError, match="Unknown auxiliary source"):
+        resolve_config(
+            **files(
+                tmp_path,
+                {"data_sources": ["official_direct", source]},
+                {"prepared_dir": "official", "auxiliary_sources": {source: "external"}},
+            )
+        )
+
+
+@pytest.mark.parametrize("command", ["fetch-chembl", "fetch-pubchem"])
+def test_deferred_fetch_commands_removed(command):
+    from somerra_openadmet.cli import build_parser
+
+    with pytest.raises(SystemExit):
+        build_parser().parse_args(["regression", command])
+
+
+def test_legacy_auxiliary_data_rejects_external_sources():
+    import pandas as pd
+
+    from somerra_openadmet.constants import TDI_TRAIN_FILE
+    from somerra_openadmet.neural import validate_official_auxiliary
+
+    validate_official_auxiliary(pd.DataFrame({"source": [TDI_TRAIN_FILE]}))
+    for source in ("ChEMBL_37", "PubChem_AID1851"):
+        with pytest.raises(ValueError, match="deferred"):
+            validate_official_auxiliary(pd.DataFrame({"source": [source]}))

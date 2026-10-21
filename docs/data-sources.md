@@ -19,11 +19,9 @@ examples available in every training fold.
 | Official TDI-condition pIC50 | Related potency targets | `data/prepared/official-auxiliary/` | Tested only within the auxiliary bundle; individual benefit unknown |
 | Official Emax | Maximal-effect targets | Same auxiliary snapshot | Individual benefit unknown |
 | Official single-concentration log2 fold change | Fixed-concentration response targets | Same auxiliary snapshot | Individual benefit unknown |
-| ChEMBL 37 literature IC50 | External quantitative assay targets | `data/external/chembl37/` | No isolated source test; combined external addition showed no clear benefit |
-| PubChem AID 1851 activity calls | External binary targets | `data/external/pubchem1851/` | No isolated source test; combined external addition showed no clear benefit |
 
 These are conventional locations for new snapshots. The completed campaign's
-original snapshots remain under `runs/regression-{corpus,auxiliary,chembl37,pubchem1851}-v1/`.
+original snapshots remain under `runs/regression-{corpus,auxiliary}-v1/`.
 One [shared catalog](../configs/README.md) registers these paths; each model recipe
 selects named `data_sources`. CPU evaluation accepts direct labels only. Auxiliary sources currently
 feed the neural multitask screen, not the CPU incumbent.
@@ -117,79 +115,20 @@ as an improvement or assigning credit/blame to one component. The later 10-epoch
 control scores 0.770953, but uses a changed loss implementation; it is not a clean
 10-versus-30-epoch comparison. See the [campaign evidence](regression-campaign.md).
 
-## 5. ChEMBL 37: external quantitative CYP measurements
+## Deferred external datasets
 
-Upstream: [ChEMBL](https://www.ebi.ac.uk/chembl/), queried through its activity API.
-Adapter: [`data_sources/chembl.py`](../src/somerra_openadmet/data_sources/chembl.py).
+ChEMBL and PubChem are out of scope for this PR. Their adapters, download commands,
+catalog entries and external-specific training code have been removed. Follow
+[ChEMBL issue #3](https://github.com/Somerra/somerra-openadmet-cyp/issues/3) and
+[PubChem issue #4](https://github.com/Somerra/somerra-openadmet-cyp/issues/4) for
+source rationale, prior results and single-source evaluation requirements.
 
-The adapter requires release `ChEMBL_37` before and after acquisition. It selects
-human single-protein CYP1A2, CYP2C9, CYP2C19, CYP2D6 and CYP3A4 targets; IC50
-measurements; assay confidence score 9; and literature records (`src_id == 1`).
-Flagged validity/duplicate records, invalid values/structures and blinded-test
-parents are excluded. The literature-only filter avoids directly re-ingesting
-PubChem deposits through this route; it does not establish complete cross-source
-independence of molecules or measurements.
-
-Concentrations become `-log10(IC50 in molar units)`, reversing inequality direction.
-The campaign retained 29,256 records, of which 13,778 exact measurements enter
-`assays.csv`. Censored values stay in `records.csv` and are not trained as exact
-points. Tasks are separated by CYP and assay ID. Raw JSON, exclusion reasons,
-document/assay identifiers and checksums preserve traceability.
-
-Potential value: additional measured potency and broader chemistry may improve
-representation learning beyond the official training set. CYP2C19 is auxiliary
-only—it is not a scored endpoint. Assay-specific heads aim to avoid forcing
-different experimental contexts onto a single target scale.
-
-Limitations: assay conditions and measurement distributions can differ from the
-challenge. Many assay-specific heads can be sparse; literature selection can
-also bias chemical coverage. Confidence score 9 is a target-assignment filter,
-not proof of assay equivalence or low measurement noise. Censored data is retained
-for a possible future method, not currently exploited. ChEMBL alone has not been
-tested in a matched ablation.
-
-## 6. PubChem AID 1851: binary CYP inhibition supervision
-
-Upstream record: [PubChem AID 1851](https://pubchem.ncbi.nlm.nih.gov/bioassay/1851).
-The details below describe our saved export and adapter, not a new assay audit.
-Adapter: [`data_sources/pubchem.py`](../src/somerra_openadmet/data_sources/pubchem.py).
-
-The adapter reads the concise assay export, resolves CID structures, maps target
-gene IDs to the same five CYPs, and keeps only Active/Inactive outcomes. Other
-outcomes, invalid parents and blinded-test parents are excluded. Duplicate
-parent/task/value rows are collapsed; conflicting binary calls for a parent/task
-are removed. The campaign snapshot contains 62,712 outcomes across 16,135 parents.
-Raw exports, structure responses and hashes are saved.
-
-Potential value: binary outcomes offer a larger set of positive and negative
-examples for learning inhibition-related molecular features. This may complement
-the smaller quantitative target set, using binary cross-entropy auxiliary heads.
-
-Limitations: an inactive call is **not** a measured low pIC50. The thresholded
-signal loses potency resolution and reflects its assay context. Class balance
-and chemical overlap matter more than row count alone. CYP2C19 remains auxiliary.
-PubChem alone has not been tested in a matched ablation.
-
-## What the data comparison actually established
-
-With a matched 10-epoch neural configuration, adding ChEMBL and PubChem together
-changed MA-ST-RAE from **0.770953 to 0.772899** (lower is better). External minus
-control was **+0.001946**, with paired-cluster 95% CI **[-0.013851, 0.017249]**.
-This does not establish an overall benefit or harm. It cannot tell us which source
-helps, nor whether both would help under a different fixed model.
-
-The recovered external run has incomplete original provenance, so this is
-provisional screening evidence, not promotion evidence. Fixed epochs also meant
-different optimizer-step counts after adding examples. Both runs are worse than
-the CPU incumbent. Full results and caveats are in the [campaign runbook](regression-campaign.md).
-
-To test data usefulness next, establish one fully traced, fixed model/control,
-then add one source at a time with the same folds, metric and predeclared compute
-policy. TDI, Emax and single-concentration signals would require separate prepared
-subsets of the current official bundle; they are not independently selectable
-named sources yet. ChEMBL and PubChem can already be selected independently through
-the model recipe's `data_sources`. Keep all other recipe settings fixed in these
-data ablations. These are proposed experiments, not runs launched here.
+The historical joint addition did not establish a benefit: MA-ST-RAE 0.772899
+versus 0.770953 for the official bundle control; delta CI [-0.013851, 0.017249].
+The recovered external run has incomplete provenance. Saved local snapshots and
+run evidence remain intact; historical code is recoverable at commit fb848c4.
+Current setup and training support only the official OpenADMET bundle (direct
+and auxiliary measurements). Dataset availability is not evidence of usefulness.
 
 ## Shared safeguards and boundaries
 

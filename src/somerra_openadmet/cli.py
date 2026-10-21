@@ -118,13 +118,6 @@ def build_parser() -> argparse.ArgumentParser:
     merge.add_argument("--recovered-dir", type=Path, required=True)
     merge.add_argument("--output-dir", type=Path, required=True)
     merge.add_argument("--audit", type=Path, required=True)
-    external = stages.add_parser("fetch-chembl")
-    external.add_argument("--data-dir", type=Path, default=Path("data/raw"))
-    external.add_argument("--output-dir", type=Path, required=True)
-    external.add_argument("--release", default="ChEMBL_37")
-    pubchem = stages.add_parser("fetch-pubchem")
-    pubchem.add_argument("--data-dir", type=Path, default=Path("data/raw"))
-    pubchem.add_argument("--output-dir", type=Path, required=True)
     export = stages.add_parser("export")
     export.add_argument("--run-dir", type=Path, required=True)
     export.add_argument("--data-dir", type=Path, default=Path("data/raw"))
@@ -179,14 +172,6 @@ def main(argv: list[str] | None = None) -> None:
                     args.original_config, args.recovered_dir, args.output_dir, args.audit
                 )
             )
-        elif args.stage == "fetch-chembl":
-            from .data_sources.chembl import chembl
-
-            _json(chembl(args.data_dir, args.output_dir, args.release))
-        elif args.stage == "fetch-pubchem":
-            from .data_sources.pubchem import pubchem
-
-            _json(pubchem(args.data_dir, args.output_dir))
         elif args.stage == "export":
             from .campaign import export
 
