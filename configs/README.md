@@ -37,7 +37,8 @@ or refreshes a source implicitly.
 
 All JSON paths are relative to the repository root. Existing `runs/regression-*`
 snapshots are not moved; update the catalog paths to reuse them without refetching.
-`python train.py --output-dir runs/regression-trial-001` uses the shared catalog
+`python autoresearch.py plan --output-dir runs/regression-trial-001` previews the
+recipe; replace `plan` with `run` to execute it. Both use the shared catalog
 by default; `--data-config` can override its location for another installation.
 There is no separate data config per experiment.
 

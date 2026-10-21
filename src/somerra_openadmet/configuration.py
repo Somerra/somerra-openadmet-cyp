@@ -27,8 +27,21 @@ def resolve_config(
         raise ValueError("Provide --model-config, --data-config, and --output-dir together")
     model = json.loads(model_config.read_text())
     profile = json.loads(data_config.read_text())
+    config, provenance = compose_config(model, profile, output_dir)
+    provenance.update(
+        {
+            "model_recipe": {"path": str(model_config), "sha256": sha256_file(model_config)},
+            "data_catalog": {"path": str(data_config), "sha256": sha256_file(data_config)},
+        }
+    )
+    return config, provenance
+
+
+def compose_config(model: dict, profile: dict, output_dir: Path) -> tuple[dict, dict]:
+    """Resolve in memory for previews without creating trial directories."""
     if not isinstance(model, dict) or not isinstance(profile, dict):
         raise ValueError("Model recipe and data catalog must be JSON objects")
+    model = dict(model)
     if set(model) & (DATA_FIELDS | {"output_dir"}):
         raise ValueError("Model recipes select data_sources by name, not paths or output_dir")
     if set(profile) - {"prepared_dir", "auxiliary_sources"}:
@@ -58,8 +71,6 @@ def resolve_config(
     if selected_auxiliary:
         config["auxiliary_dirs"] = list(selected_auxiliary.values())
     provenance = {
-        "model_recipe": {"path": str(model_config), "sha256": sha256_file(model_config)},
-        "data_catalog": {"path": str(data_config), "sha256": sha256_file(data_config)},
         "selected_data_sources": selected,
         "auxiliary_sources": selected_auxiliary,
     }

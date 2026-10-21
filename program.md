@@ -2,8 +2,10 @@
 
 Inspired by [autoresearch](https://github.com/karpathy/autoresearch): a small editable
 recipe, a fixed evaluation harness, and a local keep/discard/crash record. This is
-an agent protocol, not a daemon. `train.py` executes one trial; it does not edit
-itself, decide promotion, or launch another trial.
+an agent protocol, not a daemon. Start with `python autoresearch.py --help`.
+`autoresearch.py plan` previews a trial and `autoresearch.py run` executes one.
+Neither edits the recipe, decides promotion, or launches another trial.
+`train.py` is the editable recipe; the launcher and `research.py` stay fixed.
 
 ## Agree the experiment first
 
@@ -48,13 +50,21 @@ for data comparisons, or explicitly design a matched-step experiment separately.
 2. State one hypothesis; change only the selected axis. Run from the repository root:
 
    ```bash
-   python train.py --output-dir runs/regression-trial-001
+   python autoresearch.py plan --output-dir runs/regression-trial-001
+   python autoresearch.py run --output-dir runs/regression-trial-001 \
+     --hypothesis "One predeclared model or data change"
    ```
 
    The runner saves the effective recipe, catalog, and editable script in an ignored
    sibling `-inputs/` directory. Evaluators retain resolved configuration, hashes,
    predictions and metrics. Use a fresh output path for every attempt. Keep neural
    outputs directly under the shared `runs/` directory, not separate budget roots.
+   `trial.json` in the sibling input directory records `running`, `completed`, or
+   `failed`, elapsed time and the score when valid. Completion is not a keep decision.
+   A hard process kill may leave `running`; inspect backend evidence before recovery.
+   A preview reads the recipe/catalog only; it does not check snapshot availability,
+   hardware, checkpoint compatibility or backend-specific settings. The backend
+   validates inputs during execution. A hypothesis is recorded text, not an edit.
 3. Check completion, finite scores, coverage, input hashes, and unchanged evaluator.
    Compare paired OOF predictions against the predeclared baseline with
    `regression compare --run-dir ... --reference-run ... --reference ...`.

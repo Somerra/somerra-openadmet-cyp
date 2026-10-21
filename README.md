@@ -102,6 +102,34 @@ conda run -n somerra-openadmet-cyp openadmet-cyp score activity path/to/labeled_
 Baseline commands default to eight model-training threads. Use `--n-jobs` to change the
 budget; the selected value is written into `run_manifest.json`.
 
+## Autoresearch entrypoint
+
+Start here from the repository root, after preparing the selected data:
+
+```bash
+# Preview effective settings and source selection; no training or run files.
+python autoresearch.py plan --output-dir runs/regression-trial-001
+
+# Explicitly execute ONE trial after agreeing the hypothesis and compute budget.
+python autoresearch.py run --output-dir runs/regression-trial-001 \
+  --hypothesis "Removing ExtraTrees preserves quality with less complexity"
+```
+
+Edit the recipe block in `train.py` before previewing a proposed change; the
+hypothesis string does not modify model settings. `autoresearch.py` is the fixed
+launcher; `src/somerra_openadmet/research.py` owns orchestration. Each run snapshots
+its inputs and writes `trial.json` with completion/failure status and elapsed time.
+Completed trials await review: comparison, keep/discard, and promotion are separate.
+`plan` validates source composition, not dataset contents or backend readiness.
+There is no autonomous scheduler or automatic repetition. The older `python train.py`
+invocation remains a compatibility alias for one run.
+
+**External data is optional, not a proven improvement.** The matched neural screen
+scored 0.772899 with ChEMBL/PubChem versus 0.770953 without them (lower is better).
+The paired delta CI crosses zero, and the recovered external run has incomplete
+provenance. Neither source has an isolated matched ablation. Maintained recipes
+therefore leave external sources off; see [the evidence](docs/data-sources.md#what-the-data-comparison-actually-established).
+
 ## Why these baselines
 
 Regression research follows an [autoresearch-style protocol](program.md): edit one

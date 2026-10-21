@@ -14,7 +14,8 @@ and the distinction between biological relevance and demonstrated modeling gains
 
 ```bash
 openadmet-cyp regression prepare --output-dir data/prepared/official-direct
-python train.py --output-dir runs/regression-trial-001
+python autoresearch.py plan --output-dir runs/regression-trial-001
+python autoresearch.py run --output-dir runs/regression-trial-001
 openadmet-cyp regression evaluate --model-config configs/models/frozen-challenger.json \
   --data-config configs/data.json --output-dir runs/regression-frozen-trial-001
 ```
