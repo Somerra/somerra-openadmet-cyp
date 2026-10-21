@@ -9,6 +9,17 @@ are model features, not an additional assay source. See `../program.md` for the
 single-axis research workflow. Trial recipes and results belong under ignored
 `runs/`, not here.
 
+Reproduce a maintained recipe through the primary entrypoint:
+
+```bash
+python autoresearch.py reproduce --model-config configs/models/incumbent.json \
+  --backend cpu --output-dir runs/regression-incumbent-reproduction-001
+```
+
+This ignores the mutable `train.py` recipe and its overrides. Add `--preview` to
+inspect settings without training. Research and reproduction use the same evaluator;
+the difference is how the recipe is selected, not how quality is measured.
+
 `configs/data.json` registers the official bundle’s direct and auxiliary locations. Each model recipe
 chooses which to consume through `data_sources`; merely registering a source does
 not load it. Official direct labels are required for training and evaluation.

@@ -1,4 +1,10 @@
-# Regression campaign
+# Regression reproducibility and recipe evidence
+
+Autoresearch is the primary campaign interface; see [program.md](../program.md).
+This runbook preserves reproducibility procedures, completed experiment evidence
+and best-recipe decisions. It is not a competing orchestration workflow. Research
+and saved-recipe reproduction share `evaluation.evaluate_recipe` and its CPU/neural
+backends. The lower-level commands below remain useful for audits and recovery.
 
 The campaign uses public data and a maximum planned allocation of 72 GPU-hours.
 Existing runs remain immutable. `regression export` creates a candidate; it does

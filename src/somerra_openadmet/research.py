@@ -1,24 +1,40 @@
-"""Fixed, single-trial orchestration for the editable train.py recipe."""
+"""Shared trial records for autoresearch and saved-recipe reproduction."""
 
 import argparse
 import json
-import math
 import time
 from pathlib import Path
 
 from .configuration import compose_config
 from .download import sha256_file
+from .evaluation import evaluate_recipe
 
 
 def main(*, backend, model_recipe, overrides, recipe_source, argv=None, default_command=None):
-    parser = argparse.ArgumentParser(description="Preview or execute one autoresearch trial.")
-    parser.add_argument("command", choices=("plan", "run"), nargs="?", default=default_command)
+    parser = argparse.ArgumentParser(
+        description="Preview a research trial, run it, or reproduce a saved recipe."
+    )
+    parser.add_argument(
+        "command", choices=("plan", "run", "reproduce"), nargs="?", default=default_command
+    )
     parser.add_argument("--data-config", type=Path, default=Path("configs/data.json"))
     parser.add_argument("--output-dir", type=Path, required=True)
     parser.add_argument("--hypothesis", default="")
+    parser.add_argument("--model-config", type=Path, help="Saved recipe for reproduce only")
+    parser.add_argument("--backend", choices=("cpu", "neural"), help="Reproduction backend")
+    parser.add_argument(
+        "--preview", action="store_true", help="Preview reproduction without training"
+    )
     args = parser.parse_args(argv)
     if args.command is None:
-        parser.error("choose plan (no training) or run (one trial)")
+        parser.error("choose plan, run, or reproduce")
+    if args.command == "reproduce":
+        if args.model_config is None or args.backend is None:
+            parser.error("reproduce requires --model-config and --backend")
+        backend, model_recipe = args.backend, args.model_config
+        overrides, recipe_source = {}, args.model_config
+    elif args.model_config is not None or args.backend is not None or args.preview:
+        parser.error("--model-config, --backend and --preview are for reproduce only")
     if backend not in {"cpu", "neural"}:
         raise ValueError("BACKEND must be cpu or neural")
     model = {**json.loads(model_recipe.read_text()), **overrides}
@@ -33,6 +49,7 @@ def main(*, backend, model_recipe, overrides, recipe_source, argv=None, default_
         if path.exists():
             raise FileExistsError(path)
     plan = {
+        "workflow": "reproduction" if args.command == "reproduce" else "autoresearch",
         "backend": backend,
         "hypothesis": args.hypothesis,
         "config": config,
@@ -43,14 +60,15 @@ def main(*, backend, model_recipe, overrides, recipe_source, argv=None, default_
         "external_data": "deferred; not supported in this PR (issues #3 and #4)",
         "validation": "configuration preview only; backend validates datasets at run time",
     }
-    if args.command == "plan":
+    if args.command == "plan" or args.preview:
         print(json.dumps(plan, indent=2))
         return plan
     inputs.mkdir(parents=True, exist_ok=False)
     recipe, data = inputs / "model.json", inputs / "data.json"
     recipe.write_text(json.dumps(model, indent=2) + "\n")
     data.write_text(catalog_text)
-    (inputs / "train.py").write_text(recipe_source.read_text())
+    source_name = "recipe.json" if args.command == "reproduce" else "train.py"
+    (inputs / source_name).write_text(recipe_source.read_text())
     record = {**plan, "status": "running", "elapsed_seconds": None}
     status_file = inputs / "trial.json"
 
@@ -60,16 +78,9 @@ def main(*, backend, model_recipe, overrides, recipe_source, argv=None, default_
     start = time.monotonic()
     save()
     try:
-        if backend == "cpu":
-            from .campaign import evaluate as run
-        else:
-            from .neural import screen as run
-        result = run(model_config=recipe, data_config=data, output_dir=args.output_dir)
-        if backend == "neural" and result.get("complete") is not True:
-            raise ValueError("Incomplete neural trial cannot receive a research score")
-        score = result["macro"]["nested_ensemble"] if backend == "cpu" else result["MA-ST-RAE"]
-        if not math.isfinite(score):
-            raise ValueError("Non-finite research score")
+        _, score = evaluate_recipe(
+            backend=backend, model_config=recipe, data_config=data, output_dir=args.output_dir
+        )
         record.update(status="completed", score=score, decision="pending review")
     except BaseException as exc:
         record.update(status="failed", error_type=type(exc).__name__, error=str(exc))

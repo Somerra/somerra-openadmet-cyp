@@ -120,3 +120,98 @@ def test_nonfinite_trial_is_failure(tmp_path, monkeypatch):
         )
     status = json.loads((tmp_path / "trial-inputs/trial.json").read_text())
     assert status["status"] == "failed"
+
+
+def test_reproduce_ignores_research_settings_and_uses_same_evaluator(tmp_path, monkeypatch):
+    from somerra_openadmet import campaign, research
+
+    kwargs, catalog = trial_args(tmp_path)
+    saved = kwargs["model_recipe"]
+    kwargs.update(
+        backend="neural",
+        model_recipe=tmp_path / "missing.json",
+        overrides={"models": ["invalid"]},
+        recipe_source=tmp_path / "broken.py",
+    )
+    calls = []
+
+    def evaluate(**kw):
+        calls.append(kw)
+        assert json.loads(kw["model_config"].read_text())["models"] == ["ridge"]
+        return {"macro": {"nested_ensemble": 0.75}}
+
+    monkeypatch.setattr(campaign, "evaluate", evaluate)
+    record = research.main(
+        **kwargs,
+        argv=[
+            "reproduce",
+            "--model-config",
+            str(saved),
+            "--backend",
+            "cpu",
+            "--data-config",
+            str(catalog),
+            "--output-dir",
+            str(tmp_path / "repeat"),
+        ],
+    )
+    assert len(calls) == 1
+    assert record["workflow"] == "reproduction"
+    assert record["score"] == 0.75
+    assert (tmp_path / "repeat-inputs/recipe.json").read_text() == saved.read_text()
+    assert not (tmp_path / "repeat-inputs/train.py").exists()
+
+
+def test_primary_reproduce_preview_does_not_import_train(tmp_path, monkeypatch):
+    path = Path(__file__).parents[1] / "autoresearch.py"
+    spec = importlib.util.spec_from_file_location("research_entry", path)
+    entry = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(entry)
+    kwargs, catalog = trial_args(tmp_path)
+    monkeypatch.setitem(sys.modules, "train", None)
+    result = entry.main(
+        [
+            "reproduce",
+            "--preview",
+            "--model-config",
+            str(kwargs["model_recipe"]),
+            "--backend",
+            "cpu",
+            "--data-config",
+            str(catalog),
+            "--output-dir",
+            str(tmp_path / "repeat"),
+        ]
+    )
+    assert result["workflow"] == "reproduction"
+    assert not (tmp_path / "repeat-inputs").exists()
+
+
+def test_reproduce_requires_explicit_recipe_and_backend(tmp_path):
+    from somerra_openadmet import research
+
+    kwargs, _ = trial_args(tmp_path)
+    with pytest.raises(SystemExit):
+        research.main(**kwargs, argv=["reproduce", "--output-dir", str(tmp_path / "repeat")])
+
+
+@pytest.mark.parametrize("complete", [False, True])
+def test_shared_neural_evaluator_enforces_completion(tmp_path, monkeypatch, complete):
+    from types import SimpleNamespace
+
+    from somerra_openadmet.evaluation import evaluate_recipe
+
+    monkeypatch.setitem(
+        sys.modules,
+        "somerra_openadmet.neural",
+        SimpleNamespace(screen=lambda **kw: {"complete": complete, "MA-ST-RAE": 0.8}),
+    )
+    kwargs = dict(
+        backend="neural", model_config=tmp_path, data_config=tmp_path, output_dir=tmp_path
+    )
+    if complete:
+        _, score = evaluate_recipe(**kwargs)
+        assert score == 0.8
+    else:
+        with pytest.raises(ValueError, match="Incomplete"):
+            evaluate_recipe(**kwargs)

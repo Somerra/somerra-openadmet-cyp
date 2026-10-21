@@ -102,7 +102,17 @@ conda run -n somerra-openadmet-cyp openadmet-cyp score activity path/to/labeled_
 Baseline commands default to eight model-training threads. Use `--n-jobs` to change the
 budget; the selected value is written into `run_manifest.json`.
 
-## Autoresearch entrypoint
+## Autoresearch is the primary entrypoint
+
+Two complementary workflows share the same evaluation tools:
+
+- **Autoresearch campaigns:** an agent proposes changes, invokes trials, compares
+  evidence, records keep/discard decisions, and repeats within an approved budget.
+- **Reproducibility and best recipes:** rerun a saved recipe without research
+  overrides, preserve provenance, and maintain the incumbent/challenger catalog.
+
+The campaign loop is agent-orchestrated through `program.md`; the CLI executes
+individual trials. It is not yet an unattended scheduler or self-editing agent.
 
 Start here from the repository root, after preparing the selected data:
 
@@ -113,16 +123,27 @@ python autoresearch.py plan --output-dir runs/regression-trial-001
 # Explicitly execute ONE trial after agreeing the hypothesis and compute budget.
 python autoresearch.py run --output-dir runs/regression-trial-001 \
   --hypothesis "Removing ExtraTrees preserves quality with less complexity"
+
+# Reproduce a saved recipe, ignoring train.py and its research overrides.
+python autoresearch.py reproduce --model-config configs/models/incumbent.json \
+  --backend cpu --output-dir runs/regression-incumbent-reproduction-001
+# Add --preview to inspect reproduction settings without training.
 ```
 
 Edit the recipe block in `train.py` before previewing a proposed change; the
 hypothesis string does not modify model settings. `autoresearch.py` is the fixed
 launcher; `src/somerra_openadmet/research.py` owns orchestration. Each run snapshots
 its inputs and writes `trial.json` with completion/failure status and elapsed time.
-Completed trials await review: comparison, keep/discard, and promotion are separate.
+Both modes call `evaluation.evaluate_recipe`, which delegates to the same CPU or
+neural evaluator and applies the same completion/finite-score checks. The resulting
+trial records share a format and identify their workflow. Completed trials await
+review: comparison, keep/discard, and promotion are separate.
 `plan` validates source composition, not dataset contents or backend readiness.
 There is no autonomous scheduler or automatic repetition. The older `python train.py`
 invocation remains a compatibility alias for one run.
+The lower-level `regression` commands remain available for reproduction, comparison,
+data preparation, export and recovery; they are tools, not a competing campaign loop.
+The historical `campaign.py` module implements CPU evaluation, not orchestration.
 
 **External datasets are deferred, not supported by this PR.** The matched neural screen
 scored 0.772899 with ChEMBL/PubChem versus 0.770953 without them (lower is better).

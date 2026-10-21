@@ -1,11 +1,28 @@
-# Regression research protocol
+# Autoresearch campaign protocol
 
 Inspired by [autoresearch](https://github.com/karpathy/autoresearch): a small editable
 recipe, a fixed evaluation harness, and a local keep/discard/crash record. This is
 an agent protocol, not a daemon. Start with `python autoresearch.py --help`.
 `autoresearch.py plan` previews a trial and `autoresearch.py run` executes one.
 Neither edits the recipe, decides promotion, or launches another trial.
-`train.py` is the editable recipe; the launcher and `research.py` stay fixed.
+`train.py` is the editable recipe; the launcher, `research.py` and `evaluation.py`
+stay fixed. An autoresearch agent runs the campaign by repeatedly invoking these
+tools within an approved budget. This CLI does not itself implement an autonomous
+hypothesis generator or keep/discard loop.
+
+## Reproducibility is complementary
+
+Use `autoresearch.py reproduce --model-config PATH --backend cpu|neural
+--output-dir NEW_PATH` to rerun a saved recipe, with `--preview` for a no-training
+inspection. This path does not import `train.py` or inherit its overrides. It uses
+the exact same `evaluation.evaluate_recipe` dispatcher and backend metrics as a
+research trial. Backend and input snapshot hashes still matter; a recipe alone
+does not guarantee bit-for-bit results across environments.
+
+The maintained recipe catalog records the incumbent and best observed challenger.
+Agents may propose catalog updates after reviewing results; neither execution mode
+automatically promotes a recipe. Existing low-level comparison, export and recovery
+commands support both workflows and are not a second autonomous campaign system.
 
 ## Agree the experiment first
 
