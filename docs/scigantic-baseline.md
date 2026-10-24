@@ -159,3 +159,36 @@ Require complete matched OOF predictions and paired cluster-bootstrap uncertaint
 Retain our existing promotion gate: at least 3% macro improvement, upper 95% delta
 bound below zero, and no endpoint regression greater than 0.02. Track training cost
 and per-endpoint behavior, especially CYP2D6. No leaderboard upload is part of this plan.
+
+
+## 2026-10-24 bounded comparison
+
+The user authorized at most four GPU-hours for two trials and candidate prediction
+generation. `runs/regression-20261024-inputs/contract.json` freezes the experiment:
+MAE baseline versus interval hinge on the four scored heads, with the same four
+single-concentration auxiliary heads, sample weights (uniform), task weights,
+random initialization, five cluster folds, and fixed 60 epochs. Each trial has a
+1.75-hour reservation; up to 0.5 hours remain for export. No epoch selection uses
+outer-fold labels.
+
+The implemented `scigantic_mt_aux8` family uses width 700, depth 5, norm aggregation,
+batch normalization, two 300-wide hidden layers and dropout 0.1. For this bounded
+adaptation, training uses AdamW at fixed learning rate 0.0003, batch size 64, gradient
+clipping at 5, and the published eight-head task weights. These settings deliberately
+differ from the full upstream training schedule. Both losses operate on training-only
+standardized targets; interval hinge replaces MAE only on the four direct heads.
+Source-head selection is in the recipe's `auxiliary_tasks`; data locations remain in
+the single catalog. All labels and bounds continue to use the shared prepared bundle.
+
+`autoresearch.py reproduce` runs each recipe and writes the existing trial records.
+The shared loader preserves every validation row, including a final singleton batch.
+The evaluator records per-fold scores and checkpoint hashes. Export uses
+`openadmet-cyp regression export-neural --run-dir RUN --data-dir DATA --output-dir NEW`;
+it requires all five complete, hash-verified checkpoints and the original blinded
+snapshot, then averages the five fold models. It validates the CSV and records its
+hash, budget usage, and private submission settings. Export is not promotion or upload.
+
+The frozen published R25 remains the submitted reference. This comparison can establish
+whether interval loss improves our adapted local baseline; it cannot directly prove
+an improvement over R25 because that stack has different training folds and incomplete
+independent OOF evidence. Final outcomes will be recorded after both trials complete.

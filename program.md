@@ -33,8 +33,8 @@ for an unlimited loop from this file. Stop at the agreed limit or a blocker.
 
 | Axis | Editable surface | Hold fixed |
 | --- | --- | --- |
-| Model usefulness | Model knobs in the `train.py` recipe block | Recipe's `data_sources`, catalog and snapshots, folds, labels, metric, evaluation code, resource limits |
-| Data usefulness | Only `data_sources` in the recipe / `MODEL_OVERRIDES` | All other model/training settings, checkpoint, catalog and snapshots, folds, metric, resource limits |
+| Model usefulness | Model knobs in the `train.py` recipe block | Recipe's `data_sources` and `auxiliary_tasks`, catalog and snapshots, folds, labels, metric, evaluation code, resource limits |
+| Data usefulness | Only `data_sources` / `auxiliary_tasks` in the recipe / `MODEL_OVERRIDES` | All other model/training settings, checkpoint, catalog and snapshots, folds, metric, resource limits |
 
 Do not change both axes in the same comparison. For a data trial, use a neural
 recipe that supports auxiliary targets; CPU evaluation rejects auxiliary selections.

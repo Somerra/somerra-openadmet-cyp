@@ -113,6 +113,12 @@ def build_parser() -> argparse.ArgumentParser:
     embed.add_argument("--output-dir", type=Path, required=True)
     screen = stages.add_parser("screen-neural")
     _run_config_arguments(screen)
+    neural_export = stages.add_parser(
+        "export-neural", help="Export a complete neural fold ensemble"
+    )
+    neural_export.add_argument("--run-dir", type=Path, required=True)
+    neural_export.add_argument("--data-dir", type=Path, default=Path("data/raw"))
+    neural_export.add_argument("--output-dir", type=Path, required=True)
     export = stages.add_parser("export")
     export.add_argument("--run-dir", type=Path, required=True)
     export.add_argument("--data-dir", type=Path, default=Path("data/raw"))
@@ -159,6 +165,10 @@ def main(argv: list[str] | None = None) -> None:
                     output_dir=args.output_dir,
                 )
             )
+        elif args.stage == "export-neural":
+            from .neural_export import export
+
+            _json(export(args.run_dir, args.data_dir, args.output_dir))
         elif args.stage == "export":
             from .campaign import export
 
