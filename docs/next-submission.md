@@ -1,7 +1,9 @@
 # Next activity submission candidate
 
 Run date: 2026-10-02. This document records local model-selection evidence, not a blind
-challenge score. No challenge upload was made.
+challenge score. The candidate was subsequently submitted: the local receipt records
+acceptance at 2026-10-02 01:03 UTC with the same SHA-256 listed below. The public
+leaderboard checked on 2026-10-17 showed MA-ST-RAE 0.889530 (rank 178 at that time).
 
 ## Live contract checked before modeling
 
@@ -39,7 +41,10 @@ Four five-fold scaffold-disjoint OOF runs use identical folds and official input
 For each endpoint and held-out fold, non-negative weights summing to one are optimized on
 the other four folds against exact ST-RAE. The reported ensemble score is computed only
 from those held-out predictions. Final test weights are then fit on all OOF rows. This
-separates the honest cross-fitted estimate from the all-OOF model-selection fit.
+separates weight fitting from evaluation at the meta-model level. It is not fully
+nested: base models producing meta-training predictions can have seen the outer
+held-out labels. The regression campaign adds nested evaluation with inner base
+models trained entirely inside each outer training partition.
 
 ## Local evidence
 
@@ -69,4 +74,5 @@ receives zero weight on CYP1A2/CYP2D6 and small calibration-like weights on CYP2
 
 Generated submissions and model artifacts remain gitignored. Their immutable hashes,
 commands, OOF metrics, fold-specific weights, and input hashes are retained in the run
-directory. Upload still requires an explicit participant identity and authorization.
+directory. The existing receipt is stored alongside the candidate. No further upload
+is implied by the new regression campaign.
