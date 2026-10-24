@@ -106,8 +106,15 @@ def test_maintained_recipes_compose():
             data_config=root / "configs/data.json",
             output_dir=Path("runs/test"),
         )
-        assert "models" in config
-        assert "auxiliary_dirs" not in config
+        if "model_family" in config:
+            assert config["model_family"] == "scigantic_mt_aux8"
+            assert "models" not in config
+            assert config["auxiliary_dirs"] == ["data/prepared/official-auxiliary"]
+            assert len(config["auxiliary_tasks"]) == 4
+            assert config["loss"] == "interval_mae"
+        else:
+            assert "models" in config
+            assert "auxiliary_dirs" not in config
 
 
 def test_same_catalog_different_recipe_selections(tmp_path):
