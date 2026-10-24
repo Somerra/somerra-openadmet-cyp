@@ -3,10 +3,12 @@
 import json
 from pathlib import Path
 
+from .budget import budget_ledger_path
 
-def status(runs_dir: Path) -> dict:
+
+def status(runs_dir: Path, *, ledger_path: Path | None = None) -> dict:
     rows = []
-    ledger_path = runs_dir / "regression-gpu-budget.json"
+    ledger_path = ledger_path if ledger_path is not None else budget_ledger_path()
     ledger = json.loads(ledger_path.read_text()) if ledger_path.exists() else {}
     accounted = set()
     used = 0.0
@@ -26,7 +28,7 @@ def status(runs_dir: Path) -> dict:
             manifest_path = directory / "manifest.json"
         manifest = json.loads(manifest_path.read_text()) if manifest_path.exists() else {}
         if str(directory.resolve()) not in accounted:
-            used += float(manifest.get("gpu_hours", 0))
+            used += float(manifest.get("gpu_hours") or 0)
         if (
             not metrics_path.exists()
             and not (directory / "oof_predictions.csv").exists()
@@ -38,7 +40,9 @@ def status(runs_dir: Path) -> dict:
         rows.append(
             {
                 "run": str(directory),
-                "artifact_state": "complete" if score is not None and manifest else "partial",
+                "artifact_state": "complete"
+                if score is not None and manifest and manifest.get("complete", True)
+                else "partial",
                 "MA-ST-RAE": score,
                 "recorded_gpu_hours": manifest.get("gpu_hours"),
                 "gpu_reservation": ledger.get(str(directory.resolve())),

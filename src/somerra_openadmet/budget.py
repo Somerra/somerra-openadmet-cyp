@@ -4,8 +4,22 @@ from __future__ import annotations
 
 import fcntl
 import json
+import os
 import time
 from pathlib import Path
+
+
+def budget_ledger_path():
+    """One ledger per checkout, independent of trial output location."""
+    configured = os.environ.get("SOMERRA_GPU_LEDGER")
+    path = (
+        Path(configured)
+        if configured
+        else Path(__file__).resolve().parents[2] / "runs/regression-gpu-budget.json"
+    )
+    if not path.is_absolute():
+        raise ValueError("SOMERRA_GPU_LEDGER must be an absolute path")
+    return path
 
 
 class GPUBudget:
@@ -57,16 +71,3 @@ class GPUBudget:
 
         self._update(update)
         return used
-
-    def record_interruption(self, evidence: str):
-        """After external process verification, retain the full unknown-time charge."""
-        if not evidence.strip():
-            raise ValueError("Interruption evidence is required")
-
-        def update(records):
-            record = records[self.run]
-            if "used_hours" in record:
-                raise ValueError("Cannot mark a finalized allocation interrupted")
-            record.update(status="interrupted_unknown_usage", interruption_evidence=evidence)
-
-        self._update(update)

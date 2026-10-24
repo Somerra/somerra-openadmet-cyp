@@ -67,12 +67,13 @@ def test_nested_rejects_group_overlap():
         nested_endpoint(frame, np.ones((4, 2)), ["constant", "ridge"])
 
 
-def test_radius_specific_models_receive_only_their_feature_block(monkeypatch):
+@pytest.mark.parametrize("width", [2058, 27])
+def test_radius_specific_models_receive_only_their_feature_block(monkeypatch, width):
     import somerra_openadmet.campaign as campaign
 
     class Model:
         def fit(self, x, y):
-            assert x.shape == (3, 2058)
+            assert x.shape == (3, width)
             np.testing.assert_array_equal(x, 2)
 
         def predict(self, x):
@@ -80,11 +81,11 @@ def test_radius_specific_models_receive_only_their_feature_block(monkeypatch):
             return np.zeros(len(x))
 
     monkeypatch.setattr(campaign, "make_regressor", lambda *args: Model())
-    x = np.concatenate([np.ones((3, 2058)), np.full((3, 2058), 2)], axis=1)
+    x = np.concatenate([np.ones((3, width)), np.full((3, width), 2)], axis=1)
     campaign.fit_predict("lightgbm_r3", x, np.arange(3), x, 42, 1)
 
 
-def test_evaluation_writes_complete_oof_and_rejects_tampered_split(tmp_path):
+def test_evaluation_writes_complete_oof_and_rejects_tampered_split(tmp_path, monkeypatch):
     import json
 
     from somerra_openadmet.campaign import evaluate
@@ -122,10 +123,40 @@ def test_evaluation_writes_complete_oof_and_rejects_tampered_split(tmp_path):
             }
         )
     )
+    import somerra_openadmet.campaign as campaign
+
+    original_features = campaign.featurize_smiles
+
+    def features(smiles):
+        record = json.loads((output / "run_manifest.json").read_text())
+        assert record["git_revision"] == "startup-revision"
+        assert record["source_sha256"]
+        assert record["complete"] is False
+        monkeypatch.setattr(campaign, "git_revision", lambda: "later-revision")
+        return original_features(smiles)
+
+    monkeypatch.setattr(campaign, "git_revision", lambda: "startup-revision")
+    monkeypatch.setattr(campaign, "featurize_smiles", features)
     result = evaluate(config)
+    record = json.loads((output / "run_manifest.json").read_text())
+    assert record["git_revision"] == "startup-revision"
+    assert record["complete"] is True
     assert np.isfinite(result["macro"]["nested_ensemble"])
     assert len(pd.read_csv(output / "oof_predictions.csv")) == 18 * 4
     assert (output / "run_manifest.json").is_file()
     training.write_text(training.read_text() + "\n")
     with pytest.raises(ValueError, match="changed"):
         evaluate(config)
+
+
+@pytest.mark.parametrize(
+    "error", [FileNotFoundError(), __import__("subprocess").CalledProcessError(128, "git")]
+)
+def test_git_revision_is_optional_outside_checkout(monkeypatch, error):
+    import somerra_openadmet.campaign as campaign
+
+    def unavailable(*args, **kwargs):
+        raise error
+
+    monkeypatch.setattr(campaign.subprocess, "check_output", unavailable)
+    assert campaign.git_revision() is None

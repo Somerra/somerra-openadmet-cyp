@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 from pathlib import Path
 
 import numpy as np
@@ -61,7 +62,8 @@ def compare(
     reference_run: Path | None = None,
     output_path: Path | None = None,
 ) -> dict:
-    if output_path is not None and output_path.exists():
+    output_path = output_path if output_path is not None else run_dir / "comparison.json"
+    if output_path.exists():
         raise FileExistsError(f"Comparison output already exists: {output_path}")
     oof = pd.read_csv(run_dir / "oof_predictions.csv")
     candidate = "nested_ensemble" if "nested_ensemble" in oof else "y_pred"
@@ -108,7 +110,9 @@ def compare(
             "reference_run": str(reference_run) if reference_run else None,
         }
     )
-    write_json(output_path if output_path is not None else run_dir / "comparison.json", result)
+    with output_path.open("x") as handle:
+        json.dump(result, handle, indent=2, allow_nan=False)
+        handle.write("\n")
     return result
 
 

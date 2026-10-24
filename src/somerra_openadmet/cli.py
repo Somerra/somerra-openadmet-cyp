@@ -113,11 +113,6 @@ def build_parser() -> argparse.ArgumentParser:
     embed.add_argument("--output-dir", type=Path, required=True)
     screen = stages.add_parser("screen-neural")
     _run_config_arguments(screen)
-    merge = stages.add_parser("merge-neural", help="Validate disjoint recovered screening folds")
-    merge.add_argument("--original-config", type=Path, required=True)
-    merge.add_argument("--recovered-dir", type=Path, required=True)
-    merge.add_argument("--output-dir", type=Path, required=True)
-    merge.add_argument("--audit", type=Path, required=True)
     export = stages.add_parser("export")
     export.add_argument("--run-dir", type=Path, required=True)
     export.add_argument("--data-dir", type=Path, default=Path("data/raw"))
@@ -162,14 +157,6 @@ def main(argv: list[str] | None = None) -> None:
                     model_config=args.model_config,
                     data_config=args.data_config,
                     output_dir=args.output_dir,
-                )
-            )
-        elif args.stage == "merge-neural":
-            from .recovery import merge_recovered
-
-            _json(
-                merge_recovered(
-                    args.original_config, args.recovered_dir, args.output_dir, args.audit
                 )
             )
         elif args.stage == "export":

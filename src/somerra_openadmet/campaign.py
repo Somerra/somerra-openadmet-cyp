@@ -34,11 +34,27 @@ from .models import make_regressor
 from .validation import validate_submission
 
 
+def git_revision():
+    """Capture checkout identity before training; source hashes also cover non-Git installs."""
+    try:
+        return subprocess.check_output(
+            ["git", "rev-parse", "HEAD"],
+            cwd=Path(__file__).resolve().parents[2],
+            text=True,
+            stderr=subprocess.DEVNULL,
+        ).strip()
+    except (OSError, subprocess.CalledProcessError):
+        return None
+
+
 def fit_predict(name, x, y, query, seed, n_jobs):
     if name.endswith(("_r2", "_r3")):
         name, radius = name.rsplit("_r", 1)
-        start = 0 if radius == "2" else 2058
-        x, query = x[:, start : start + 2058], query[:, start : start + 2058]
+        if x.shape[1] % 2 or query.shape[1] != x.shape[1]:
+            raise ValueError("Radius aliases require two equal feature blocks")
+        width = x.shape[1] // 2
+        start = 0 if radius == "2" else width
+        x, query = x[:, start : start + width], query[:, start : start + width]
     if name == "constant":
         model = DummyRegressor(strategy="mean")
     elif name == "nearest":
@@ -126,6 +142,18 @@ def evaluate(
         raise ValueError("A molecular cluster spans outer folds")
     output = Path(config["output_dir"])
     output.mkdir(parents=True, exist_ok=False)
+    run_record = {
+        "config": config,
+        "prepared_manifest": manifest,
+        "git_revision": git_revision(),
+        "source_sha256": source_hashes(),
+        "configuration_provenance": provenance,
+        "versions": {
+            p: version(p) for p in ("numpy", "pandas", "rdkit", "scikit-learn", "lightgbm", "scipy")
+        },
+        "complete": False,
+    }
+    write_json(output / "run_manifest.json", run_record)
     x = featurize_smiles(train.SMILES)
     if set(names) & aliases:
         x = np.concatenate([x, featurize_smiles(train.SMILES, radius=3)], axis=1)
@@ -182,18 +210,9 @@ def evaluate(
     write_json(
         output / "run_manifest.json",
         {
-            "config": config,
-            "prepared_manifest": manifest,
-            "git_revision": subprocess.check_output(
-                ["git", "rev-parse", "HEAD"], text=True
-            ).strip(),
-            "versions": {
-                p: version(p)
-                for p in ("numpy", "pandas", "rdkit", "scikit-learn", "lightgbm", "scipy")
-            },
+            **run_record,
+            "complete": True,
             "gpu_hours": 0,
-            "source_sha256": source_hashes(),
-            "configuration_provenance": provenance,
             "embedding_manifest": embedding_manifest,
             "oof_sha256": sha256_file(output / "oof_predictions.csv"),
         },

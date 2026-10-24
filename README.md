@@ -142,7 +142,7 @@ review: comparison, keep/discard, and promotion are separate.
 There is no autonomous scheduler or automatic repetition. The older `python train.py`
 invocation remains a compatibility alias for one run.
 The lower-level `regression` commands remain available for reproduction, comparison,
-data preparation, export and recovery; they are tools, not a competing campaign loop.
+data preparation and export; they are tools, not a competing campaign loop.
 The historical `campaign.py` module implements CPU evaluation, not orchestration.
 
 **External datasets are deferred, not supported by this PR.** The matched neural screen

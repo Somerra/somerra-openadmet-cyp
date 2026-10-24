@@ -58,4 +58,8 @@ Historical per-trial configs were removed from the maintained catalog, not from
 run artifacts or Git history. Exact old flat JSON remains at commit
 `9b43c07c2c9c3afc79a445634097b4481b79d0ac`. Restore only the needed historical
 file into ignored `runs/` with `git show COMMIT:configs/NAME`. Legacy `--config`
-remains supported. Do not substitute a current recipe for a historical recovery.
+remains supported. Do not substitute a current recipe for a historical run; historical recovery requires archived code.
+
+Dataset locations belong in the data catalog. `checkpoint` and `embeddings_dir` are
+model artifacts, so recipes may specify those paths; backend manifests record their
+checksums. They are not additional named data sources.

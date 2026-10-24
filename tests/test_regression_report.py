@@ -60,7 +60,10 @@ def test_cross_run_comparison_supports_neural_and_rejects_changed_folds(tmp_path
     assert (candidate / "comparison.json").read_bytes() == saved
     with pytest.raises(FileExistsError):
         compare(candidate, "nested_ensemble", reference, report)
+    with pytest.raises(FileExistsError):
+        compare(candidate, "nested_ensemble", reference)
+    assert (candidate / "comparison.json").read_bytes() == saved
     frame.loc[0, "fold"] = 4
     frame.to_csv(reference / "oof_predictions.csv", index=False)
     with pytest.raises(ValueError, match="different"):
-        compare(candidate, "nested_ensemble", reference)
+        compare(candidate, "nested_ensemble", reference, tmp_path / "changed.json")

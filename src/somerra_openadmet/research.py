@@ -39,7 +39,7 @@ def main(*, backend, model_recipe, overrides, recipe_source, argv=None, default_
         raise ValueError("BACKEND must be cpu or neural")
     model = {**json.loads(model_recipe.read_text()), **overrides}
     if "selected_folds" in model:
-        raise ValueError("Research trials require all folds; recovery uses the separate CLI")
+        raise ValueError("Research trials require all folds")
     catalog_text = args.data_config.read_text()
     config, selection = compose_config(model, json.loads(catalog_text), args.output_dir)
     if backend == "cpu" and config.get("auxiliary_dirs"):
@@ -51,6 +51,9 @@ def main(*, backend, model_recipe, overrides, recipe_source, argv=None, default_
     plan = {
         "workflow": "reproduction" if args.command == "reproduce" else "autoresearch",
         "backend": backend,
+        "score_kind": "nested_ensemble" if backend == "cpu" else "neural_screen",
+        "score_metric": "MA-ST-RAE",
+        "score_direction": "minimize",
         "hypothesis": args.hypothesis,
         "config": config,
         **selection,

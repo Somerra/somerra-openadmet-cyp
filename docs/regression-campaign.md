@@ -4,7 +4,7 @@ Autoresearch is the primary campaign interface; see [program.md](../program.md).
 This runbook preserves reproducibility procedures, completed experiment evidence
 and best-recipe decisions. It is not a competing orchestration workflow. Research
 and saved-recipe reproduction share `evaluation.evaluate_recipe` and its CPU/neural
-backends. The lower-level commands below remain useful for audits and recovery.
+backends. The lower-level commands below remain useful for audits and reproduction.
 
 The campaign uses public data and a maximum planned allocation of 72 GPU-hours.
 Existing runs remain immutable. `regression export` creates a candidate; it does
@@ -156,8 +156,8 @@ using 0.045299 GPU-hours. It was still worse than the CPU incumbent. Its loss
 implementation differs from the earlier 30-epoch official auxiliary run, so those
 scores do not isolate training duration. Saved runs, checkpoint audits and original
 configs are preserved; the full historical runbook and external code remain in
-commit fb848c4. Generic checkpoint verification, fold recovery and budget accounting
-remain available for official experiments; external reruns require archived code.
+commit fb848c4. Historical fold recovery and external reruns require archived code.
+The current entrypoint runs all folds; budget accounting remains shared.
 
 ### Outstanding work
 
@@ -169,3 +169,23 @@ remain available from Git history and run provenance; consult their `metrics.jso
 `run_manifest.json` for completion, not the existence of an output directory. Final
 promotion requires comparison against the completed incumbent-parity run. No failed
 screen should be promoted merely because its experiment finished.
+
+
+### Evaluation corrections after review
+
+Neural fitting now uses standardized parent SMILES and median targets per parent in
+both direct-only and auxiliary trials; validation uses the same parent representation.
+Historical neural scores above predate this correction. New matched trials are needed
+before comparing data choices; this code review did not rerun training.
+CPU features continue to use the submitted SMILES. Trial records distinguish
+`nested_ensemble` CPU scores from `neural_screen` fixed-epoch scores; both report
+MA-ST-RAE, minimized, but a screen is not nested model selection.
+
+CPU provenance is saved before featurization/training. Missing Git metadata is
+recorded as null while source hashes are retained. Failed runs retain an incomplete
+manifest. Comparison reports refuse overwrites, including the default path.
+
+The GPU ledger defaults to `runs/regression-gpu-budget.json` at the checkout root,
+independently of output directories. Set `SOMERRA_GPU_LEDGER` to one absolute shared
+path when using multiple worktrees or checkouts; status reads the same ledger.
+Outstanding reservations retain their full charge until usage is established.

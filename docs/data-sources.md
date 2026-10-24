@@ -147,3 +147,11 @@ and auxiliary measurements). Dataset availability is not evidence of usefulness.
 - CheMeleon weights and frozen embeddings are **model/representation inputs**, not
   another labeled CYP source. Their benefit must be evaluated with assay data held
   fixed. This pipeline does not ingest the encoder's pretraining corpus.
+
+
+Neural trials use standardized parent SMILES for training and validation, with
+training targets aggregated by parent in both direct-only and auxiliary settings.
+CPU features retain the original SMILES. Auxiliary rows matching blinded-test
+parents remain excluded conservatively; the inspected official auxiliary snapshot
+reports `excluded_test_rows: 0`, so this policy removed no rows from that snapshot.
+We have not established permission to use test-overlapping auxiliary labels.

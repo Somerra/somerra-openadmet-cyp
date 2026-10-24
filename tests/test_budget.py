@@ -30,9 +30,23 @@ def test_interrupted_allocation_keeps_full_budget_charge(tmp_path):
     path = tmp_path / "budget.json"
     allocation = GPUBudget(path, tmp_path / "old", 71)
     allocation.reserve()
-    allocation.record_interruption("Verified original process exited; elapsed time unavailable")
     record = json.loads(path.read_text())[str((tmp_path / "old").resolve())]
-    assert record["status"] == "interrupted_unknown_usage"
+    assert record["status"] == "running"
     assert "used_hours" not in record and record["reserved_hours"] == 71
     with pytest.raises(ValueError, match="exceeds"):
         GPUBudget(path, tmp_path / "new", 2).reserve()
+
+
+def test_ledger_location_is_independent_of_working_directory(tmp_path, monkeypatch):
+    from somerra_openadmet.budget import budget_ledger_path
+
+    monkeypatch.delenv("SOMERRA_GPU_LEDGER", raising=False)
+    default = budget_ledger_path()
+    monkeypatch.chdir(tmp_path)
+    assert budget_ledger_path() == default
+    shared = tmp_path / "shared.json"
+    monkeypatch.setenv("SOMERRA_GPU_LEDGER", str(shared))
+    assert budget_ledger_path() == shared
+    monkeypatch.setenv("SOMERRA_GPU_LEDGER", "relative.json")
+    with pytest.raises(ValueError, match="absolute"):
+        budget_ledger_path()

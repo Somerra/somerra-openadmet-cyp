@@ -79,20 +79,6 @@ def interval_loss(prediction, target, lower, upper):
     return (((distance + 0.1 * center) * observed).sum(0) / count.clamp_min(1))[count > 0].mean()
 
 
-def selected_folds(config: dict, available: list[int]) -> list[int]:
-    folds = sorted(available)
-    selected = config.get("selected_folds", folds)
-    if (
-        not isinstance(selected, list)
-        or not selected
-        or any(type(fold) is not int for fold in selected)
-        or len(set(selected)) != len(selected)
-        or not set(selected).issubset(folds)
-    ):
-        raise ValueError(f"selected_folds must be unique fold IDs from {folds}")
-    return sorted(selected)
-
-
 def encoder(checkpoint: Path | None):
     import torch
     from chemprop import nn
@@ -183,10 +169,10 @@ def screen(
     import torch
     from chemprop import nn
 
-    from .budget import GPUBudget
+    from .budget import GPUBudget, budget_ledger_path
     from .configuration import resolve_config, source_hashes
     from .constants import ACTIVITY_ENDPOINTS
-    from .data_sources.common import allowed_auxiliary
+    from .data_sources.official import neural_training_frame
     from .metrics import soft_threshold_rae
 
     config, provenance = resolve_config(
@@ -203,7 +189,6 @@ def screen(
         "learning_rate",
         "max_gpu_hours",
         "loss",
-        "selected_folds",
     }
     if set(config) - allowed:
         raise ValueError(f"Unknown config keys: {set(config) - allowed}")
@@ -238,7 +223,7 @@ def screen(
     if train.groupby("cluster").fold.nunique().max() != 1:
         raise ValueError("A molecular cluster crosses folds")
     folds = sorted(int(fold) for fold in train.fold.unique())
-    folds_to_run = selected_folds(config, folds)
+    folds_to_run = folds
     output = Path(config["output_dir"])
     output.mkdir(parents=True, exist_ok=False)
     if not torch.cuda.is_available():
@@ -254,10 +239,13 @@ def screen(
     if epochs < 1:
         raise ValueError("epochs must be positive")
     rows = []
-    allocation = GPUBudget(output.parent / "regression-gpu-budget.json", output, budget / 3600)
+    allocation = GPUBudget(budget_ledger_path(), output, budget / 3600)
     allocation.reserve()
     run_record = {
         "config": config,
+        "molecule_representation": "standardized_parent_v1",
+        "training_aggregation": "median_per_parent",
+        "gpu_ledger": str(allocation.path),
         "prepared_manifest": manifest,
         "auxiliary_manifest": aux_manifest,
         "checkpoint_sha256": sha256_file(checkpoint) if checkpoint else None,
@@ -275,21 +263,10 @@ def screen(
             torch.manual_seed(config.get("seed", 42) + int(fold))
             fit = train.loc[train.fold != fold]
             val = train.loc[train.fold == fold]
-            tasks = list(ACTIVITY_ENDPOINTS)
-            values = fit[tasks].to_numpy(dtype=np.float32)
-            smiles = fit.SMILES.tolist()
-            if aux is not None:
-                unique = sorted(aux.parent.unique())
-                valid = allowed_auxiliary(unique, val.parent.tolist())
-                subset = aux.loc[aux.parent.isin(np.asarray(unique)[valid])]
-                wide = subset.pivot_table(index="parent", columns="task", values="value")
-                aux_tasks = sorted(wide.columns)
-                tasks += aux_tasks
-                official = fit.groupby("parent")[list(ACTIVITY_ENDPOINTS)].median()
-                joined = official.join(wide, how="outer")
-                # Molecular parent itself is a valid SMILES; every head sees the same identity.
-                smiles = joined.index.tolist()
-                values = joined[tasks].to_numpy(dtype=np.float32)
+            joined = neural_training_frame(fit, aux, val.parent.tolist())
+            tasks = list(joined.columns)
+            smiles = joined.index.tolist()
+            values = joined.to_numpy(dtype=np.float32)
             means = np.nanmean(values, axis=0)
             scales = np.nanstd(values, axis=0)
             if not np.isfinite(means).all():
@@ -299,13 +276,23 @@ def screen(
             sources = torch.tensor(source_ids, device=device)
             targets = (values - means) / scales
             if loss_name == "interval":
-                lower = fit[[t + "_conf_low" for t in tasks]].to_numpy(dtype=np.float32)
-                upper = fit[[t + "_conf_high" for t in tasks]].to_numpy(dtype=np.float32)
+                lower = (
+                    fit.groupby("parent")[[t + "_conf_low" for t in tasks]]
+                    .median()
+                    .reindex(joined.index)
+                    .to_numpy(dtype=np.float32)
+                )
+                upper = (
+                    fit.groupby("parent")[[t + "_conf_high" for t in tasks]]
+                    .median()
+                    .reindex(joined.index)
+                    .to_numpy(dtype=np.float32)
+                )
                 targets = np.concatenate(
                     [targets, (lower - means) / scales, (upper - means) / scales], axis=1
                 )
             training = loader(smiles, targets, shuffle=True)
-            validation = loader(val.SMILES.tolist())
+            validation = loader(val.parent.tolist())
             mp = encoder(checkpoint).to(device)
             agg = nn.MeanAggregation()
             head = torch.nn.Sequential(

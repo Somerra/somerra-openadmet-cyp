@@ -21,7 +21,7 @@ does not guarantee bit-for-bit results across environments.
 
 The maintained recipe catalog records the incumbent and best observed challenger.
 Agents may propose catalog updates after reviewing results; neither execution mode
-automatically promotes a recipe. Existing low-level comparison, export and recovery
+automatically promotes a recipe. Existing low-level comparison and export
 commands support both workflows and are not a second autonomous campaign system.
 
 ## Agree the experiment first

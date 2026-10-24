@@ -19,7 +19,7 @@ def test_status_distinguishes_artifacts_from_live_processes(tmp_path):
             }
         )
     )
-    result = status(tmp_path)
+    result = status(tmp_path, ledger_path=tmp_path / "regression-gpu-budget.json")
     assert result["recorded_gpu_hours"] == 1.0
     assert result["outstanding_reserved_gpu_hours"] == 2.0
     assert [r["artifact_state"] for r in result["runs"]] == ["complete", "partial"]
@@ -46,7 +46,16 @@ def test_status_includes_reserved_run_before_first_fold_finishes(tmp_path):
             }
         )
     )
-    result = status(tmp_path)
+    result = status(tmp_path, ledger_path=tmp_path / "regression-gpu-budget.json")
     assert result["runs"][0]["selected_folds"] == [4]
     assert result["runs"][0]["completed_folds"] == []
+    assert result["runs"][0]["artifact_state"] == "partial"
+
+
+def test_incomplete_manifest_overrides_existing_metrics(tmp_path):
+    run = tmp_path / "regression-failed"
+    run.mkdir()
+    (run / "metrics.json").write_text(json.dumps({"macro": {"nested_ensemble": 0.8}}))
+    (run / "run_manifest.json").write_text(json.dumps({"complete": False}))
+    result = status(tmp_path, ledger_path=tmp_path / "ledger.json")
     assert result["runs"][0]["artifact_state"] == "partial"

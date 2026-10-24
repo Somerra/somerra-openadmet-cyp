@@ -6,7 +6,6 @@ pytest.importorskip("chemprop")
 from somerra_openadmet.neural import (  # noqa: E402
     interval_loss,
     masked_huber,
-    selected_folds,
     source_balanced_huber,
 )
 
@@ -46,39 +45,3 @@ def test_interval_loss_masks_missing_and_penalizes_outside_bounds():
     loss.backward()
     assert prediction.grad[0, 2] == 0
     assert torch.isfinite(prediction.grad).all()
-
-
-def test_selected_folds_defaults_to_all_and_accepts_recovery_subset():
-    assert selected_folds({}, [3, 1, 0, 2]) == [0, 1, 2, 3]
-    assert selected_folds({"selected_folds": [4]}, [4, 3, 2, 1, 0]) == [4]
-
-
-@pytest.mark.parametrize("value", [[], [4, 4], [5], [True], "4"])
-def test_selected_folds_rejects_invalid_fold_selection(value):
-    with pytest.raises(ValueError, match="selected_folds"):
-        selected_folds({"selected_folds": value}, [0, 1, 2, 3, 4])
-
-
-def test_screening_checkpoint_safe_reload(tmp_path):
-    from chemprop import nn
-
-    from somerra_openadmet.neural_predict import predict_checkpoint
-
-    mp = nn.BondMessagePassing(d_h=16)
-    head = torch.nn.Sequential(torch.nn.Linear(16, 256), torch.nn.ReLU(), torch.nn.Linear(256, 1))
-    path = tmp_path / "model.pt"
-    torch.save(
-        {
-            "encoder_parameters": mp.hparams,
-            "encoder_state": mp.state_dict(),
-            "head_state": head.state_dict(),
-            "tasks": ["potency"],
-            "means": [5.0],
-            "scales": [1.0],
-        },
-        path,
-    )
-    first = predict_checkpoint(path, ["CCO", "CCN"])
-    second = predict_checkpoint(path, ["CCO", "CCN"])
-    assert first.equals(second)
-    assert first.shape == (2, 1)

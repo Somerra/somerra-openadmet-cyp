@@ -124,3 +124,17 @@ def auxiliary(data_dir: Path, output_dir: Path) -> dict:
     }
     write_json(output_dir / "manifest.json", manifest)
     return manifest
+
+
+def neural_training_frame(fit, auxiliary, heldout_parents):
+    """Use the same parent representation and target aggregation in every neural trial."""
+    from .common import allowed_auxiliary
+
+    official = fit.groupby("parent")[list(ACTIVITY_ENDPOINTS)].median()
+    if auxiliary is None:
+        return official
+    parents = sorted(auxiliary.parent.unique())
+    allowed = allowed_auxiliary(parents, heldout_parents)
+    subset = auxiliary.loc[auxiliary.parent.isin(np.asarray(parents)[allowed])]
+    wide = subset.pivot_table(index="parent", columns="task", values="value")
+    return official.join(wide.reindex(columns=sorted(wide.columns)), how="outer")

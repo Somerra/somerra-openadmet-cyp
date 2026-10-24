@@ -44,6 +44,9 @@ def test_one_trial_snapshots_inputs(tmp_path, monkeypatch):
     status = json.loads((tmp_path / "regression-trial-inputs/trial.json").read_text())
     assert status["status"] == "completed"
     assert status["score"] == 0.8
+    assert status["score_kind"] == "nested_ensemble"
+    assert status["score_metric"] == "MA-ST-RAE"
+    assert status["score_direction"] == "minimize"
     assert status["decision"] == "pending review"
     with pytest.raises(FileExistsError):
         runner.main()
