@@ -45,3 +45,54 @@ def test_interval_loss_masks_missing_and_penalizes_outside_bounds():
     loss.backward()
     assert prediction.grad[0, 2] == 0
     assert torch.isfinite(prediction.grad).all()
+
+
+def test_matched_interval_loss_keeps_auxiliary_mae_and_masks_missing():
+    from somerra_openadmet.neural_models import masked_mae
+
+    pred = torch.tensor([[0.0, 3.0, 0.0, 0.0, 2.0]], requires_grad=True)
+    targets = torch.tensor([[0.0, 0.0, float("nan"), float("nan"), 1.0]])
+    lower = torch.tensor([[-1.0, -1.0, float("nan"), float("nan")]])
+    upper = torch.tensor([[1.0, 1.0, float("nan"), float("nan")]])
+    weights = torch.ones(5)
+    loss = masked_mae(pred, targets, weights, bounds=(lower, upper))
+    assert loss.item() == pytest.approx(1.0)
+    loss.backward()
+    assert torch.isfinite(pred.grad).all()
+    assert pred.grad[0, 2] == 0
+    assert pred.grad[0, 4] != 0
+    assert masked_mae(pred, targets, weights).item() == pytest.approx(4 / 3)
+
+
+def test_eight_head_checkpoint_roundtrip_on_cpu():
+    import io
+
+    from somerra_openadmet.neural import loader
+    from somerra_openadmet.neural_models import build_model
+
+    mp, agg, head = build_model("scigantic_mt_aux8", 8)
+    mp.eval()
+    head.eval()
+    batch = next(iter(loader(["CCN", "CCO"])))
+    with torch.no_grad():
+        expected = head(agg(mp(batch.bmg), batch.bmg.batch))
+    buffer = io.BytesIO()
+    torch.save({"encoder_state": mp.state_dict(), "head_state": head.state_dict()}, buffer)
+    buffer.seek(0)
+    saved = torch.load(buffer, weights_only=True)
+    new_mp, new_agg, new_head = build_model("scigantic_mt_aux8", 8)
+    new_mp.load_state_dict(saved["encoder_state"])
+    new_head.load_state_dict(saved["head_state"])
+    new_mp.eval()
+    new_head.eval()
+    with torch.no_grad():
+        actual = new_head(new_agg(new_mp(batch.bmg), batch.bmg.batch))
+    torch.testing.assert_close(actual, expected)
+    assert actual.shape == (2, 8)
+
+
+def test_validation_loader_keeps_singleton_last_batch():
+    from somerra_openadmet.neural import loader
+
+    batches = list(loader(["C", "CC", "CCC"], batch_size=2))
+    assert len(batches) == 2
