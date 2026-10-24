@@ -12,7 +12,8 @@ from .evaluation import evaluate_recipe
 
 def main(*, backend, model_recipe, overrides, recipe_source, argv=None, default_command=None):
     parser = argparse.ArgumentParser(
-        description="Preview a research trial, run it, or reproduce a saved recipe."
+        description="Preview a research trial, run it, or reproduce a saved recipe. "
+        "For published frozen predictions, use autoresearch.py reference --help."
     )
     parser.add_argument(
         "command", choices=("plan", "run", "reproduce"), nargs="?", default=default_command

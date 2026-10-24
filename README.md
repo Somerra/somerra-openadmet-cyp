@@ -189,3 +189,10 @@ at pinned revision `146282d2ce1532f1803679a834a9bec9dac1e482` (confirmed current
 2026-09-30) and remain under the dataset's Apache-2.0 terms. The manifest verifier
 checks every expected file's size and SHA-256 before modeling. Raw files, model
 artifacts, and submissions are gitignored.
+
+### Published regression reference
+
+`python autoresearch.py reference --help` verifies the pinned Scigantic R25 submission
+from frozen predictions without training. See [the baseline and experiment plan](docs/scigantic-baseline.md)
+for measured reconstruction agreement, evaluation limitations, and the proposed
+organizer-only training baseline. This reference has no independent local CV score.
