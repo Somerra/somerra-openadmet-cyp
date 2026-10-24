@@ -106,3 +106,10 @@ gates. The frozen-feature recipe is the best observed challenger, **not promoted
 External data is deferred to issues #3 and #4 and is not supported by this PR.
 It has not shown a clear benefit in the matched comparison. Preserve
 these distinct conclusions; availability of a source is not evidence of usefulness.
+
+## Submission privacy
+
+Follow the standing policy in `AGENTS.md`: predictions only; keep code private,
+Open Code false, and the Method Report Link empty, including third-party links.
+Keep provenance and attribution in private records. A leaderboard submission must
+never publish code or code/report links without a new explicit user instruction.
