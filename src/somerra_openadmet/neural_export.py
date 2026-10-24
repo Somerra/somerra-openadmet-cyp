@@ -33,6 +33,18 @@ def checkpoint_paths(run_dir, manifest):
     return paths
 
 
+def load_checkpoint(path):
+    """Allow only the known Chemprop metadata types in our hash-verified checkpoints."""
+    import torch
+    from chemprop.nn import BondMessagePassing
+    from chemprop.nn.utils import Activation
+
+    with torch.serialization.safe_globals(
+        [BondMessagePassing, Activation, (dict, "lightning.fabric.utilities.data.AttributeDict")]
+    ):
+        return torch.load(path, weights_only=True, map_location="cpu")
+
+
 def export(run_dir: Path, data_dir: Path, output_dir: Path, max_gpu_hours=0.5):
     import torch
 
@@ -76,7 +88,7 @@ def export(run_dir: Path, data_dir: Path, output_dir: Path, max_gpu_hours=0.5):
     try:
         predictions = []
         for path in paths:
-            saved = torch.load(path, weights_only=True, map_location="cpu")
+            saved = load_checkpoint(path)
             if saved.get("model_family") != "scigantic_mt_aux8" or saved["tasks"][:4] != list(
                 ACTIVITY_ENDPOINTS
             ):

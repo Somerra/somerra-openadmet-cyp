@@ -64,10 +64,9 @@ def test_matched_interval_loss_keeps_auxiliary_mae_and_masks_missing():
     assert masked_mae(pred, targets, weights).item() == pytest.approx(4 / 3)
 
 
-def test_eight_head_checkpoint_roundtrip_on_cpu():
-    import io
-
+def test_eight_head_checkpoint_roundtrip_on_cpu(tmp_path):
     from somerra_openadmet.neural import loader
+    from somerra_openadmet.neural_export import load_checkpoint
     from somerra_openadmet.neural_models import build_model
 
     mp, agg, head = build_model("scigantic_mt_aux8", 8)
@@ -76,10 +75,16 @@ def test_eight_head_checkpoint_roundtrip_on_cpu():
     batch = next(iter(loader(["CCN", "CCO"])))
     with torch.no_grad():
         expected = head(agg(mp(batch.bmg), batch.bmg.batch))
-    buffer = io.BytesIO()
-    torch.save({"encoder_state": mp.state_dict(), "head_state": head.state_dict()}, buffer)
-    buffer.seek(0)
-    saved = torch.load(buffer, weights_only=True)
+    buffer = tmp_path / "model.pt"
+    torch.save(
+        {
+            "encoder_state": mp.state_dict(),
+            "head_state": head.state_dict(),
+            "encoder_parameters": mp.hparams,
+        },
+        buffer,
+    )
+    saved = load_checkpoint(buffer)
     new_mp, new_agg, new_head = build_model("scigantic_mt_aux8", 8)
     new_mp.load_state_dict(saved["encoder_state"])
     new_head.load_state_dict(saved["head_state"])

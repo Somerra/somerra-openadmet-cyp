@@ -191,4 +191,49 @@ hash, budget usage, and private submission settings. Export is not promotion or 
 The frozen published R25 remains the submitted reference. This comparison can establish
 whether interval loss improves our adapted local baseline; it cannot directly prove
 an improvement over R25 because that stack has different training folds and incomplete
-independent OOF evidence. Final outcomes will be recorded after both trials complete.
+independent OOF evidence. Both trials completed; results follow below.
+
+
+### Completed results
+
+| Model | CYP1A2 | CYP2C9 | CYP2D6 | CYP3A4 | MA-ST-RAE |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| Eight-head MAE baseline | 0.888840 | 0.662995 | 1.072130 | 0.490933 | 0.778725 |
+| Matched interval loss | 0.866988 | 0.622276 | 0.994657 | 0.470432 | 0.738588 |
+
+Interval loss reduced macro error by 5.15%, with all endpoints improving. The paired
+cluster-bootstrap 95% interval for interval-minus-MAE is [-0.05505, -0.02624]. This
+passes the numerical gate against the matched baseline. Both runs have identical
+recorded source and data hashes; only loss differs in their training configurations.
+
+Against the historical CPU incumbent (0.743511), the improvement is only 0.66%, with
+paired 95% interval [-0.02432, 0.01608]. CYP1A2 regresses by 0.03428 and CYP2D6 by
+0.07932, so this comparison fails the incumbent-replacement gate. Keep the interval
+recipe as the best tested neural recipe; do not promote it as the overall incumbent
+or claim it beats the published R25 submission.
+
+The equal mean of the five completed interval models produced a validated 750-row
+candidate, with SHA256
+`62ed5d667c4192a7f56c065ec343cc6be84e186106d0955b299f2e0ee376a66a`.
+The first two export attempts exposed a PyTorch metadata loading incompatibility;
+the successful export retains restricted loading and maps the known metadata dict
+type to a plain dict. Exact-format checkpoint round-trip tests cover this. Failed
+attempts and budget usage are preserved. Future eight-head checkpoints omit unused
+encoder construction metadata.
+
+Total training and export usage, including failed exports: **0.259994 GPU-hours**,
+within the approved four-hour cap. No new candidate was uploaded.
+
+Durable local evidence is under
+`runs/campaign-20261024-eighthead/`: the `regression-20261024-inputs` directory contains
+the contract, environment, recipes, logs and paired results; each trial contains its
+OOF predictions, fold checkpoints, hashes and metrics. The validated CSV is in
+`candidate-20261024-eighthead-interval-v3/activity_submission.csv`. The archive retains
+original run paths for provenance and does not create new GPU ledger allocations.
+All artifacts stay ignored. Any future submission must contain predictions only,
+with Open Code false and the report link empty.
+
+The next modeling question is whether initialization or task sharing can improve
+CYP1A2/CYP2D6 without sacrificing the interval model's gains on CYP2C9/CYP3A4. That
+requires a new bounded comparison. No additional experiments were launched after
+the two approved trials.

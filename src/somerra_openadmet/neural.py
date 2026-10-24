@@ -400,7 +400,7 @@ def screen(
             torch.save(
                 {
                     "model_family": family,
-                    "encoder_parameters": mp.hparams,
+                    "encoder_parameters": mp.hparams if family == "legacy" else {},
                     "encoder_state": mp.state_dict(),
                     "head_state": head.state_dict(),
                     "tasks": tasks,
