@@ -17,3 +17,12 @@ The user requires prediction-only submissions for this challenge.
 
 This policy was explicitly established by the user on 2026-10-24 and remains in
 force unless the user changes it.
+
+## Third-party reference predictions
+
+Scigantic reference (R25) is a reconstruction of third-party published predictions,
+not a model trained by this project. Keep it attributed as an external reference.
+Its resubmission is on hold pending clarification of prediction-reuse eligibility
+and attribution requirements. A validated file or prior acceptance is not clearance
+to resubmit. Do not contact organizers without user authorization. If required
+attribution conflicts with the submission policy above, stop and explain the conflict.

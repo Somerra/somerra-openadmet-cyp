@@ -164,6 +164,13 @@ def embeddings(prepared_dir: Path, checkpoint: Path, output_dir: Path) -> dict:
     return result
 
 
+def validate_task_order(tasks):
+    from .constants import ACTIVITY_ENDPOINTS
+
+    if list(tasks[:4]) != list(ACTIVITY_ENDPOINTS):
+        raise ValueError("First four tasks must match ACTIVITY_ENDPOINTS order")
+
+
 def screen(
     config_path: Path | None = None,
     *,
@@ -288,6 +295,7 @@ def screen(
             val = train.loc[train.fold == fold]
             joined = neural_training_frame(fit, aux, val.parent.tolist())
             tasks = list(joined.columns)
+            validate_task_order(tasks)
             smiles = joined.index.tolist()
             values = joined.to_numpy(dtype=np.float32)
             means = np.nanmean(values, axis=0)

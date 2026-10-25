@@ -106,7 +106,9 @@ are locally generated Butina clusters within official training, not organizer fo
 Eligible auxiliary and external sources supplement training under the exclusions
 above. The reconstructed R25 prediction ensemble scored **0.4436** on the official
 test. Our without-TDI screening model, submitted at 01:27 UTC on 2026-10-25, scored
-**0.7790**. R25 remains the best officially evaluated submission of these two.
+**0.7790**. The 0.4436 result reproduces Scigantic reference (R25); it is not our trained
+model result. Our own trained submission scored 0.7790. Reference resubmission is
+on hold pending reuse/attribution clarification.
 A numerical gate against the local CPU reference did not establish improvement
 over R25; future reporting must distinguish these references.
 
@@ -138,3 +140,9 @@ final completion record; the top-level `completion.json` is historical phase one
 `submission-prepared-20261025/` retains the actual CSV, receipt and leaderboard
 snapshot. Frozen source snapshots, operational scripts and trial recipes remain
 ignored local artifacts, not a maintained catalog of every configuration.
+
+
+Review follow-up: reports now refuse existing CSV destinations unless `--overwrite`
+is explicit; use `--output PATH` to retain previous summaries. Training validates
+the first four task names before positional target/bound scaling. These safeguards
+were added after the frozen study and do not change its historical artifacts.

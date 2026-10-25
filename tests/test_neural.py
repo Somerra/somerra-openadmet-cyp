@@ -101,3 +101,20 @@ def test_validation_loader_keeps_singleton_last_batch():
 
     batches = list(loader(["C", "CC", "CCC"], batch_size=2))
     assert len(batches) == 2
+
+
+@pytest.mark.parametrize("kind", ["swapped", "missing", "auxiliary_first"])
+def test_rejects_misaligned_official_task_order(kind):
+    from somerra_openadmet.constants import ACTIVITY_ENDPOINTS
+    from somerra_openadmet.neural import validate_task_order
+
+    tasks = list(ACTIVITY_ENDPOINTS)
+    validate_task_order(tasks + ["auxiliary"])
+    if kind == "swapped":
+        tasks[0], tasks[1] = tasks[1], tasks[0]
+    elif kind == "missing":
+        tasks.pop()
+    else:
+        tasks.insert(0, "auxiliary")
+    with pytest.raises(ValueError, match="ACTIVITY_ENDPOINTS order"):
+        validate_task_order(tasks)

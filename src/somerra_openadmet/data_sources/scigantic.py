@@ -60,7 +60,9 @@ def prepare(source_dir: Path, test_smiles, output_dir: Path):
     blind = sorted({parent_smiles(s) for s in test_smiles})
     allowed = allowed_auxiliary(parents, blind)
     permitted = set(np.asarray(parents)[allowed])
-    excluded = frame.loc[~frame.parent.isin(permitted), ["Molecule_Name", "parent"]]
+    excluded_frame = frame.loc[~frame.parent.isin(permitted)]
+    exact = excluded_frame.parent.isin(blind)
+    excluded = excluded_frame[["Molecule_Name", "parent"]]
     frame = frame.loc[frame.parent.isin(permitted)]
     output_dir.mkdir(parents=True, exist_ok=False)
     excluded.to_csv(output_dir / "blind_overlap_exclusions.csv", index=False)
@@ -82,6 +84,11 @@ def prepare(source_dir: Path, test_smiles, output_dir: Path):
             "provenance_limit": "Published derivative; raw assay reconstruction unverified",
             "blind_exclusion": "standardized parent and ECFP4 Tanimoto >= 0.6",
             "excluded_upstream_rows": len(excluded),
+            "excluded_exact_parent_rows": int(exact.sum()),
+            "excluded_analogue_only_rows": int((~exact).sum()),
+            "excluded_exact_parents": excluded_frame.loc[exact, "parent"].nunique(),
+            "excluded_analogue_only_parents": excluded_frame.loc[~exact, "parent"].nunique(),
+            "excluded_source_observations": int(excluded_frame[tasks].notna().sum().sum()),
             "rows": len(long),
             "parents": long.parent.nunique(),
             "task_counts": long.groupby("task").size().to_dict(),

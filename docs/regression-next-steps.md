@@ -2,22 +2,31 @@
 
 ## Objective and fixed evaluation boundary
 
-Improve the official challenge test score from the verified R25 reference (0.4436).
+Improve our trained submission (0.7790), using Scigantic reference (R25; 0.4436)
+as an explicitly attributed external benchmark.
 The challenge's provided blinded test remains our test set. Validation is drawn
 only from official training data. Eligible official auxiliary and external data
 may supplement training, with the existing held-out parent/analogue exclusions.
 Keep validation and official test metrics separate. Preserve private source
 attribution; submit predictions only, Open Code false and report link empty.
 
-## Immediate submission candidate
+## Reference reuse is on hold
 
-The verified R25 reconstruction is available without new fitting. Its prediction
-SHA256 is `bc5b8065790ce5e47e087c7a0f0a9ab5e9e0904e1c524a481d24f13491a3134d`.
-Reusing it would restore the stronger baseline, not constitute a new improvement.
-The last accepted submission was 2026-10-25 01:27:49 UTC; allow the 12-hour cooldown
-plus a conservative margin, targeting no earlier than 13:29 UTC. Recheck the live
-portal and local receipts immediately before any upload. Do not assume a new
-submission deletes historical metadata. No upload is part of this PR update.
+Scigantic reference (R25) reconstructs Scigantic's published predictions. Its 0.4436
+score is reference reproduction evidence, not a result of our trained model. Our
+own trained submission scored 0.7790. The prediction checksum is
+`bc5b8065790ce5e47e087c7a0f0a9ab5e9e0904e1c524a481d24f13491a3134d`.
+
+Do not resubmit this reference as a new candidate. Published portal guidance permits
+external training data and pretrained models and does not require open code for
+standard ranking, but does not explicitly settle reuse of another participant's
+published prediction CSV. Organizer clarification and an acceptable attribution
+arrangement remain unresolved. No organizer has been contacted. If required
+attribution conflicts with the user's no-link policy, stop and explain the conflict;
+do not silently publish a link or present third-party predictions as our work.
+
+The local readiness record is on hold. A validated CSV alone is not submission
+clearance. Develop and evaluate our own trained candidate instead.
 
 ## Ordered work
 
@@ -56,3 +65,28 @@ proof of superiority to the official-test incumbent. Two structurally different
 submissions cannot establish validation/test score correlation. Do not promote a
 candidate as an official improvement until its official score supports that claim.
 No new training allocation or automatic upload is authorized by this plan.
+
+## Review follow-up: analogue exclusions and challenge design
+
+The organizer describes the test set as analogue expansion around potent training
+hits, not a random or uniformly distant chemical holdout. This explains why our
+cluster validation is more chemically separated and motivates a hit-expansion
+validation comparator within official training. Sparse training versus dense test
+assays also changes endpoint coverage and should be measured.
+
+The published portal FAQ permits external training data; no requirement for our
+0.6 test-analogue cutoff was found in the inspected guidance. The cutoff is our
+conservative research choice, not an organizer rule. Preserve the completed study's
+filter and artifacts. In a separately budgeted matched comparison, compare exact
+parent exclusions against exact-plus-analogue exclusions, keeping validation-fold
+exclusions fixed and recording per-source molecules/labels removed. This isolates
+the test-based filter; report its mismatch with validation exclusions explicitly.
+New adapter manifests separate exact-parent from analogue-only exclusions and
+record excluded source observations. The original excluded-row CSV permits a
+retrospective count without changing historical manifests. That audit found 144
+excluded upstream rows/parents, all analogue-only; exact-parent exclusions were zero
+in this pinned derivative table. This does not describe exclusions in other sources.
+
+Sources inspected 2026-10-25: [portal FAQ](https://openadmet-cyp-challenge.hf.space/)
+and [organizer dataset construction](https://openadmet.ghost.io/announcing-openadmets-cyp-inhibition-blind-challenge/).
+These links are private documentation only, never submission metadata.
