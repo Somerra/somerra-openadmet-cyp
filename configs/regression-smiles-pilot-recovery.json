@@ -1,0 +1,9 @@
+{
+  "prepared_dir": "runs/regression-corpus-v1",
+  "auxiliary_dir": "runs/regression-auxiliary-v1",
+  "output_dir": "runs/regression-smiles-pilot-v2",
+  "ledger": "runs/regression-gpu-budget.json",
+  "prior_attempts": [
+    "runs/regression-smiles-pilot-v1"
+  ]
+}

@@ -1,0 +1,67 @@
+{
+  "prepared_dir": "runs/regression-corpus-v1",
+  "auxiliary_dir": "runs/regression-auxiliary-v1",
+  "output_dir": "runs/regression-transformer-followup-v1",
+  "ledger": "runs/regression-gpu-budget.json",
+  "prior_manifest": "runs/regression-smiles-pilot-v2/run_manifest.json",
+  "max_gpu_hours": 0.75,
+  "trials": [
+    {
+      "name": "reference-free-gpu",
+      "family": "mt_aux8",
+      "augment": false,
+      "training": {}
+    },
+    {
+      "name": "smiles-cached-control",
+      "family": "smiles_transformer",
+      "augment": false,
+      "training": {}
+    },
+    {
+      "name": "smiles-regularized-64",
+      "family": "smiles_transformer",
+      "augment": false,
+      "training": {
+        "optimizer": "adamw",
+        "weight_decay": 0.01,
+        "peak_lr": 0.0003,
+        "schedule": "cosine",
+        "precision": "bfloat16",
+        "patience": 60,
+        "min_epochs": 100,
+        "batch_size": 64
+      }
+    },
+    {
+      "name": "smiles-regularized-256",
+      "family": "smiles_transformer",
+      "augment": false,
+      "training": {
+        "optimizer": "adamw",
+        "weight_decay": 0.01,
+        "peak_lr": 0.0003,
+        "schedule": "cosine",
+        "precision": "bfloat16",
+        "patience": 60,
+        "min_epochs": 100,
+        "batch_size": 256
+      }
+    },
+    {
+      "name": "smiles-regularized-256-augmented",
+      "family": "smiles_transformer",
+      "augment": true,
+      "training": {
+        "optimizer": "adamw",
+        "weight_decay": 0.01,
+        "peak_lr": 0.0003,
+        "schedule": "cosine",
+        "precision": "bfloat16",
+        "patience": 60,
+        "min_epochs": 100,
+        "batch_size": 256
+      }
+    }
+  ]
+}
