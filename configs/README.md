@@ -3,8 +3,11 @@
 See [the data-source guide](../docs/data-sources.md) for each source's targets,
 potential modeling value, preparation rules, limitations and measured evidence.
 
-Only two model recipes are maintained: `models/incumbent.json` (nested MA-ST-RAE
-0.743511) and `models/frozen-challenger.json` (0.739029, not promoted). Embeddings
+The maintained recipes are `models/incumbent.json` (nested MA-ST-RAE 0.743511),
+`models/frozen-challenger.json` (0.739029, not promoted), and the best observed neural
+recipe `models/neural-interval.json` (fixed-epoch five-fold MA-ST-RAE 0.738588, not
+promoted). The neural recipe improved its matched MAE baseline by 5.15%, but its
+paired comparison against the CPU incumbent did not pass the replacement gate. Embeddings
 are model features, not an additional assay source. See `../program.md` for the
 single-axis research workflow. Trial recipes and results belong under ignored
 `runs/`, not here.
@@ -63,3 +66,8 @@ remains supported. Do not substitute a current recipe for a historical run; hist
 Dataset locations belong in the data catalog. `checkpoint` and `embeddings_dir` are
 model artifacts, so recipes may specify those paths; backend manifests record their
 checksums. They are not additional named data sources.
+
+Reproduce the neural recipe with `autoresearch.py reproduce --backend neural
+--model-config configs/models/neural-interval.json --output-dir NEW_PATH`. Its
+`auxiliary_tasks` select four single-concentration heads from the same official
+bundle. Obtain a finite compute allocation before running training.

@@ -218,3 +218,16 @@ def test_shared_neural_evaluator_enforces_completion(tmp_path, monkeypatch, comp
     else:
         with pytest.raises(ValueError, match="Incomplete"):
             evaluate_recipe(**kwargs)
+
+
+def test_primary_reference_does_not_import_train(monkeypatch):
+    from somerra_openadmet import reference
+
+    spec = importlib.util.spec_from_file_location(
+        "reference_entry", Path(__file__).parents[1] / "autoresearch.py"
+    )
+    entry = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(entry)
+    monkeypatch.setitem(sys.modules, "train", None)
+    monkeypatch.setattr(reference, "main", lambda argv: argv)
+    assert entry.main(["reference", "--source-dir", "pinned"]) == ["--source-dir", "pinned"]

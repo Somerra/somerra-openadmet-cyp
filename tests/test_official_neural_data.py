@@ -21,3 +21,16 @@ def test_neural_data_uses_same_parent_and_aggregation_with_auxiliary():
     assert "C[C@H](O)CC" not in direct.index
     assert "c1ccccc1" in combined.index
     assert "CCCCCCCC" not in combined.index
+
+
+def test_auxiliary_task_selection_keeps_bundle_intact():
+    import pytest
+
+    from somerra_openadmet.data_sources.official import select_auxiliary_tasks
+
+    frame = pd.DataFrame({"task": ["single", "tdi"], "value": [1.0, 2.0]})
+    selected = select_auxiliary_tasks(frame, ["single"])
+    assert selected.task.tolist() == ["single"]
+    assert len(frame) == 2
+    with pytest.raises(ValueError, match="unavailable"):
+        select_auxiliary_tasks(frame, ["missing"])

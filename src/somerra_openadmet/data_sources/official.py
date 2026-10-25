@@ -138,3 +138,17 @@ def neural_training_frame(fit, auxiliary, heldout_parents):
     subset = auxiliary.loc[auxiliary.parent.isin(np.asarray(parents)[allowed])]
     wide = subset.pivot_table(index="parent", columns="task", values="value")
     return official.join(wide.reindex(columns=sorted(wide.columns)), how="outer")
+
+
+def select_auxiliary_tasks(frame, tasks):
+    """Choose named assay heads without changing the shared data bundle."""
+    if (
+        not isinstance(tasks, list)
+        or not tasks
+        or any(not isinstance(t, str) for t in tasks)
+        or len(set(tasks)) != len(tasks)
+    ):
+        raise ValueError("auxiliary_tasks must be a nonempty unique list")
+    if frame is None or set(tasks) - set(frame.task):
+        raise ValueError("Selected auxiliary tasks unavailable")
+    return frame.loc[frame.task.isin(tasks)].copy()

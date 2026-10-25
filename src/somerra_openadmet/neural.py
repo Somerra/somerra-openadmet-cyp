@@ -99,7 +99,13 @@ def loader(smiles, targets=None, *, shuffle=False, batch_size=64):
         for i, s in enumerate(smiles)
     ]
     dataset = data.MoleculeDataset(points)
-    return data.build_dataloader(dataset, batch_size=batch_size, shuffle=shuffle, num_workers=0)
+    return data.build_dataloader(
+        dataset,
+        batch_size=batch_size,
+        shuffle=shuffle,
+        num_workers=0,
+        drop_last=None if shuffle else False,
+    )
 
 
 def encode_smiles(smiles, checkpoint: Path):
@@ -158,6 +164,13 @@ def embeddings(prepared_dir: Path, checkpoint: Path, output_dir: Path) -> dict:
     return result
 
 
+def validate_task_order(tasks):
+    from .constants import ACTIVITY_ENDPOINTS
+
+    if list(tasks[:4]) != list(ACTIVITY_ENDPOINTS):
+        raise ValueError("First four tasks must match ACTIVITY_ENDPOINTS order")
+
+
 def screen(
     config_path: Path | None = None,
     *,
@@ -167,7 +180,6 @@ def screen(
 ) -> dict:
     """Fixed-epoch outer CV for screening; meta-model selection remains nested."""
     import torch
-    from chemprop import nn
 
     from .budget import GPUBudget, budget_ledger_path
     from .configuration import resolve_config, source_hashes
@@ -189,6 +201,10 @@ def screen(
         "learning_rate",
         "max_gpu_hours",
         "loss",
+        "model_family",
+        "auxiliary_tasks",
+        "task_weights",
+        "batch_size",
     }
     if set(config) - allowed:
         raise ValueError(f"Unknown config keys: {set(config) - allowed}")
@@ -211,13 +227,27 @@ def screen(
             raise ValueError("Auxiliary checksum mismatch")
         aux_manifest.append(evidence)
         frame = pd.read_csv(aux_dir / "assays.csv")
-        validate_official_auxiliary(frame)
+        if evidence.get("source", "").startswith("scigantic_"):
+            from .data_sources.scigantic import validate_snapshot
+
+            validate_snapshot(frame, evidence)
+        else:
+            validate_official_auxiliary(frame)
         frames.append(frame)
     if frames:
         aux = pd.concat(frames, ignore_index=True)
+    if config.get("auxiliary_tasks") is not None:
+        from .data_sources.official import select_auxiliary_tasks
+
+        aux = select_auxiliary_tasks(aux, config["auxiliary_tasks"])
+    family = config.get("model_family", "legacy")
+    if family not in {"legacy", "scigantic_mt_aux8"}:
+        raise ValueError("Unknown neural model_family")
+    if family == "scigantic_mt_aux8" and checkpoint is not None:
+        raise ValueError("The eight-head baseline uses random initialization")
     loss_name = config.get("loss", "huber")
-    if loss_name not in {"huber", "interval"}:
-        raise ValueError("loss must be huber or interval")
+    if loss_name not in {"huber", "interval", "mae", "interval_mae"}:
+        raise ValueError("Unknown neural loss")
     if loss_name == "interval" and aux is not None:
         raise ValueError("Interval ablation currently supports official targets only")
     if train.groupby("cluster").fold.nunique().max() != 1:
@@ -265,6 +295,7 @@ def screen(
             val = train.loc[train.fold == fold]
             joined = neural_training_frame(fit, aux, val.parent.tolist())
             tasks = list(joined.columns)
+            validate_task_order(tasks)
             smiles = joined.index.tolist()
             values = joined.to_numpy(dtype=np.float32)
             means = np.nanmean(values, axis=0)
@@ -291,15 +322,34 @@ def screen(
                 targets = np.concatenate(
                     [targets, (lower - means) / scales, (upper - means) / scales], axis=1
                 )
-            training = loader(smiles, targets, shuffle=True)
+            if loss_name == "interval_mae":
+                lower = (
+                    fit.groupby("parent")[[t + "_conf_low" for t in ACTIVITY_ENDPOINTS]]
+                    .median()
+                    .reindex(joined.index)
+                    .to_numpy(dtype=np.float32)
+                )
+                upper = (
+                    fit.groupby("parent")[[t + "_conf_high" for t in ACTIVITY_ENDPOINTS]]
+                    .median()
+                    .reindex(joined.index)
+                    .to_numpy(dtype=np.float32)
+                )
+                targets = np.concatenate(
+                    [targets, (lower - means[:4]) / scales[:4], (upper - means[:4]) / scales[:4]],
+                    axis=1,
+                )
+            training = loader(
+                smiles, targets, shuffle=True, batch_size=int(config.get("batch_size", 64))
+            )
             validation = loader(val.parent.tolist())
-            mp = encoder(checkpoint).to(device)
-            agg = nn.MeanAggregation()
-            head = torch.nn.Sequential(
-                torch.nn.Linear(mp.output_dim, 256),
-                torch.nn.ReLU(),
-                torch.nn.Linear(256, len(tasks)),
-            ).to(device)
+            from .neural_models import build_model, masked_mae
+
+            mp, agg, head = build_model(family, len(tasks), checkpoint)
+            mp, agg, head = mp.to(device), agg.to(device), head.to(device)
+            task_weights = torch.tensor(
+                [config.get("task_weights", {}).get(t, 1.0) for t in tasks], device=device
+            )
             optimizer = torch.optim.AdamW(
                 [*mp.parameters(), *head.parameters()],
                 lr=float(config.get("learning_rate", 1e-4)),
@@ -317,13 +367,24 @@ def screen(
                     if loss_name == "interval":
                         target, lower, upper = batch.Y.to(device).chunk(3, dim=1)
                         loss = interval_loss(prediction, target, lower, upper)
+                    elif loss_name in {"mae", "interval_mae"}:
+                        packed = batch.Y.to(device)
+                        target = packed[:, : len(tasks)]
+                        bounds = (
+                            (packed[:, len(tasks) : len(tasks) + 4], packed[:, len(tasks) + 4 :])
+                            if loss_name == "interval_mae"
+                            else None
+                        )
+                        loss = masked_mae(prediction, target, task_weights, bounds=bounds)
                     else:
                         loss = source_balanced_huber(prediction, batch.Y.to(device), sources)
                     if not torch.isfinite(loss):
                         raise ValueError("Non-finite neural training loss")
                     optimizer.zero_grad()
                     loss.backward()
-                    torch.nn.utils.clip_grad_norm_([*mp.parameters(), *head.parameters()], 5.0)
+                    torch.nn.utils.clip_grad_norm_(
+                        [*mp.parameters(), *head.parameters()], 5.0, error_if_nonfinite=True
+                    )
                     optimizer.step()
                     total += loss.item()
                 print(
@@ -351,7 +412,8 @@ def screen(
                 rows.append(frame)
             torch.save(
                 {
-                    "encoder_parameters": mp.hparams,
+                    "model_family": family,
+                    "encoder_parameters": mp.hparams if family == "legacy" else {},
                     "encoder_state": mp.state_dict(),
                     "head_state": head.state_dict(),
                     "tasks": tasks,
@@ -361,6 +423,23 @@ def screen(
                 output / f"fold-{fold}.pt",
             )
             pd.concat(rows).to_csv(output / "oof_predictions.csv", index=False)
+            run_record.setdefault("checkpoint_sha256_by_fold", {})[str(fold)] = sha256_file(
+                output / f"fold-{fold}.pt"
+            )
+            fold_oof = pd.concat(rows).query("fold == @fold")
+            run_record.setdefault("fold_scores", {})[str(fold)] = {
+                endpoint: soft_threshold_rae(f.y_true, f.y_pred, f.conf_low, f.conf_high)
+                for endpoint, f in fold_oof.groupby("endpoint")
+            }
+            run_record.setdefault("fold_training", {})[str(fold)] = {
+                "parents": len(smiles),
+                "tasks": tasks,
+                "observed_labels": dict(
+                    zip(tasks, np.isfinite(values).sum(0).tolist(), strict=True)
+                ),
+                "epochs": epochs,
+                "optimizer_steps": epochs * len(training),
+            }
             run_record["completed_folds"].append(int(fold))
             run_record["requested_folds_complete"] = run_record["completed_folds"] == folds_to_run
             write_json(output / "run_manifest.json", run_record)

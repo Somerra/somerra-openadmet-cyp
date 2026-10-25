@@ -1,0 +1,29 @@
+{
+  "data_sources": [
+    "official_direct",
+    "official_auxiliary"
+  ],
+  "model_family": "scigantic_mt_aux8",
+  "auxiliary_tasks": [
+    "CYP1A2_log2fc_4.9504951e-05M",
+    "CYP2C9_log2fc_4.9504951e-05M",
+    "CYP2D6_log2fc_4.9504951e-05M",
+    "CYP3A4_log2fc_4.9504951e-05M"
+  ],
+  "task_weights": {
+    "CYP1A2_pIC50_direct_inhibition": 1.0961034297943115,
+    "CYP2C9_pIC50_direct_inhibition": 1.2044342756271362,
+    "CYP2D6_pIC50_direct_inhibition": 1.0366363525390625,
+    "CYP3A4_pIC50_direct_inhibition": 0.6628257036209106,
+    "CYP1A2_log2fc_4.9504951e-05M": 0.3,
+    "CYP2C9_log2fc_4.9504951e-05M": 0.3,
+    "CYP2D6_log2fc_4.9504951e-05M": 0.3,
+    "CYP3A4_log2fc_4.9504951e-05M": 0.3
+  },
+  "epochs": 60,
+  "batch_size": 64,
+  "learning_rate": 0.0003,
+  "seed": 42,
+  "max_gpu_hours": 1.75,
+  "loss": "interval_mae"
+}
