@@ -43,6 +43,32 @@ data-trial results. Source-specific ablations can select any subset of the named
 sources through the recipe's `data_sources`. One shared `configs/data.json` exposes
 all source locations. Do not create per-trial catalogs or maintained model configs.
 
+## Training, validation, and official test
+
+The fixed challenge test set is `cyp-challenge-TEST-BLINDED.csv`. Never replace it
+with a locally generated holdout or use its withheld labels for fitting or selection.
+Official test scores come from challenge evaluation; local OOF scores are validation
+scores and must be labeled as such. Keep official test scores and receipts separate
+from validation rankings. A local validation winner is not an official-test improvement.
+
+Construct validation folds only within `cyp-challenge-TRAIN_inhibition.csv`, grouping
+standardized molecular parents so a parent cannot cross training/validation boundaries.
+Our current five Butina-cluster folds are locally constructed, not organizer-provided
+folds. Future validation designs require a new frozen contract and matched baselines.
+
+Auxiliary official data and external sources may supplement training. For each fold,
+apply the existing parent-overlap and analogue exclusion rules to supplemental data
+against held-out validation molecules and the fixed challenge test set. Fit target
+scalers, preprocessing, calibration, and model selection using training data only,
+with inner validation where needed. Supplemental labels must not turn held-out
+validation or test molecules into training examples. Record source provenance and
+post-exclusion coverage. After selecting a recipe, final fitting may use all official
+training data plus eligible supplemental data; preserve test exclusions.
+
+Report the validation reference and the official-test incumbent separately. In
+particular, beating a local CPU or short-training reference does not establish an
+improvement over the R25 submission on the official test set.
+
 ## Fixed infrastructure
 
 `src/somerra_openadmet/data_sources/` owns acquisition/preparation and exclusion
@@ -103,9 +129,10 @@ Research `keep` does not change the incumbent or authorize export/upload. Promot
 still requires the campaign's 3% macro gain, paired 95% delta bound below zero,
 no endpoint regression above 0.02, complete provenance, and remaining validation
 gates. The frozen-feature recipe is the best observed challenger, **not promoted**.
-External data is deferred to issues #3 and #4 and is not supported by this PR.
-It has not shown a clear benefit in the matched comparison. Preserve
-these distinct conclusions; availability of a source is not evidence of usefulness.
+Pinned Scigantic auxiliary derivatives are supported for matched data studies;
+fresh raw-source acquisition remains deferred to issues #3 and #4. Observed benefits
+are conditional on the evaluated model and validation design; availability alone
+is not evidence of usefulness.
 
 ## Submission privacy
 

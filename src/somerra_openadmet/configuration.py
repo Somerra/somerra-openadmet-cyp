@@ -6,7 +6,7 @@ from pathlib import Path
 from .download import sha256_file
 
 DATA_FIELDS = {"prepared_dir", "auxiliary_dir", "auxiliary_dirs", "auxiliary_sources"}
-SOURCE_NAMES = {"official_auxiliary"}
+SOURCE_NAMES = {"official_auxiliary", "scigantic_chembl", "scigantic_pubchem"}
 
 
 def resolve_config(

@@ -61,7 +61,7 @@ def main(*, backend, model_recipe, overrides, recipe_source, argv=None, default_
         "recipe_sha256": sha256_file(recipe_source),
         "data_catalog_sha256": sha256_file(args.data_config),
         "inputs_dir": str(inputs),
-        "external_data": "deferred; not supported in this PR (issues #3 and #4)",
+        "external_data": "Pinned Scigantic derivatives supported; fresh acquisition deferred",
         "validation": "configuration preview only; backend validates datasets at run time",
     }
     if args.command == "plan" or args.preview:

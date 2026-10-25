@@ -220,7 +220,12 @@ def screen(
             raise ValueError("Auxiliary checksum mismatch")
         aux_manifest.append(evidence)
         frame = pd.read_csv(aux_dir / "assays.csv")
-        validate_official_auxiliary(frame)
+        if evidence.get("source", "").startswith("scigantic_"):
+            from .data_sources.scigantic import validate_snapshot
+
+            validate_snapshot(frame, evidence)
+        else:
+            validate_official_auxiliary(frame)
         frames.append(frame)
     if frames:
         aux = pd.concat(frames, ignore_index=True)
@@ -417,6 +422,15 @@ def screen(
             run_record.setdefault("fold_scores", {})[str(fold)] = {
                 endpoint: soft_threshold_rae(f.y_true, f.y_pred, f.conf_low, f.conf_high)
                 for endpoint, f in fold_oof.groupby("endpoint")
+            }
+            run_record.setdefault("fold_training", {})[str(fold)] = {
+                "parents": len(smiles),
+                "tasks": tasks,
+                "observed_labels": dict(
+                    zip(tasks, np.isfinite(values).sum(0).tolist(), strict=True)
+                ),
+                "epochs": epochs,
+                "optimizer_steps": epochs * len(training),
             }
             run_record["completed_folds"].append(int(fold))
             run_record["requested_folds_complete"] = run_record["completed_folds"] == folds_to_run
