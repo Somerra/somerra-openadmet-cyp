@@ -1,0 +1,19 @@
+name: somerra-openadmet-neural
+channels:
+  - conda-forge
+dependencies:
+  - python=3.12
+  - chemprop=2.3.1
+  - pytorch-gpu
+  - rdkit=2026.03.6
+  - lightgbm>=4.5,<5
+  - huggingface_hub>=0.34,<2
+  - hatchling>=1.27
+  - joblib>=1.4,<2
+  - numpy>=2,<3
+  - pandas>=2.2,<4
+  - scipy>=1.14,<2
+  - scikit-learn>=1.6,<2
+  - pytest>=8.3,<9
+  - ruff>=0.12,<1
+  - pip

@@ -1,4 +1,4 @@
-.PHONY: setup lint test download verify-data audit baseline-activity baseline-tdi
+.PHONY: setup lint test download verify-data audit baseline-activity baseline-tdi prepare-regression-data
 
 CONDA_ENV ?= somerra-openadmet-cyp
 CONDA_RUN = conda run --no-capture-output -n $(CONDA_ENV)
@@ -19,6 +19,11 @@ download:
 
 verify-data:
 	$(CONDA_RUN) openadmet-cyp verify-data --data-dir data/raw
+
+# One-time setup into fresh snapshot directories. Existing snapshots are never replaced.
+prepare-regression-data: download
+	$(CONDA_RUN) openadmet-cyp regression prepare --output-dir data/prepared/official-direct
+	$(CONDA_RUN) openadmet-cyp regression auxiliary --output-dir data/prepared/official-auxiliary
 
 audit:
 	$(CONDA_RUN) openadmet-cyp audit --data-dir data/raw
