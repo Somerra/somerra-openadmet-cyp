@@ -28,6 +28,18 @@ do not silently publish a link or present third-party predictions as our work.
 The local readiness record is on hold. A validated CSV alone is not submission
 clearance. Develop and evaluate our own trained candidate instead.
 
+## Historical submission follow-up
+
+The first accepted reference reconstruction was submitted under Somerra. Its saved
+receipt contains a third-party report link; this does not establish that attribution
+was sufficient or prediction reuse was eligible. The current public row, checked on
+2026-10-25, is the later own-trained submission (0.7790), Open Code No, report link
+absent. Thus the current displayed row is not the reference reconstruction. Neither
+a later upload nor this check confirms removal/annotation of historical entries.
+Keep the old receipt unchanged. Organizer annotation or withdrawal of the historical
+reference entry remains an open user decision; no organizer contact is authorized
+by the PR review and none has been sent. Reference reuse stays on hold.
+
 ## Ordered work
 
 1. **Establish a comparable strong reference.** Inventory R25 members, training
@@ -43,16 +55,27 @@ clearance. Develop and evaluate our own trained candidate instead.
    boundary. Any test-chemistry-matched design must use structures only, be declared
    before model selection and be reported as test-informed. Freeze the chosen
    splits before fitting; do not tune splits to obtain favorable model rankings.
-3. **Run a small matched confirmation.** After explicit finite compute allocation,
+3. **Resolve the export/validation comparison before more ablations.** Existing
+   independent CPU checks reproduce 50 saved OOF labels within 4.6e-7 and a sampled
+   16-row five-fold blind export within 1.9e-7. These are implementation-parity checks,
+   not evidence that ensemble generalization matches single-model OOF scores.
+   Do not score the existing five-model mean on an outer validation fold: four
+   members trained on that fold, creating leakage. For a valid performance check,
+   reserve an outer holdout from official training, exclude it from every member's
+   training and auxiliary data, train the ensemble inside the remaining data, and
+   evaluate both individual members and their exported mean on that untouched
+   holdout. Fit all calibration inside the remaining data as well. This requires
+   a new finite compute allocation; no such training is launched by this review.
+4. **Run a small matched confirmation.** After explicit finite compute allocation,
    compare a strong reference with all auxiliary groups versus without TDI, using
    the same architecture, initialization policy, schedule and splits. Use repeated
    seeds and predeclare either fixed-step exposure or report the fixed-epoch
    confounding. Avoid repeating the entire 54-cell screen initially.
-4. **Check calibration and combinations.** Fit calibration and any blend weights
+5. **Check calibration and combinations.** Fit calibration and any blend weights
    inside training/inner-validation folds, then evaluate on untouched outer folds.
    Blind prediction means/SDs are diagnostics, not justification for arbitrary
    rescaling to R25. Examine endpoint errors and performance by similarity strata.
-5. **Select one candidate for official evaluation.** Record the reference, validation
+6. **Select one candidate for official evaluation.** Record the reference, validation
    evidence, uncertainty, candidate checksum and intended hypothesis. Verify IDs,
    units, finite values, fold/checkpoint provenance and privacy fields. Use a
    separately authorized submission and preserve its receipt and official score.

@@ -146,3 +146,11 @@ Review follow-up: reports now refuse existing CSV destinations unless `--overwri
 is explicit; use `--output PATH` to retain previous summaries. Training validates
 the first four task names before positional target/bound scaling. These safeguards
 were added after the frozen study and do not change its historical artifacts.
+
+
+The review's local/official gap remains unresolved: sampled export parity excludes
+some implementation defects but does not establish matched ensemble generalization.
+A five-fold mean scored on existing outer-fold labels would include four models
+trained on those labels. The next-step plan therefore requires a common outer
+holdout excluded from every ensemble member before measuring ensemble performance.
+The apparent TDI benefit/harm remains exploratory until repeated-seed confirmation.
