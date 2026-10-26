@@ -160,15 +160,15 @@ Final fitting may restore internal holdouts but must retain official-test exclus
 The model axis is bounded: reference; interval loss on four direct tasks;
 half-weight auxiliary losses; their combination only if both single changes qualify.
 One seed (42), batch 128, 100 epochs, the original 200-epoch scheduler horizon,
-FP32 with TF32 high matrix precision, cached molecular graphs and four loader
+TF32 training with full FP32 evaluation, cached molecular graphs and four loader
 workers are fixed across comparisons. Keep one final model, never average seeds.
 A challenger qualifies at >=3% lower internal-test point MA-ST-RAE with no endpoint
 increase above 0.02; select the lowest qualifying score, otherwise retain reference.
 Bootstrap uncertainty is reported; it is not another checkpoint-selection loop.
 
-The existing 12-GPU-hour allocation has 6.74626703225102 hours already charged.
+The existing 12-GPU-hour allocation has 6.897241816178171 hours already charged (including the superseded first integration attempt).
 Charge all new subprocess lifetimes, including startup, failures, and any overlap
-of concurrent jobs, conservatively. One smoke (0.1 h), at most four model trials
+of concurrent jobs, conservatively. One smoke (0.1 h) plus its completed-epoch recovery check (0.05 h), at most four model trials
 (1 h each), and one final fit (1 h reserved) are permitted within the remaining
 budget. Monitor every 15 seconds, kill budget/stalled jobs, and allow one recovery
 attempt only inside the failed job's remaining allowance. Two independent

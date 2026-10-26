@@ -102,13 +102,19 @@ def predict(model, batches, tasks):
     import torch
 
     was_training = model.training
+    precision = torch.get_float32_matmul_precision()
     model.eval()
+    # Fast TF32 training, full FP32 evaluation for stable checkpoint comparisons.
+    torch.set_float32_matmul_precision("highest")
     values = []
-    with torch.inference_mode():
-        for batch in batches:
-            batch.bmg.to(model.device)
-            values.append(model(batch.bmg).detach().cpu().numpy())
-    model.train(was_training)
+    try:
+        with torch.inference_mode():
+            for batch in batches:
+                batch.bmg.to(model.device)
+                values.append(model(batch.bmg).detach().cpu().numpy())
+    finally:
+        model.train(was_training)
+        torch.set_float32_matmul_precision(precision)
     result = np.concatenate(values)
     if result.shape[1] != len(tasks) or not np.isfinite(result).all():
         raise ValueError("Invalid model output")
@@ -153,6 +159,7 @@ def train(
         "loss_kind": loss_kind,
         "auxiliary_weight": auxiliary_weight,
         "matmul_precision": "high",
+        "evaluation_matmul_precision": "highest",
         "batch_size": 128,
         "graph_cache": True,
         "final": final,
@@ -342,7 +349,19 @@ def train(
             limit_train_batches=2 if smoke else 1.0,
             callbacks=[Monitor()],
         )
-        trainer.fit(model, train_loader, ckpt_path=resume_checkpoint, weights_only=False)
+        restored_epochs = record.get("resumed_epoch", 0)
+        if restored_epochs > epochs:
+            raise ValueError("Checkpoint already exceeds the requested epoch limit")
+        if restored_epochs < epochs:
+            trainer.fit(model, train_loader, ckpt_path=resume_checkpoint, weights_only=False)
+        else:
+            record.update(
+                completed_epochs=restored_epochs,
+                status="epoch_limit",
+                optimizer_steps=record["resumed_optimizer_steps"],
+            )
+            if final:
+                shutil.copy2(resume_checkpoint, output / "final.ckpt")
         if smoke:
             record["status"] = "smoke_complete"
         elif record["status"] == "running":
@@ -364,8 +383,9 @@ def train(
                     list(ACTIVITY_ENDPOINTS)
                 ].to_numpy()
                 error = float(np.max(np.abs(actual - expected)))
+                record["reload_max_abs_error"] = error
                 if error > 1e-4:
-                    raise ValueError("Saved checkpoint prediction parity failed")
+                    raise ValueError(f"Saved checkpoint prediction parity failed: {error}")
                 record["reload_max_abs_error"] = error
                 if manifest.get("protocol") == "molecular-60-20-20-v1" and record["complete"]:
                     from .bootstrap_activity import bootstrap_activity

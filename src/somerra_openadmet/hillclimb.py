@@ -12,7 +12,7 @@ from pathlib import Path
 from .data_sources.common import write_json
 from .download import sha256_file
 
-PRIOR_HOURS = 6.74626703225102
+PRIOR_HOURS = 6.897241816178171
 TOTAL_HOURS = 12.0
 FINAL_RESERVE = 1.0
 VARIANTS = {
@@ -95,6 +95,8 @@ def run_campaign(bundle, output, raw):
                     "--auxiliary-weight",
                     str(weight),
                 ]
+                if spec.get("resume_from"):
+                    command += ["--resume-from", spec["resume_from"]]
                 if spec.get("final"):
                     command.append("--final")
                 if spec.get("smoke"):
@@ -115,7 +117,6 @@ def run_campaign(bundle, output, raw):
                     "path": str(dest),
                     "command": command,
                 }
-                entry["command"] = command
                 state["runs"].append(entry)
                 jobs.append((process, log, started, entry, dest))
                 publish()
@@ -143,8 +144,15 @@ def run_campaign(bundle, output, raw):
                         jobs.remove(job)
                         if code:
                             remaining = entry["hours"] - used
+                            recovery_path = dest / "recovery.json"
+                            recovery_epochs = (
+                                json.loads(recovery_path.read_text())["record"]["completed_epochs"]
+                                if recovery_path.exists()
+                                else 0
+                            )
                             if (
-                                not entry.get("retried")
+                                recovery_epochs < entry.get("epochs", 100)
+                                and not entry.get("retried")
                                 and remaining > 0.1
                                 and (dest / "recovery.json").exists()
                             ):
@@ -185,8 +193,13 @@ def run_campaign(bundle, output, raw):
                                 f"{entry['name']} failed; recovery checkpoint retained"
                             )
                         result = json.loads((dest / "run_manifest.json").read_text())
-                        if not entry.get("smoke") and not result.get("complete"):
-                            raise RuntimeError(f"{entry['name']} was censored; not eligible")
+                        if not entry.get("smoke") and (
+                            not result.get("complete")
+                            or result["completed_epochs"] != entry.get("epochs", 100)
+                        ):
+                            raise RuntimeError(
+                                f"{entry['name']} violates the epoch/completion contract"
+                            )
                         result["run_path"] = str(dest)
                         results[entry.get("result_key", entry["name"])] = result
                 state["active_elapsed_hours"] = sum((time.monotonic() - j[2]) / 3600 for j in jobs)
@@ -210,6 +223,25 @@ def run_campaign(bundle, output, raw):
         run_many(
             [dict(name="smoke", variant="interval-aux-half", epochs=1, hours=0.10, smoke=True)]
         )
+        run_many(
+            [
+                dict(
+                    name="smoke-resume",
+                    variant="interval-aux-half",
+                    epochs=1,
+                    hours=0.05,
+                    smoke=True,
+                    resume_from=str(output / "smoke"),
+                )
+            ]
+        )
+        resumed = json.loads((output / "smoke-resume/run_manifest.json").read_text())
+        original = json.loads((output / "smoke/run_manifest.json").read_text())
+        if (
+            resumed["completed_epochs"] != 1
+            or resumed["optimizer_steps"] != original["optimizer_steps"]
+        ):
+            raise ValueError("Recovery exceeded the completed smoke epoch")
         reference = run_many([dict(name="reference", variant="reference", hours=1.0)])["reference"]
         state["reference_score"] = reference["internal_test_metrics"]
         publish()

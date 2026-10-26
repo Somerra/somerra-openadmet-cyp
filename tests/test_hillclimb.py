@@ -111,3 +111,42 @@ def test_strategy_gate_uses_internal_test_not_validation():
     assert not qualifies(ref, new)
     new["internal_test_metrics"] = {"MA-ST-RAE": 0.95, "endpoints": {"a": 0.9, "b": 1.0}}
     assert qualifies(ref, new)
+
+
+def test_prediction_restores_training_precision_even_after_failure():
+    torch = pytest.importorskip("torch")
+    from types import SimpleNamespace
+
+    from somerra_openadmet.reference_member import predict
+
+    class Model:
+        training = True
+        device = "cpu"
+        fail = False
+
+        def eval(self):
+            self.training = False
+
+        def train(self, mode):
+            self.training = mode
+
+        def __call__(self, graph):
+            assert torch.get_float32_matmul_precision() == "highest"
+            assert not self.training
+            if self.fail:
+                raise ValueError("test failure")
+            return torch.ones((2, 4))
+
+    model = Model()
+    batch = SimpleNamespace(bmg=SimpleNamespace(to=lambda device: None))
+    old = torch.get_float32_matmul_precision()
+    try:
+        torch.set_float32_matmul_precision("high")
+        assert predict(model, [batch], list(ACTIVITY_ENDPOINTS)).shape == (2, 4)
+        assert model.training and torch.get_float32_matmul_precision() == "high"
+        model.fail = True
+        with pytest.raises(ValueError, match="test failure"):
+            predict(model, [batch], list(ACTIVITY_ENDPOINTS))
+        assert model.training and torch.get_float32_matmul_precision() == "high"
+    finally:
+        torch.set_float32_matmul_precision(old)
