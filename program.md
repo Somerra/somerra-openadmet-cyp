@@ -140,3 +140,38 @@ Follow the standing policy in `AGENTS.md`: predictions only; keep code private,
 Open Code false, and the Method Report Link empty, including third-party links.
 Keep provenance and attribution in private records. A leaderboard submission must
 never publish code or code/report links without a new explicit user instruction.
+
+## Frozen molecular-split hill climb (2026-10-26)
+
+The user authorized adopting the reviewed 60/20/20 parent split and starting the
+GPU comparison via `autoresearch.py hillclimb run`. This protocol supersedes the
+older five-fold and analogue-exclusion rules for this campaign only. Assignment
+SHA-256 is `9e69d2ec25402ad2c1d96b8f4169785926917af3db1531d552515b0167780318`.
+Validation selects checkpoints by point MA-ST-RAE; each selected checkpoint is
+scored once on internal test to rank strategies. Internal test is a development
+set. Report point scores and official-style 1,000-resample bootstrap mean/std.
+Never compare these scores numerically with older split results.
+
+Use the full pinned 26-task Scigantic member and preserve record weights. Exclude
+all validation, internal-test and official-test parent identities from all training
+sources; retain analogues. Fit target scalers only on eligible training records.
+Final fitting may restore internal holdouts but must retain official-test exclusions.
+
+The model axis is bounded: reference; interval loss on four direct tasks;
+half-weight auxiliary losses; their combination only if both single changes qualify.
+One seed (42), batch 128, 100 epochs, the original 200-epoch scheduler horizon,
+FP32 with TF32 high matrix precision, cached molecular graphs and four loader
+workers are fixed across comparisons. Keep one final model, never average seeds.
+A challenger qualifies at >=3% lower internal-test point MA-ST-RAE with no endpoint
+increase above 0.02; select the lowest qualifying score, otherwise retain reference.
+Bootstrap uncertainty is reported; it is not another checkpoint-selection loop.
+
+The existing 12-GPU-hour allocation has 6.74626703225102 hours already charged.
+Charge all new subprocess lifetimes, including startup, failures, and any overlap
+of concurrent jobs, conservatively. One smoke (0.1 h), at most four model trials
+(1 h each), and one final fit (1 h reserved) are permitted within the remaining
+budget. Monitor every 15 seconds, kill budget/stalled jobs, and allow one recovery
+attempt only inside the failed job's remaining allowance. Two independent
+challengers may share the H100 after the reference completes. A persistent systemd
+coordinator runs the finite queue. Stop on unrecoverable failure or censoring.
+Prepare predictions after final fitting; this command never uploads them.
