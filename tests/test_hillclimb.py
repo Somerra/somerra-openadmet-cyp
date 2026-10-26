@@ -110,7 +110,13 @@ def test_strategy_gate_uses_internal_test_not_validation():
     }
     assert not qualifies(ref, new)
     new["internal_test_metrics"] = {"MA-ST-RAE": 0.95, "endpoints": {"a": 0.9, "b": 1.0}}
+    assert not qualifies(ref, new)  # Point gain alone is insufficient.
+    new["paired_comparison"] = {"delta_95ci": [-0.1, 0.01]}
+    assert not qualifies(ref, new)
+    new["paired_comparison"] = {"delta_95ci": [-0.1, -0.01]}
     assert qualifies(ref, new)
+    new["paired_comparison"] = {"delta_95ci": [-0.1, float("nan")]}
+    assert not qualifies(ref, new)
 
 
 def test_prediction_restores_training_precision_even_after_failure():
@@ -150,3 +156,31 @@ def test_prediction_restores_training_precision_even_after_failure():
         assert model.training and torch.get_float32_matmul_precision() == "high"
     finally:
         torch.set_float32_matmul_precision(old)
+
+
+def test_paired_bootstrap_uses_identical_molecules_and_detects_consistent_improvement():
+    from somerra_openadmet.hillclimb_comparison import paired_comparison
+
+    truth = pd.DataFrame(
+        {
+            "Molecule_Name": [f"m{i}" for i in range(32)],
+            "parent": ["C" * (2 + i // 2) for i in range(32)],
+        }
+    )
+    reference, candidate = truth.copy(), truth.copy()
+    for ep in ACTIVITY_ENDPOINTS:
+        truth[ep] = np.linspace(2, 9, 32)
+        truth[ep + "_conf_low"] = truth[ep] - 0.1
+        truth[ep + "_conf_high"] = truth[ep] + 0.1
+        reference[ep] = truth[ep] + 1
+        candidate[ep] = truth[ep]
+    paired = paired_comparison(truth, reference, candidate, samples=100)
+    assert paired["groups"] == 16
+    assert paired["point_delta"] < 0 and paired["delta_95ci"][1] < 0
+    same = paired_comparison(truth, reference, reference, samples=100)
+    assert same["delta_95ci"] == [0, 0]
+    with pytest.raises(ValueError, match="identities/order"):
+        paired_comparison(truth, reference, candidate.iloc[::-1].reset_index(drop=True))
+    candidate.loc[0, ACTIVITY_ENDPOINTS[0]] = np.nan
+    with pytest.raises(ValueError, match="Nonfinite"):
+        paired_comparison(truth, reference, candidate)

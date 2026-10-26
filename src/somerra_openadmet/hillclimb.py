@@ -2,6 +2,7 @@
 
 import argparse
 import json
+import math
 import os
 import signal
 import subprocess
@@ -9,10 +10,10 @@ import sys
 import time
 from pathlib import Path
 
+from .campaign_budget import CampaignLedger
 from .data_sources.common import write_json
 from .download import sha256_file
 
-PRIOR_HOURS = 6.897241816178171
 TOTAL_HOURS = 12.0
 FINAL_RESERVE = 1.0
 VARIANTS = {
@@ -24,7 +25,13 @@ VARIANTS = {
 
 
 def qualifies(reference, candidate):
-    if not candidate.get("complete"):
+    interval = candidate.get("paired_comparison", {}).get("delta_95ci", [])
+    if (
+        not candidate.get("complete")
+        or len(interval) != 2
+        or not all(math.isfinite(v) for v in interval)
+        or interval[1] >= 0
+    ):
         return False
     base, new = reference["internal_test_metrics"], candidate["internal_test_metrics"]
     return new["MA-ST-RAE"] <= 0.97 * base["MA-ST-RAE"] and all(
@@ -32,18 +39,24 @@ def qualifies(reference, candidate):
     )
 
 
-def run_campaign(bundle, output, raw):
+def run_campaign(bundle, output, raw, campaign_ledger):
+    ledger = CampaignLedger(campaign_ledger)
+    initial = ledger.snapshot()
     root = Path(__file__).resolve().parents[2]
     output.mkdir(parents=True, exist_ok=False)
     state = {
         "status": "running",
-        "prior_gpu_hours": PRIOR_HOURS,
+        "prior_gpu_hours": initial["used_hours"],
+        "campaign_ledger": str(ledger.path),
         "gpu_limit_hours": TOTAL_HOURS,
-        "used_hours": PRIOR_HOURS,
+        "used_hours": initial["used_hours"],
         "runs": [],
         "seed": 42,
         "epoch_limit": 100,
-        "selection": "internal-test point MA-ST-RAE; >=3% improvement; endpoint regression <=0.02",
+        "selection": (
+            "internal-test point MA-ST-RAE; >=3% improvement; "
+            "endpoint regression <=0.02; paired 95% upper delta <0"
+        ),
         "planned_variants": list(VARIANTS),
         "final_reserve_hours": FINAL_RESERVE,
         "source_hashes": {str(p): sha256_file(p) for p in sorted((root / "src").rglob("*.py"))},
@@ -53,6 +66,7 @@ def run_campaign(bundle, output, raw):
     state_path = output / "study.json"
 
     def publish():
+        state.update(ledger.snapshot())
         state["heartbeat_unix"] = time.time()
         write_json(state_path, state)
 
@@ -62,13 +76,26 @@ def run_campaign(bundle, output, raw):
         ):
             raise ValueError("Frozen implementation or bundle changed")
 
+    def launch(command, log):
+        try:
+            return subprocess.Popen(
+                command,
+                stdout=log,
+                stderr=subprocess.STDOUT,
+                env={**os.environ, "PYTHONPATH": str(root / "src")},
+                start_new_session=True,
+            )
+        except BaseException:
+            log.close()
+            raise
+
     def run_many(specifications):
         """At most two independent jobs; charge summed process lifetimes conservatively."""
         check_frozen()
         if len(specifications) > 2:
             raise ValueError("At most two concurrent GPU jobs")
-        if state["used_hours"] + sum(s["hours"] for s in specifications) > TOTAL_HOURS:
-            raise ValueError("Campaign allocation exhausted")
+        ledger.reserve_many([(output / s["name"], s["hours"]) for s in specifications])
+        unstarted = {output / s["name"] for s in specifications}
         jobs = []
         results = {}
         try:
@@ -82,6 +109,8 @@ def run_campaign(bundle, output, raw):
                     str(root / "autoresearch.py"),
                     "hillclimb",
                     "train",
+                    "--campaign-ledger",
+                    str(ledger.path),
                     "--bundle",
                     str(bundle),
                     "--output",
@@ -103,13 +132,7 @@ def run_campaign(bundle, output, raw):
                     command.append("--smoke")
                 log = (output / (name + ".log")).open("w")
                 started = time.monotonic()
-                process = subprocess.Popen(
-                    command,
-                    stdout=log,
-                    stderr=subprocess.STDOUT,
-                    env={**os.environ, "PYTHONPATH": str(root / "src")},
-                    start_new_session=True,
-                )
+                process = launch(command, log)
                 entry = {
                     **spec,
                     "pid": process.pid,
@@ -117,6 +140,7 @@ def run_campaign(bundle, output, raw):
                     "path": str(dest),
                     "command": command,
                 }
+                unstarted.remove(dest)
                 state["runs"].append(entry)
                 jobs.append((process, log, started, entry, dest))
                 publish()
@@ -135,7 +159,7 @@ def run_campaign(bundle, output, raw):
                         code = process.wait()
                         log.close()
                         used = (time.monotonic() - started) / 3600
-                        state["used_hours"] += used
+                        ledger.settle(dest, used, "finished" if code == 0 else "failed")
                         entry.update(
                             status="finished" if code == 0 else "failed",
                             used_hours=used,
@@ -162,15 +186,12 @@ def run_campaign(bundle, output, raw):
                                 command[command.index("--output") + 1] = str(retry_dest)
                                 command[command.index("--hours") + 1] = str(remaining)
                                 command += ["--resume-from", str(dest)]
+                                ledger.reserve_many([(retry_dest, remaining)])
+                                unstarted.add(retry_dest)
                                 retry_log = (output / (retry_name + ".log")).open("w")
                                 retry_start = time.monotonic()
-                                retry_process = subprocess.Popen(
-                                    command,
-                                    stdout=retry_log,
-                                    stderr=subprocess.STDOUT,
-                                    env={**os.environ, "PYTHONPATH": str(root / "src")},
-                                    start_new_session=True,
-                                )
+                                retry_process = launch(command, retry_log)
+                                unstarted.remove(retry_dest)
                                 retry_entry = {
                                     **entry,
                                     "name": retry_name,
@@ -214,8 +235,10 @@ def run_campaign(bundle, output, raw):
                 process.wait()
                 log.close()
                 used = (time.monotonic() - started) / 3600
-                state["used_hours"] += used
+                ledger.settle(_dest, used, "interrupted")
                 entry.update(status="interrupted", used_hours=used)
+            for dest in unstarted:
+                ledger.settle(dest, 0.0, "not_started")
             publish()
 
     publish()
@@ -248,14 +271,33 @@ def run_campaign(bundle, output, raw):
         contenders = run_many(
             [dict(name=v, variant=v, hours=1.0) for v in ("interval", "aux-half")]
         )
+        from .hillclimb_comparison import compare_runs
+
+        def compare(result):
+            result["paired_comparison"] = compare_runs(
+                bundle, reference["run_path"], result["run_path"]
+            )
+            write_json(
+                Path(result["run_path"]) / "paired-comparison.json", result["paired_comparison"]
+            )
+            state.setdefault("paired_comparisons", {})[result["run_path"]] = result[
+                "paired_comparison"
+            ]
+
+        for result in contenders.values():
+            compare(result)
         accepted = {
             name: result for name, result in contenders.items() if qualifies(reference, result)
         }
-        if len(accepted) == 2 and state["used_hours"] + 1 + FINAL_RESERVE <= TOTAL_HOURS:
+        if (
+            len(accepted) == 2
+            and ledger.snapshot()["committed_hours"] + 1 + FINAL_RESERVE <= TOTAL_HOURS
+        ):
             combined = run_many(
                 [dict(name="interval-aux-half", variant="interval-aux-half", hours=1.0)]
             )
             for name, result in combined.items():
+                compare(result)
                 if qualifies(reference, result):
                     accepted[name] = result
         else:
@@ -273,7 +315,7 @@ def run_campaign(bundle, output, raw):
             selected_bootstrap=winner["internal_test_bootstrap"],
         )
         publish()
-        remaining = TOTAL_HOURS - state["used_hours"]
+        remaining = TOTAL_HOURS - ledger.snapshot()["committed_hours"]
         if remaining < FINAL_RESERVE:
             raise RuntimeError("Insufficient reserved final-fit budget")
         final = run_many(
@@ -302,8 +344,17 @@ def run_campaign(bundle, output, raw):
 def main(argv=None):
     parser = argparse.ArgumentParser(description=__doc__)
     subs = parser.add_subparsers(dest="command", required=True)
+    compare = subs.add_parser("compare")
+    compare.add_argument("--bundle", type=Path, required=True)
+    compare.add_argument("--reference", type=Path, required=True)
+    compare.add_argument("--candidate", type=Path, required=True)
+    compare.add_argument("--output", type=Path, required=True)
+    migrate = subs.add_parser("import-budget")
+    migrate.add_argument("--study", type=Path, required=True)
+    migrate.add_argument("--campaign-ledger", type=Path, required=True)
     for name in ["run", "train"]:
         p = subs.add_parser(name)
+        p.add_argument("--campaign-ledger", type=Path, required=True)
         p.add_argument("--bundle", type=Path, required=True)
         p.add_argument("--output", type=Path, required=True)
         if name == "run":
@@ -318,6 +369,16 @@ def main(argv=None):
             p.add_argument("--smoke", action="store_true")
     args = vars(parser.parse_args(argv))
     command = args.pop("command")
+    if command == "compare":
+        from .hillclimb_comparison import compare_runs
+
+        if args["output"].exists():
+            raise FileExistsError(args["output"])
+        result = compare_runs(args["bundle"], args["reference"], args["candidate"])
+        write_json(args["output"], result)
+        return result
+    if command == "import-budget":
+        return CampaignLedger(args["campaign_ledger"]).import_study(args["study"])
     if command == "run":
         return run_campaign(**args)
     from .reference_member import train

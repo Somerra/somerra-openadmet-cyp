@@ -8,7 +8,7 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 
-from .budget import GPUBudget, budget_ledger_path
+from .campaign_budget import WorkerBudget
 from .constants import ACTIVITY_ENDPOINTS
 from .data_sources.common import write_json
 from .download import sha256_file
@@ -121,6 +121,20 @@ def predict(model, batches, tasks):
     return pd.DataFrame(result, columns=tasks)[list(ACTIVITY_ENDPOINTS)]
 
 
+def copy_recovery_curve(previous, output, completed_epoch):
+    source = Path(previous) / "curve.jsonl"
+    if not source.exists():
+        raise ValueError("Recovery curve is missing")
+    rows = []
+    for line in source.read_text().splitlines():
+        row = json.loads(line)
+        if row["epoch"] <= completed_epoch:
+            rows.append(row)
+    if [row["epoch"] for row in rows] != list(range(1, completed_epoch + 1)):
+        raise ValueError("Recovery curve is incomplete or has duplicate epochs")
+    (Path(output) / "curve.jsonl").write_text("".join(json.dumps(r) + "\n" for r in rows))
+
+
 def train(
     bundle,
     output,
@@ -133,6 +147,7 @@ def train(
     resume_from=None,
     loss_kind="mae",
     auxiliary_weight=1.0,
+    campaign_ledger=None,
 ):
     import lightning as L
     import torch
@@ -152,9 +167,13 @@ def train(
         raise ValueError("Unregistered experiment settings")
     pool, val, tasks, manifest = load_frames(bundle, recipe, final)
     output.mkdir(parents=True)
-    budget = GPUBudget(budget_ledger_path(), output, hours)
+    if campaign_ledger is None:
+        raise ValueError("A shared campaign ledger reservation is required")
+    budget = WorkerBudget(campaign_ledger, output, hours)
+    record_ledger = str(Path(campaign_ledger).resolve())
     record = {
         "status": "running",
+        "campaign_ledger": record_ledger,
         "recipe": recipe,
         "loss_kind": loss_kind,
         "auxiliary_weight": auxiliary_weight,
@@ -223,6 +242,7 @@ def train(
         for key in ["best_epoch", "best_score", "best_metrics"]:
             if key in saved:
                 record[key] = saved[key]
+        copy_recovery_curve(previous, output, record["resumed_epoch"])
         for name in ["best.ckpt", "best-validation.csv"]:
             if (previous / name).exists():
                 shutil.copy2(previous / name, output / name)
@@ -264,7 +284,12 @@ def train(
         val_loader = None if final else prediction_loader(val.parent)
         model = make_model(scaler, tasks, loss_kind, auxiliary_weight)
         plateau = Plateau()
-        curves = []
+        curve_path = output / "curve.jsonl"
+        elapsed_offset = (
+            json.loads(curve_path.read_text().splitlines()[-1])["elapsed_seconds"]
+            if curve_path.exists()
+            else 0.0
+        )
 
         class Monitor(Callback):
             def on_train_epoch_start(self, trainer, pl_module):
@@ -291,7 +316,7 @@ def train(
                     "training_loss": float(np.mean(self.losses)),
                     "learning_rate": trainer.optimizers[0].param_groups[0]["lr"],
                     "optimizer_steps": trainer.global_step,
-                    "elapsed_seconds": time.monotonic() - started,
+                    "elapsed_seconds": elapsed_offset + time.monotonic() - started,
                     "peak_memory_bytes": torch.cuda.max_memory_allocated(),
                 }
                 if not final:
@@ -311,7 +336,6 @@ def train(
                         record["status"] = "plateau"
                         trainer.should_stop = True
                 row["epoch_seconds"] = time.monotonic() - self.epoch_start
-                curves.append(row)
                 record.update(completed_epochs=epoch, optimizer_steps=trainer.global_step)
                 record["last_metrics"] = row
                 with (output / "curve.jsonl").open("a") as handle:

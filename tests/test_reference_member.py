@@ -82,3 +82,26 @@ def test_targeted_task_selection_preserves_direct_endpoints():
         select_tasks(manifest, "without-response-invalid")
     with pytest.raises(ValueError):
         select_tasks(manifest, "without-CYP3A4_pIC50_direct_inhibition")
+
+
+def test_resume_copies_only_complete_checkpoint_curve_and_can_resume_again(tmp_path):
+    import json
+
+    from somerra_openadmet.reference_member import copy_recovery_curve
+
+    previous, resumed, again = [tmp_path / name for name in ["previous", "resumed", "again"]]
+    for path in [previous, resumed, again]:
+        path.mkdir()
+    rows = [{"epoch": i, "elapsed_seconds": i * 10} for i in [1, 2, 3]]
+    (previous / "curve.jsonl").write_text("".join(json.dumps(row) + "\n" for row in rows))
+    copy_recovery_curve(previous, resumed, 2)
+    assert [json.loads(x)["epoch"] for x in (resumed / "curve.jsonl").read_text().splitlines()] == [
+        1,
+        2,
+    ]
+    with (resumed / "curve.jsonl").open("a") as handle:
+        handle.write(json.dumps(rows[2]) + "\n")
+    copy_recovery_curve(resumed, again, 3)
+    assert (again / "curve.jsonl").read_text() == (previous / "curve.jsonl").read_text()
+    with pytest.raises(ValueError, match="incomplete"):
+        copy_recovery_curve(previous, resumed, 4)
