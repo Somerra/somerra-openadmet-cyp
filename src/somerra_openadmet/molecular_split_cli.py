@@ -153,6 +153,11 @@ def run(args):
         raise ValueError("Minimum label coverage must be positive")
     if args.output.exists():
         raise FileExistsError("Use a new output directory; previous evidence is immutable")
+    if not args.no_report:
+        try:
+            import matplotlib  # noqa: F401
+        except ImportError as exc:
+            raise ValueError("Install the reports extra or pass --no-report") from exc
     official = read_molecules(args.training, labeled=True)
     blind = read_molecules(args.official_test)
     problem = MatchingProblem(official, blind)
@@ -163,6 +168,7 @@ def run(args):
             candidates=args.candidates,
             swaps=args.swaps,
             minimum=args.min_labels,
+            patience=args.patience,
         )
         status = search_result["status"]
     else:
@@ -190,6 +196,7 @@ def run(args):
         args.output / "audit.json",
         {
             "designs": audits,
+            "distance_feasibility": problem.feasibility(),
             "supplemental_sources": supplements,
             "scaffold_baseline_available": scaffold is not None,
         },
@@ -202,7 +209,11 @@ def run(args):
         "seed": args.seed,
         "ratios": [0.6, 0.2, 0.2],
         "min_holdout_labels_per_endpoint": args.min_labels,
-        "search": {"candidates": args.candidates, "swap_proposals": args.swaps}
+        "search": {
+            "candidates": args.candidates,
+            "swap_proposals": args.swaps,
+            "patience": args.patience,
+        }
         if args.command == "generate"
         else None,
         "input_sha256": {
@@ -224,13 +235,16 @@ def run(args):
         "evaluation": "validation selects checkpoint; same checkpoint scores internal test",
         "internal_test_role": "strategy selection, not independent final evaluation",
         "adopted_by_training": False,
+        "required_training_exclusion_policy": "exact_parent_only",
+        "analogue_exclusion_threshold": None,
         "historically_untouched": False,
         "supplemental_sources_affect_optimization": False,
     }
     if args.command == "audit":
         manifest["input_sha256"]["assignments"] = sha256_file(args.assignments)
     write_json(args.output / "manifest.json", manifest)
-    render_report(args.output, audits, status)
+    if not args.no_report:
+        render_report(args.output, audits, status)
     print(
         json.dumps(
             {
@@ -252,11 +266,17 @@ def main(argv=None):
         command.add_argument("--official-test", type=Path, required=True)
         command.add_argument("--output", type=Path, required=True)
         command.add_argument("--seed", type=int, default=42)
+        command.add_argument(
+            "--no-report",
+            action="store_true",
+            help="Write machine-readable artifacts without matplotlib",
+        )
         command.add_argument("--min-labels", type=int, default=100)
         command.add_argument("--supplement", action="append", default=[], metavar="NAME=CSV")
         if name == "generate":
             command.add_argument("--candidates", type=int, default=128)
-            command.add_argument("--swaps", type=int, default=512)
+            command.add_argument("--swaps", type=int, default=8192)
+            command.add_argument("--patience", type=int, default=1024)
         else:
             command.add_argument("--assignments", type=Path, required=True)
     return run(parser.parse_args(argv))

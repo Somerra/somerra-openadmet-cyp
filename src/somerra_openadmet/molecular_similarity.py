@@ -196,12 +196,57 @@ class MatchingProblem:
         result["partition"] = result.parent.map(lookup)
         return result
 
+    def feasibility(self):
+        """Optimistic support bound: other holdouts are allowed as neighbors here."""
+        optimistic = nearest_distances(self.similarity, self.parents, self.parents)
+        total_holdout = int(self.sizes[1:].sum())
+        return {
+            "reference": "all other labeled parents; optimistic, not an achievable split",
+            "all_labeled_nonself_distance": summary(optimistic),
+            "best_total_holdout_nonself_distance": summary(np.sort(optimistic)[:total_holdout]),
+            "thresholds": [
+                {
+                    "distance_at_most": threshold,
+                    "official_fraction": float(np.mean(self.target <= threshold)),
+                    "available_parents": int(np.sum(optimistic <= threshold)),
+                    "required_across_holdouts": float(
+                        total_holdout * np.mean(self.target <= threshold)
+                    ),
+                }
+                for threshold in (0.3, 0.4, 0.5, 0.6)
+            ],
+        }
+
+    def endpoint_audit(self, assignment):
+        result = {}
+        for column, endpoint in enumerate(ACTIVITY_ENDPOINTS):
+            labeled = self.counts[:, column] > 0
+            retained = np.flatnonzero(labeled & (assignment == 0))
+            all_refs = np.flatnonzero(labeled)
+            item = {"all_training_parents": len(all_refs), "retained_parents": len(retained)}
+            for name, refs in [("official_full", all_refs), ("official_retained", retained)]:
+                item[name] = (
+                    summary(nearest_distances(self.cross[refs].T))
+                    if len(refs)
+                    else {"n": 0, "reason": "No endpoint-labeled reference parents"}
+                )
+            for part, name in [(1, "validation"), (2, "internal_test")]:
+                query = np.flatnonzero(labeled & (assignment == part))
+                item[name] = (
+                    summary(nearest_distances(self.similarity[np.ix_(query, retained)]))
+                    if len(query) and len(retained)
+                    else {"n": 0, "reason": "No endpoint-labeled queries or references"}
+                )
+            result[endpoint] = item
+        return result
+
     def audit(self, assignment, minimum):
         train = np.flatnonzero(assignment == 0)
         train_scaffolds = {scaffold(p) for p in self.parents[train]}
         report = {
             "objectives": dict(zip(OBJECTIVES, self.objectives(assignment), strict=True)),
             "coverage_ok": self.coverage(assignment, minimum),
+            "endpoint_distances": self.endpoint_audit(assignment),
             "target_parent_counts": dict(zip(PARTITIONS, self.sizes.tolist(), strict=True)),
             "partitions": {},
         }
@@ -255,58 +300,91 @@ def acceptable(values, baseline, scales):
     )
 
 
-def search(problem, *, seed=42, candidates=128, swaps=512, minimum=100):
-    if candidates < 1 or swaps < 0 or minimum < 1:
+def search(problem, *, seed=42, candidates=128, swaps=8192, minimum=100, patience=1024):
+    if candidates < 1 or swaps < 0 or minimum < 1 or patience < 1:
         raise ValueError("Invalid search counts or minimum label coverage")
     rng = np.random.default_rng(seed)
-    baseline = problem.random_partition(rng)
-    if not problem.coverage(baseline, minimum):
-        raise ValueError("Seeded random baseline lacks minimum holdout coverage; no split approved")
-    base_values = problem.objectives(baseline)
-    scales = np.maximum(base_values, 0.01)
-    best, best_values = baseline.copy(), base_values.copy()
-    accepted = None
+    randoms = []
     trace = []
-
-    def consider(assignment, stage, step):
-        nonlocal best, best_values, accepted
+    for i in range(candidates):
+        assignment = problem.random_partition(rng)
         if not problem.coverage(assignment, minimum):
-            trace.append(dict(stage=stage, step=step, feasible=False))
-            return
-        values = problem.objectives(assignment)
+            trace.append(dict(stage="random", step=i, feasible=False))
+            continue
+        randoms.append((i, assignment, problem.objectives(assignment)))
+    if not randoms:
+        raise ValueError("No random candidate meets minimum holdout coverage")
+    base_values = np.median([x[2] for x in randoms], axis=0)
+    scales = np.maximum(base_values, 0.01)
+    # A real partition for visualization only; the gate uses the componentwise median.
+    baseline = min(randoms, key=lambda x: np.mean(np.abs(x[2] - base_values) / scales))[1]
+    best = baseline.copy()
+    best_values = problem.objectives(best)
+    accepted = None
+
+    def consider(assignment, values, stage, step):
+        nonlocal best, best_values, accepted
         loss = float(np.mean(values / scales))
+        improved = bool(loss < np.mean(best_values / scales) - 1e-12)
         trace.append(
-            dict(stage=stage, step=step, feasible=True, loss=loss, objectives=values.tolist())
+            dict(
+                stage=stage,
+                step=step,
+                feasible=True,
+                loss=loss,
+                objectives=values.tolist(),
+                improved=improved,
+            )
         )
-        if loss < np.mean(best_values / scales):
+        if improved:
             best, best_values = assignment.copy(), values.copy()
         if acceptable(values, base_values, scales):
             if accepted is None or loss < accepted[0]:
                 accepted = loss, assignment.copy(), values.copy()
+        return improved
 
-    consider(baseline, "random", 0)
-    for i in range(1, candidates):
-        consider(problem.random_partition(rng), "random", i)
+    for i, assignment, values in randoms:
+        consider(assignment, values, "random", i)
+    stale = 0
+    evaluated = 0
     for i in range(swaps):
         proposal = best.copy()
         left, right = rng.choice(3, size=2, replace=False)
         a = rng.choice(np.flatnonzero(proposal == left))
         b = rng.choice(np.flatnonzero(proposal == right))
         proposal[a], proposal[b] = proposal[b], proposal[a]
-        consider(proposal, "swap", i)
+        evaluated += 1
+        if not problem.coverage(proposal, minimum):
+            trace.append(dict(stage="swap", step=i, feasible=False))
+            improved = False
+        else:
+            improved = consider(proposal, problem.objectives(proposal), "swap", i)
+        stale = 0 if improved else stale + 1
+        if stale >= patience:
+            break
     chosen = accepted[1] if accepted is not None else best
     return (
         chosen,
         baseline,
         dict(
             status="approved" if accepted is not None else "unapproved",
+            baseline_definition="componentwise median of feasible random candidate objectives",
+            feasible_random_candidates=len(randoms),
+            random_objective_quantiles={
+                str(q): np.quantile([x[2] for x in randoms], q, axis=0).tolist()
+                for q in (0.1, 0.5, 0.9)
+            },
             normalization_floor=0.01,
             normalization_scales=scales.tolist(),
             baseline_objectives=base_values.tolist(),
+            swap_proposals_evaluated=evaluated,
+            stopping_reason="no_improvement_patience" if stale >= patience else "proposal_budget",
+            proposals_since_improvement=stale,
+            patience=patience,
             trace=trace,
-            reason="All four objectives non-worsening and aggregate improved"
+            reason="All four objectives non-worsening versus random median and aggregate improved"
             if accepted is not None
-            else "No candidate met the non-worsening acceptance gate; do not adopt assignments",
+            else "No candidate met the random-median gate; do not adopt",
         ),
     )
 

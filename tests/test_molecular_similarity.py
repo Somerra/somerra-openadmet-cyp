@@ -259,3 +259,83 @@ def test_missing_columns_duplicate_ids_and_malformed_assignments(inputs, tmp_pat
     f.to_csv(path, index=False)
     with pytest.raises(ValueError, match="does not match"):
         load_assignments(path, p)
+
+
+def test_random_median_gate_survives_infeasible_first_draw(inputs, monkeypatch):
+    p = problem(inputs)
+    calls = 0
+
+    def coverage(assignment, minimum):
+        nonlocal calls
+        calls += 1
+        return calls != 1
+
+    monkeypatch.setattr(p, "coverage", coverage)
+    selected, representative, result = search(p, candidates=8, swaps=0, minimum=1)
+    values = np.array([x["objectives"] for x in result["trace"] if x["feasible"]])
+    median = np.median(values, axis=0)
+    np.testing.assert_allclose(result["baseline_objectives"], median)
+    assert result["feasible_random_candidates"] == 7
+    assert any(np.allclose(p.objectives(representative), v) for v in values)
+    if result["status"] == "approved":
+        assert np.all(p.objectives(selected) <= median + 1e-12)
+
+
+def test_search_records_patience_without_claiming_global_convergence(inputs, monkeypatch):
+    p = problem(inputs)
+    monkeypatch.setattr(p, "objectives", lambda assignment: np.ones(4))
+    _, _, result = search(p, candidates=4, swaps=100, patience=3, minimum=1)
+    assert result["swap_proposals_evaluated"] == 3
+    assert result["stopping_reason"] == "no_improvement_patience"
+    assert result["status"] == "unapproved"
+    # Trace must remain serializable when NumPy scalars are used in comparisons.
+    json.dumps(result, allow_nan=False)
+
+
+def test_feasibility_bound_and_endpoint_label_eligibility(inputs):
+    p = problem(inputs)
+    a = p.random_partition(np.random.default_rng(42))
+    feasibility = p.feasibility()
+    optimistic = nearest_distances(p.similarity, p.parents, p.parents)
+    for item in feasibility["thresholds"]:
+        assert item["available_parents"] == np.sum(optimistic <= item["distance_at_most"])
+        assert item["required_across_holdouts"] == pytest.approx(12 * item["official_fraction"])
+    # This endpoint's only labeled training reference must be used, even if
+    # closer neighbors have other endpoint labels.
+    refs = np.flatnonzero(a == 0)
+    p.counts[refs[1:], 0] = 0
+    item = p.endpoint_audit(a)[ACTIVITY_ENDPOINTS[0]]
+    assert item["retained_parents"] == 1
+    assert item["official_retained"]["median"] == pytest.approx(np.median(1 - p.cross[refs[0]]))
+    p.counts[:, 0] = 0
+    assert p.endpoint_audit(a)[ACTIVITY_ENDPOINTS[0]]["official_full"]["n"] == 0
+
+
+def test_no_report_does_not_require_matplotlib(inputs, tmp_path, monkeypatch):
+    import sys
+
+    monkeypatch.setitem(sys.modules, "matplotlib", None)
+    common = [
+        "generate",
+        "--training",
+        str(inputs[0]),
+        "--official-test",
+        str(inputs[1]),
+        "--min-labels",
+        "1",
+        "--candidates",
+        "1",
+        "--swaps",
+        "0",
+    ]
+    out = tmp_path / "no-report"
+    assert main([*common, "--output", str(out), "--no-report"]) == 2
+    assert (out / "audit.json").exists()
+    assert not (out / "report.html").exists()
+    manifest = json.loads((out / "manifest.json").read_text())
+    assert manifest["required_training_exclusion_policy"] == "exact_parent_only"
+    assert manifest["analogue_exclusion_threshold"] is None
+    missing = tmp_path / "missing-dependency"
+    with pytest.raises(ValueError, match="reports extra"):
+        main([*common, "--output", str(missing)])
+    assert not missing.exists()
