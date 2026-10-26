@@ -19,8 +19,12 @@ dependencies = [
   "scikit-learn>=1.6,<2",
 ]
 
+[project.optional-dependencies]
+reports = ["matplotlib>=3.9,<4"]
+
 [project.scripts]
 openadmet-cyp = "somerra_openadmet.cli:main"
+openadmet-molecular-split = "somerra_openadmet.molecular_split_cli:main"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/somerra_openadmet"]

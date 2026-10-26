@@ -22,6 +22,11 @@ The structure track is intentionally out of scope for this first phase.
 - saved models, OOF predictions, metrics, and run manifests.
 - cross-fitted, ST-RAE-aligned activity ensembles over completed baseline runs.
 
+The standalone `openadmet-molecular-split generate|audit` command builds and audits
+structure-matched 60/20/20 splits. See [molecular similarity and split matching](docs/molecular-similarity-splits.md)
+for the objective, acceptance gate, private artifacts, and evaluation limitations.
+It does not change existing training defaults.
+
 Nothing in this repository uploads a challenge submission.
 
 ## Environment
