@@ -11,6 +11,7 @@ requires-python = ">=3.11,<3.14"
 dependencies = [
   "huggingface-hub>=0.34,<2",
   "joblib>=1.4,<2",
+  "matplotlib>=3.9,<4",
   "lightgbm>=4.5,<5",
   "numpy>=2.0,<3",
   "pandas>=2.2,<4",
@@ -21,6 +22,7 @@ dependencies = [
 
 [project.scripts]
 openadmet-cyp = "somerra_openadmet.cli:main"
+openadmet-molecular-split = "somerra_openadmet.molecular_split_cli:main"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/somerra_openadmet"]
