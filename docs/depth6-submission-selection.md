@@ -40,3 +40,17 @@ original internal test). Including eligible auxiliary records, fitting uses
 31,928 records / 31,895 parents. The previous fitting pool had 30,948 records;
 exactly 980 original validation records have been restored. New validation and
 blind-test parents remain excluded across the complete training pool.
+
+
+## Completed preparation
+
+The 100-epoch run selected epoch 91 with validation MA-ST-RAE 0.64404843.
+Checkpoint reload maximum absolute error was 7.139e-7. The supervisor charged
+0.122228 GPU-hours (about 7.3 minutes). All 163 tests pass; the exported CSV has
+750 rows with no validation errors or warnings. This score is on the former
+internal test used for checkpoint selection, not the official challenge test.
+
+Private artifact directory: `/mnt/data/somerra-openadmet-runs/depth6-submission-20261027`.
+CSV SHA-256: `43f16cd9ba5675bff6074dff77f5f921ae618446732582720cf3b9b4f4f2c997`.
+The selected best checkpoint is used directly; no second fit used validation labels.
+Status is `prepared_not_submitted`, with Open Code false and model-report link empty.
