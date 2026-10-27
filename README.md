@@ -130,7 +130,7 @@ python autoresearch.py init --bundle /absolute/path/to/frozen-bundle \
 python autoresearch.py plan --task runs/regression-task/task.json
 python autoresearch.py run --task runs/regression-task/task.json \
   --output-dir runs/candidate-001 --hours 1 \
-  --hypothesis "Equal task normalization reduces the influence of dense auxiliary labels"
+  --hypothesis "Describe the model change made in train.py"
 
 python autoresearch.py status --task runs/regression-task/task.json
 python autoresearch.py reproduce --task runs/regression-task/task.json \

@@ -3,7 +3,7 @@
 from pathlib import Path
 
 MODEL_RECIPE = Path(__file__).parent / "configs/regression/incumbent.json"
-MODEL_OVERRIDES = {"loss_normalization": "tasks"}
+MODEL_OVERRIDES = {}  # Propose one model change here before plan/run.
 
 
 def main():

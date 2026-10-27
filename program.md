@@ -58,7 +58,7 @@ training/evaluation functions. Reproduction never promotes a candidate. If model
 implementation has changed, restore the recorded implementation before replaying.
 Reproducibility does not imply bitwise equivalence of nondeterministic GPU kernels.
 
-## Current experiment: task normalization
+## Completed experiment: task normalization
 
 Keep architecture, learning rates, data, record weights, auxiliary weight, MAE,
 seed and epochs fixed. Compare the reference's normalization over observed labels
@@ -68,6 +68,13 @@ N/(T*n_j); each minibatch sums weighted masked errors times those scales and div
 by its row count. Averaging across rows recovers the mean of per-task weighted MAEs.
 This avoids estimating label-frequency weights from validation/test or from each
 minibatch. Zero-label tasks are rejected. All 26 tasks are available in this study.
+
+The 2026-10-27 candidate completed 100 epochs and selected epoch 97: validation
+MA-ST-RAE 0.77174024, internal test 0.73982985. The paired candidate-minus-reference
+delta was +0.07983382, 95% CI [0.04825058, 0.11272308]. The registry discarded it
+and retained the reference. This result is conditional on the single seed and
+fixed training policy. Keep observation normalization in the maintained recipe;
+the unsuccessful candidate remains reproducible from its private trial snapshot.
 
 The prior interval-loss variant changed both loss shape and effective scored-task
 weight because gradients vanish inside the confidence interval. Its worse observed
