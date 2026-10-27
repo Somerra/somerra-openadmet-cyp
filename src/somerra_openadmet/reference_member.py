@@ -58,36 +58,17 @@ def score_predictions(truth, predictions):
     }
 
 
-def make_model(scaler, tasks, loss_kind="mae", auxiliary_weight=1.0):
-    from chemprop import nn
+def make_model(
+    scaler, tasks, loss_kind="mae", auxiliary_weight=1.0, model_config=None, task_scales=None
+):
+    from .hillclimb_model import build_model
 
-    from .hillclimb_model import StudyMPNN
-    from .neural import validate_task_order
-
-    validate_task_order(tasks)
-    mp = nn.BondMessagePassing(d_h=2048, depth=4, dropout=0.2)
-    ffn = nn.RegressionFFN(
-        n_tasks=len(tasks),
-        input_dim=2048,
-        hidden_dim=1024,
-        n_layers=2,
-        dropout=0.2,
-        criterion=nn.metrics.MAE(),
-        output_transform=nn.UnscaleTransform.from_standard_scaler(scaler),
+    settings = (
+        model_config
+        if model_config is not None
+        else {"loss_kind": loss_kind, "auxiliary_weight": auxiliary_weight}
     )
-    return StudyMPNN(
-        mp,
-        nn.NormAggregation(),
-        ffn,
-        batch_norm=True,
-        metrics=[nn.metrics.MAE()],
-        warmup_epochs=2,
-        init_lr=1e-4,
-        max_lr=1e-3,
-        final_lr=1e-4,
-        loss_kind=loss_kind,
-        auxiliary_weight=auxiliary_weight,
-    )
+    return build_model(scaler, tasks, settings, task_scales)
 
 
 def prediction_loader(smiles):
@@ -148,6 +129,7 @@ def train(
     loss_kind="mae",
     auxiliary_weight=1.0,
     campaign_ledger=None,
+    model_config=None,
 ):
     import lightning as L
     import torch
@@ -163,8 +145,14 @@ def train(
         raise RuntimeError("CUDA required")
     if not 1 <= epochs <= 200 or not 0 < hours <= 2:
         raise ValueError("Invalid finite run allocation")
-    if loss_kind not in {"mae", "interval"} or auxiliary_weight not in {1.0, 0.5}:
-        raise ValueError("Unregistered experiment settings")
+    from .model_recipe import resolve_model
+
+    model_config = resolve_model(
+        model_config
+        if model_config is not None
+        else {"loss_kind": loss_kind, "auxiliary_weight": auxiliary_weight}
+    )
+    loss_kind, auxiliary_weight = model_config["loss_kind"], model_config["auxiliary_weight"]
     pool, val, tasks, manifest = load_frames(bundle, recipe, final)
     output.mkdir(parents=True)
     if campaign_ledger is None:
@@ -175,6 +163,7 @@ def train(
         "status": "running",
         "campaign_ledger": record_ledger,
         "recipe": recipe,
+        "model_config": model_config,
         "loss_kind": loss_kind,
         "auxiliary_weight": auxiliary_weight,
         "matmul_precision": "high",
@@ -212,6 +201,16 @@ def train(
         ]:
             if saved[key] != record[key]:
                 raise ValueError(f"Resume contract mismatch: {key}")
+        if (
+            saved.get(
+                "model_config",
+                resolve_model(
+                    {"loss_kind": saved["loss_kind"], "auxiliary_weight": saved["auxiliary_weight"]}
+                ),
+            )
+            != model_config
+        ):
+            raise ValueError("Resume contract mismatch: model_config")
         recovery = previous / "recovery.json"
         if recovery.exists():
             snapshot = json.loads(recovery.read_text())
@@ -282,7 +281,15 @@ def train(
             dataset, batch_size=128, num_workers=4, persistent_workers=True
         )
         val_loader = None if final else prediction_loader(val.parent)
-        model = make_model(scaler, tasks, loss_kind, auxiliary_weight)
+        task_scales = None
+        if model_config["loss_normalization"] == "tasks":
+            counts = np.isfinite(targets[:, : len(tasks)]).sum(axis=0)
+            if (counts == 0).any():
+                raise ValueError("Task normalization requires observations for every task")
+            task_scales = (len(pool) / (len(tasks) * counts)).tolist()
+            record["task_normalization_counts"] = counts.tolist()
+            record["task_normalization_scales"] = task_scales
+        model = make_model(scaler, tasks, model_config=model_config, task_scales=task_scales)
         plateau = Plateau()
         curve_path = output / "curve.jsonl"
         elapsed_offset = (

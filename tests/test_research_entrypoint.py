@@ -8,7 +8,7 @@ import pytest
 
 def load_runner():
     spec = importlib.util.spec_from_file_location(
-        "research_train", Path(__file__).parents[1] / "train.py"
+        "research_train", Path(__file__).parents[1] / "legacy_train.py"
     )
     module = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(module)
@@ -174,6 +174,7 @@ def test_primary_reproduce_preview_does_not_import_train(tmp_path, monkeypatch):
     monkeypatch.setitem(sys.modules, "train", None)
     result = entry.main(
         [
+            "legacy",
             "reproduce",
             "--preview",
             "--model-config",

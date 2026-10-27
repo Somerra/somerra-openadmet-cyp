@@ -1,6 +1,6 @@
 # Somerra OpenADMET CYP
 
-Reproducible tooling and CPU baselines for two tracks of the 2026 OpenADMET CYP
+GPU regression autoresearch and reproducible baseline tooling for two tracks of the 2026 OpenADMET CYP
 Inhibition Blind Challenge:
 
 1. **Direct inhibition regression** — predict pIC50 for CYP1A2, CYP2C9, CYP2D6,
@@ -25,7 +25,7 @@ The structure track is intentionally out of scope for this first phase.
 The standalone `openadmet-molecular-split generate|audit` command builds and audits
 structure-matched 60/20/20 splits. See [molecular similarity and split matching](docs/molecular-similarity-splits.md)
 for the objective, acceptance gate, private artifacts, and evaluation limitations.
-It does not change existing training defaults.
+The primary regression task adopts reviewed assignments explicitly and freezes them for subsequent trials.
 
 Nothing in this repository uploads a challenge submission.
 
@@ -80,7 +80,10 @@ Run directories must not already exist. This prevents accidental overwrites of e
 
 The blinded test set is an analogue-expansion set. Random train/validation splits can
 place close chemical relatives on both sides and substantially overstate performance.
-Our default split keeps generic Bemis–Murcko scaffolds disjoint. We report:
+The primary regression task uses a frozen molecular 60/20/20 train/validation/internal-test split.
+Validation selects checkpoints; internal test is a strategy-development set. The
+official blinded test is scored only by the challenge. Historical CPU commands
+use scaffold/cluster cross-validation and report:
 
 - direct inhibition: per-endpoint OOF ST-RAE and macro-average MA-ST-RAE;
 - TDI: OOF MCC at 0.5 plus a separately labeled OOF-selected threshold.
@@ -109,66 +112,71 @@ budget; the selected value is written into `run_manifest.json`.
 
 ## Autoresearch is the primary entrypoint
 
-Two complementary workflows share the same evaluation tools:
+`autoresearch.py` now runs one GPU candidate on the frozen molecular regression
+task. It reuses the saved incumbent, selects a checkpoint on validation, compares
+that checkpoint on internal test with a paired scaffold bootstrap, and records a
+keep/discard/crash decision. Reproduction uses the same training and evaluation
+functions without importing the editable `train.py` settings or promoting a model.
 
-- **Autoresearch campaigns:** an agent proposes changes, invokes trials, compares
-  evidence, records keep/discard decisions, and repeats within an approved budget.
-- **Reproducibility and best recipes:** rerun a saved recipe without research
-  overrides, preserve provenance, and maintain the incumbent/challenger catalog.
-
-The campaign loop is agent-orchestrated through `program.md`; the CLI executes
-individual trials. It is not yet an unattended scheduler or self-editing agent.
-
-Start here from the repository root, after preparing the selected data:
+Initialize once in the GPU environment from the prepared bundle, completed
+100-epoch reference, and existing campaign ledger:
 
 ```bash
-# Preview effective settings and source selection; no training or run files.
-python autoresearch.py plan --output-dir runs/regression-trial-001
+python autoresearch.py init --bundle /absolute/path/to/frozen-bundle \
+  --reference /absolute/path/to/reference-run --task-dir runs/regression-task \
+  --campaign-ledger /absolute/shared/path/to/campaign-ledger.json
 
-# Explicitly execute ONE trial after agreeing the hypothesis and compute budget.
-python autoresearch.py run --output-dir runs/regression-trial-001 \
-  --hypothesis "Removing ExtraTrees preserves quality with less complexity"
+# Edit MODEL_OVERRIDES in train.py, then preview and run one candidate.
+python autoresearch.py plan --task runs/regression-task/task.json
+python autoresearch.py run --task runs/regression-task/task.json \
+  --output-dir runs/candidate-001 --hours 1 \
+  --hypothesis "Equal task normalization reduces the influence of dense auxiliary labels"
 
-# Reproduce a saved recipe, ignoring train.py and its research overrides.
-python autoresearch.py reproduce --model-config configs/models/incumbent.json \
-  --backend cpu --output-dir runs/regression-incumbent-reproduction-001
-# Add --preview to inspect reproduction settings without training.
+python autoresearch.py status --task runs/regression-task/task.json
+python autoresearch.py reproduce --task runs/regression-task/task.json \
+  --trial runs/candidate-001 --output-dir runs/reproduction-001 --hours 1
+# Add --preview to inspect a reproduction without training.
+
+# Separate final fit of the selected incumbent; prepares predictions, never uploads.
+python autoresearch.py prepare --task runs/regression-task/task.json \
+  --output-dir runs/submission-preparation-001 --raw data/raw --hours 1
 ```
 
-Edit the recipe block in `train.py` before previewing a proposed change; the
-hypothesis string does not modify model settings. `autoresearch.py` is the fixed
-launcher; `src/somerra_openadmet/research.py` owns orchestration. Each run snapshots
-its inputs and writes `trial.json` with completion/failure status and elapsed time.
-Both modes call `evaluation.evaluate_recipe`, which delegates to the same CPU or
-neural evaluator and applies the same completion/finite-score checks. The resulting
-trial records share a format and identify their workflow. Completed trials await
-review: comparison, keep/discard, and promotion are separate.
-`plan` validates source composition, not dataset contents or backend readiness.
-There is no autonomous scheduler or automatic repetition. The older `python train.py`
-invocation remains a compatibility alias for one run.
-The lower-level `regression` commands remain available for reproduction, comparison,
-data preparation and export; they are tools, not a competing campaign loop.
-The historical `campaign.py` module implements CPU evaluation, not orchestration.
+`configs/regression/incumbent.json` holds the maintained model recipe. Trial
+snapshots, model-source hashes, predictions, curves and decisions live under
+ignored run directories. A persistent registry holds the current incumbent and
+trial history. Concurrent completions compare against the latest incumbent under
+a lock. No baseline rerun or final fit is added to ordinary trials.
 
-**External datasets are deferred, not supported by this PR.** The matched neural screen
-scored 0.772899 with ChEMBL/PubChem versus 0.770953 without them (lower is better).
-The paired delta CI crosses zero, and the recovered external run has incomplete
-provenance. Neither source has an isolated matched ablation. Follow [ChEMBL #3](https://github.com/Somerra/somerra-openadmet-cyp/issues/3) and
-[PubChem #4](https://github.com/Somerra/somerra-openadmet-cyp/issues/4) for reconsideration
-criteria; see [the evidence](docs/data-sources.md#deferred-external-datasets).
+Data hashes, evaluation code, seed 42, batch 128, the 100-epoch cap and runtime
+versions are frozen in `task.json`. Model configuration and the model implementation
+in `hillclimb_model.py`/`model_recipe.py` may evolve between trials; changing the
+evaluator requires a new task. Reproduction verifies the saved model implementation
+hashes and recipe, so restore the recorded implementation if it has since changed.
+An agent proposes the next change and invokes the next trial; the CLI does not
+invent hypotheses or repeat indefinitely. See [program.md](program.md).
+
+The task uses the pinned 26-task pool, including official auxiliary assays and
+Scigantic derivatives. Fresh raw-source acquisition remains deferred to
+[ChEMBL #3](https://github.com/Somerra/somerra-openadmet-cyp/issues/3) and
+[PubChem #4](https://github.com/Somerra/somerra-openadmet-cyp/issues/4).
+
+Historical CPU/fold-based research is explicit: `autoresearch.py legacy plan|run|reproduce`.
+The previous fixed-series GPU study remains available under `autoresearch.py hillclimb`.
+Neither is selected by the primary `plan`, `run` or `reproduce` commands.
 
 ## Why these baselines
 
 Regression research follows an [autoresearch-style protocol](program.md): edit one
 model recipe in `train.py`, keep the evaluator fixed, and retain only the best
-configurations. One [data catalog](configs/README.md) registers all sources; each
-model recipe chooses its `data_sources`. Model experiments freeze that selection;
-data experiments change only the selection, keeping model/training settings fixed.
+configurations. The current model task freezes its prepared data bundle and source
+selection. A separate data study can vary source/task selection while holding the
+model fixed. The historical [data catalog](configs/README.md) documents source locations.
 Each invocation runs one trial, not an unattended loop.
 The [data-source guide](docs/data-sources.md) explains what each source contributes,
 why it might help regression, and what our experiments have actually established.
 
-The ongoing regression campaign adds persisted molecular cluster folds, nested
+The historical regression workflow includes persisted molecular cluster folds, nested
 CPU evaluation, paired cluster bootstrap, auxiliary assay preparation, and optional
 CheMeleon experiments. See [the campaign runbook](docs/regression-campaign.md) for
 commands, results, and outstanding promotion gates.

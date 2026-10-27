@@ -19,21 +19,23 @@ def main(argv=None):
         from somerra_openadmet.reference import main as reference_main
 
         return reference_main(argv[1:])
-    if argv and argv[0] == "reproduce":
-        # Reproduction must not execute the mutable experiment recipe or inherit
-        # its overrides, including when train.py is temporarily broken mid-edit.
-        return run_command(
-            backend=None, model_recipe=None, overrides={}, recipe_source=None, argv=argv
-        )
-    import train
+    if argv and argv[0] == "legacy":
+        if len(argv) > 1 and argv[1] == "reproduce":
+            return run_command(
+                backend=None, model_recipe=None, overrides={}, recipe_source=None, argv=argv[1:]
+            )
+        import legacy_train
 
-    return run_command(
-        backend=train.BACKEND,
-        model_recipe=train.MODEL_RECIPE,
-        overrides=train.MODEL_OVERRIDES,
-        recipe_source=Path(train.__file__),
-        argv=argv,
-    )
+        return run_command(
+            backend=legacy_train.BACKEND,
+            model_recipe=legacy_train.MODEL_RECIPE,
+            overrides=legacy_train.MODEL_OVERRIDES,
+            recipe_source=Path(legacy_train.__file__),
+            argv=argv[1:],
+        )
+    from somerra_openadmet.regression_task import main as task_main
+
+    return task_main(argv)
 
 
 if __name__ == "__main__":

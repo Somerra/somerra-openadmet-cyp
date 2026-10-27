@@ -1,0 +1,14 @@
+{
+  "family": "chemprop_bond_mpnn",
+  "hidden_dim": 2048,
+  "depth": 4,
+  "dropout": 0.2,
+  "ffn_hidden_dim": 1024,
+  "ffn_layers": 2,
+  "init_lr": 0.0001,
+  "max_lr": 0.001,
+  "final_lr": 0.0001,
+  "loss_kind": "mae",
+  "auxiliary_weight": 1.0,
+  "loss_normalization": "observations"
+}
