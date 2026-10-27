@@ -184,3 +184,60 @@ def test_paired_bootstrap_uses_identical_molecules_and_detects_consistent_improv
     candidate.loc[0, ACTIVITY_ENDPOINTS[0]] = np.nan
     with pytest.raises(ValueError, match="Nonfinite"):
         paired_comparison(truth, reference, candidate)
+
+
+def test_training_frequency_normalization_equals_mean_task_loss():
+    torch = pytest.importorskip("torch")
+    pytest.importorskip("chemprop")
+    from somerra_openadmet.hillclimb_model import training_loss
+
+    predictions = torch.tensor([[1.0, 4.0], [2.0, 1.0], [3.0, 1.0], [4.0, 1.0]], requires_grad=True)
+    targets = torch.tensor(
+        [[0.0, 0.0], [0.0, float("nan")], [0.0, float("nan")], [0.0, float("nan")]]
+    )
+    weights = torch.tensor([2.0, 1.0, 1.0, 1.0])
+    # Four training records, two tasks, observation counts [4, 1].
+    scales = torch.tensor([0.5, 2.0])
+    loss = training_loss(
+        predictions, targets, weights, loss_normalization="tasks", task_scales=scales
+    )
+    assert loss.item() == pytest.approx(((2 + 2 + 3 + 4) / 4 + 8) / 2)
+    parts = [
+        training_loss(
+            predictions[i : i + 2],
+            targets[i : i + 2],
+            weights[i : i + 2],
+            loss_normalization="tasks",
+            task_scales=scales,
+        )
+        for i in [0, 2]
+    ]
+    assert ((parts[0] + parts[1]) / 2).item() == pytest.approx(loss.item())
+    loss.backward()
+    assert torch.isfinite(predictions.grad).all()
+    assert torch.count_nonzero(predictions.grad[1:, 1]) == 0
+    with pytest.raises(ValueError, match="training-only"):
+        training_loss(predictions, targets, weights, loss_normalization="tasks")
+
+
+@pytest.mark.parametrize("normalization", ["observations", "tasks"])
+def test_scored_weight_changes_only_direct_gradients(normalization):
+    torch = pytest.importorskip("torch")
+    pytest.importorskip("chemprop")
+    from somerra_openadmet.hillclimb_model import training_loss
+
+    prediction = torch.ones((2, 6), requires_grad=True)
+    target = torch.zeros((2, 6))
+    target[0, 2] = float("nan")
+    weights = torch.tensor([2.0, 0.5])
+    options = {"loss_normalization": normalization, "auxiliary_weight": 0.5}
+    if normalization == "tasks":
+        options["task_scales"] = torch.tensor([1 / 6, 1 / 6, 1 / 3, 1 / 6, 1 / 6, 1 / 6])
+    base = training_loss(prediction, target, weights, **options)
+    base_gradient = torch.autograd.grad(base, prediction)[0]
+    changed = training_loss(prediction, target, weights, scored_endpoint_weight=2.0, **options)
+    changed_gradient = torch.autograd.grad(changed, prediction)[0]
+    torch.testing.assert_close(changed_gradient[:, :4], 2 * base_gradient[:, :4])
+    torch.testing.assert_close(changed_gradient[:, 4:], base_gradient[:, 4:])
+    assert changed_gradient[0, 2] == 0
+    assert torch.isfinite(changed_gradient).all()

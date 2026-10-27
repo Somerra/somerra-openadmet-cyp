@@ -1,27 +1,15 @@
-"""Editable regression experiment recipe; the evaluator lives in src/ and stays fixed.
-
-See program.md before running. Each invocation runs ONE experiment, never a loop.
-"""
+"""Editable model recipe for the frozen regression task; use autoresearch.py plan/run."""
 
 from pathlib import Path
 
-from somerra_openadmet.research import main as research_main
-
-# Model research changes model knobs; data research changes only data_sources.
-BACKEND = "cpu"  # "cpu" (nested evaluation) or "neural" (screening only)
-MODEL_RECIPE = Path("configs/models/incumbent.json")
-MODEL_OVERRIDES = {}
+MODEL_RECIPE = Path(__file__).parent / "configs/regression/incumbent.json"
+MODEL_OVERRIDES = {}  # Propose one model change here before plan/run.
 
 
 def main():
-    """Compatibility launcher; prefer autoresearch.py plan/run for new trials."""
-    return research_main(
-        backend=BACKEND,
-        model_recipe=MODEL_RECIPE,
-        overrides=MODEL_OVERRIDES,
-        recipe_source=Path(__file__),
-        default_command="run",
-    )
+    from somerra_openadmet.regression_task import main as task_main
+
+    return task_main(default_command="run")
 
 
 if __name__ == "__main__":
