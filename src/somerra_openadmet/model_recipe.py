@@ -14,6 +14,7 @@ DEFAULT_MODEL = {
     "final_lr": 1e-4,
     "loss_kind": "mae",
     "auxiliary_weight": 1.0,
+    "scored_endpoint_weight": 1.0,
     "loss_normalization": "observations",
 }
 
@@ -32,7 +33,14 @@ def resolve_model(settings):
     for key in ["hidden_dim", "depth", "ffn_hidden_dim", "ffn_layers"]:
         if type(model[key]) is not int or model[key] < 1:
             raise ValueError(f"Invalid model setting: {key}")
-    for key in ["dropout", "init_lr", "max_lr", "final_lr", "auxiliary_weight"]:
+    for key in [
+        "dropout",
+        "init_lr",
+        "max_lr",
+        "final_lr",
+        "auxiliary_weight",
+        "scored_endpoint_weight",
+    ]:
         if (
             isinstance(model[key], bool)
             or not isinstance(model[key], (int, float))
@@ -41,6 +49,8 @@ def resolve_model(settings):
             raise ValueError(f"Invalid model setting: {key}")
     if not 0 <= model["dropout"] < 1 or not 0 <= model["auxiliary_weight"] <= 16:
         raise ValueError("Invalid dropout or auxiliary weight")
+    if not 0 < model["scored_endpoint_weight"] <= 16:
+        raise ValueError("Invalid scored endpoint weight")
     if not 0 < model["init_lr"] <= model["max_lr"] or not 0 < model["final_lr"] <= model["max_lr"]:
         raise ValueError("Invalid learning rates")
     return model

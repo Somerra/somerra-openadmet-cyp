@@ -148,6 +148,18 @@ ignored run directories. A persistent registry holds the current incumbent and
 trial history. Concurrent completions compare against the latest incumbent under
 a lock. No baseline rerun or final fit is added to ordinary trials.
 
+**Preserve artifacts privately:** `task.json` and `registry.json` are indexes, not
+self-contained backups. Preserve the full adopted-reference and current-incumbent
+run directories (including `run_manifest.json`, `best.ckpt`, and
+`internal-test.csv`), the frozen data bundle, allocation ledger, and any trial
+snapshots needed for reproduction. Preserve the ledger's lock path and stop
+writers before taking a consistent backup. Keep the recorded source revision and
+runtime as well. A fresh clone/container does not include ignored `runs/` artifacts.
+Restore these private directories at their recorded absolute paths before
+continuing; relocation/import is not currently supported. Do not rewrite paths or
+hashes in a frozen task. Missing or modified artifacts intentionally fail validation.
+Never commit checkpoints or predictions to make the task portable.
+
 Data hashes, evaluation code, seed 42, batch 128, the 100-epoch cap and runtime
 versions are frozen in `task.json`. Model configuration and the model implementation
 in `hillclimb_model.py`/`model_recipe.py` may evolve between trials; changing the

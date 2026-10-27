@@ -218,3 +218,26 @@ def test_training_frequency_normalization_equals_mean_task_loss():
     assert torch.count_nonzero(predictions.grad[1:, 1]) == 0
     with pytest.raises(ValueError, match="training-only"):
         training_loss(predictions, targets, weights, loss_normalization="tasks")
+
+
+@pytest.mark.parametrize("normalization", ["observations", "tasks"])
+def test_scored_weight_changes_only_direct_gradients(normalization):
+    torch = pytest.importorskip("torch")
+    pytest.importorskip("chemprop")
+    from somerra_openadmet.hillclimb_model import training_loss
+
+    prediction = torch.ones((2, 6), requires_grad=True)
+    target = torch.zeros((2, 6))
+    target[0, 2] = float("nan")
+    weights = torch.tensor([2.0, 0.5])
+    options = {"loss_normalization": normalization, "auxiliary_weight": 0.5}
+    if normalization == "tasks":
+        options["task_scales"] = torch.tensor([1 / 6, 1 / 6, 1 / 3, 1 / 6, 1 / 6, 1 / 6])
+    base = training_loss(prediction, target, weights, **options)
+    base_gradient = torch.autograd.grad(base, prediction)[0]
+    changed = training_loss(prediction, target, weights, scored_endpoint_weight=2.0, **options)
+    changed_gradient = torch.autograd.grad(changed, prediction)[0]
+    torch.testing.assert_close(changed_gradient[:, :4], 2 * base_gradient[:, :4])
+    torch.testing.assert_close(changed_gradient[:, 4:], base_gradient[:, 4:])
+    assert changed_gradient[0, 2] == 0
+    assert torch.isfinite(changed_gradient).all()

@@ -46,6 +46,16 @@ promotion rule. Changes to this contract require explicit task initialization.
 6. Review the result, retain the best maintained recipe and select the next
    hypothesis. Do not infer permission for unbounded trials from this file.
 
+The 3% gain is a practical-effect threshold, separate from the paired interval.
+An adopted reference is the starting benchmark, not a promoted winner and not a
+claim that it passed a comparison against itself. Every subsequent replacement
+uses the same gate. A candidate with a 2% gain and a paired interval below zero is recorded as a
+discard under this policy; its results remain available. The paired interval
+conditions on fixed fitted models; it does not measure seed variability or correct
+for adaptive search. It therefore does not replace the practical-effect threshold.
+Changing that threshold requires a new task contract, not a mid-series edit.
+
+
 Model families may evolve in `hillclimb_model.py` and their configuration in
 `model_recipe.py`; the initial adapter supports a configurable Chemprop bond MPNN.
 Data loading, target preparation, splits, metrics and checkpoint selection remain
@@ -75,6 +85,23 @@ delta was +0.07983382, 95% CI [0.04825058, 0.11272308]. The registry discarded i
 and retained the reference. This result is conditional on the single seed and
 fixed training policy. Keep observation normalization in the maintained recipe;
 the unsuccessful candidate remains reproducible from its private trial snapshot.
+
+`scored_endpoint_weight` is a separate model knob (default 1.0, positive and at
+most 16). It multiplies only the first four scored-task losses, preserving
+auxiliary weights, record weights and the loss denominator. A future comparison
+can set it to 2.0 with everything else at the reference. Equal task normalization
+is not evidence for or against this hypothesis. Doubling scored weight and halving
+auxiliary weight have the same relative task balance but different overall loss
+scales; do not treat them as identical optimization experiments. The new knob is
+implemented but has not been evaluated.
+
+Old manifests/checkpoints missing the knob retain its default of 1.0. The
+compatibility handling changes frozen source hashes: continue existing series on
+their recorded revision, and initialize a new task directory before using this
+revision. Reuse the same bundle, reference artifacts and allocation ledger; retain
+the old registry and trials as historical evidence. This does not reset spending,
+change the split, or require a reference refit. See README's private artifact
+preservation requirements before moving environments.
 
 The prior interval-loss variant changed both loss shape and effective scored-task
 weight because gradients vanish inside the confidence interval. Its worse observed

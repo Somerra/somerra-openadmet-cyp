@@ -227,3 +227,20 @@ def test_supervisor_failed_launch_releases_reservation(tmp_path, monkeypatch):
     with pytest.raises(OSError, match="launch failed"):
         task.train_supervised(tmp_path / "task.json", contract, output, resolve_model({}), 1)
     assert ledger.snapshot() == {"used_hours": 7.0, "reserved_hours": 0, "committed_hours": 7.0}
+
+
+@pytest.mark.parametrize("weight", [0, -1, 17, True, float("nan"), float("inf")])
+def test_invalid_scored_endpoint_weight(weight):
+    with pytest.raises(ValueError):
+        resolve_model({"scored_endpoint_weight": weight})
+
+
+def test_legacy_member_defaults_scored_endpoint_weight(tmp_path):
+    path = fitted(tmp_path / "legacy", 0.7, {})
+    manifest = path / "run_manifest.json"
+    record = json.loads(manifest.read_text())
+    del record["model_config"]["scored_endpoint_weight"]
+    manifest.write_text(json.dumps(record))
+    assert task.member(path, {})["model_config"]["scored_endpoint_weight"] == 1.0
+    with pytest.raises(ValueError, match="Recipe does not match"):
+        task.member(path, {"scored_endpoint_weight": 2.0})

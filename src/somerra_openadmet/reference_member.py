@@ -202,11 +202,14 @@ def train(
             if saved[key] != record[key]:
                 raise ValueError(f"Resume contract mismatch: {key}")
         if (
-            saved.get(
-                "model_config",
-                resolve_model(
-                    {"loss_kind": saved["loss_kind"], "auxiliary_weight": saved["auxiliary_weight"]}
-                ),
+            resolve_model(
+                saved.get(
+                    "model_config",
+                    {
+                        "loss_kind": saved["loss_kind"],
+                        "auxiliary_weight": saved["auxiliary_weight"],
+                    },
+                )
             )
             != model_config
         ):

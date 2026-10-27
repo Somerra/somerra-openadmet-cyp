@@ -10,5 +10,6 @@
   "final_lr": 0.0001,
   "loss_kind": "mae",
   "auxiliary_weight": 1.0,
+  "scored_endpoint_weight": 1.0,
   "loss_normalization": "observations"
 }

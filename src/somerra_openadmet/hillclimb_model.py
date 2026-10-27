@@ -14,6 +14,7 @@ def training_loss(
     auxiliary_weight=1.0,
     loss_normalization="observations",
     task_scales=None,
+    scored_endpoint_weight=1.0,
 ):
     tasks = predictions.shape[1]
     values = targets[:, :tasks]
@@ -34,6 +35,7 @@ def training_loss(
     elif loss_kind != "mae":
         raise ValueError("Unknown loss")
     task_weights = torch.ones(tasks, device=predictions.device)
+    task_weights[:4] = scored_endpoint_weight
     task_weights[4:] = auxiliary_weight
     weighted = losses * mask * weights.view(-1, 1) * task_weights
     if loss_normalization == "tasks":
@@ -53,11 +55,13 @@ class StudyMPNN(models.MPNN):
         auxiliary_weight=1.0,
         loss_normalization="observations",
         task_scales=None,
+        scored_endpoint_weight=1.0,
         **kwargs,
     ):
         super().__init__(*args, **kwargs)
         self.loss_kind = loss_kind
         self.auxiliary_weight = auxiliary_weight
+        self.scored_endpoint_weight = scored_endpoint_weight
         self.loss_normalization = loss_normalization
         # Legacy observation-normalized checkpoints have no additional buffer.
         if task_scales is not None:
@@ -66,6 +70,7 @@ class StudyMPNN(models.MPNN):
             {
                 "loss_kind": loss_kind,
                 "auxiliary_weight": auxiliary_weight,
+                "scored_endpoint_weight": scored_endpoint_weight,
                 "loss_normalization": loss_normalization,
                 "task_scales": task_scales,
             }
@@ -82,6 +87,7 @@ class StudyMPNN(models.MPNN):
             self.auxiliary_weight,
             self.loss_normalization,
             getattr(self, "task_scales", None),
+            scored_endpoint_weight=self.scored_endpoint_weight,
         )
         self.log("train_loss", loss, batch_size=self.get_batch_size(batch), on_epoch=True)
         return loss
@@ -114,6 +120,7 @@ def build_model(scaler, tasks, settings, task_scales=None):
         final_lr=config["final_lr"],
         loss_kind=config["loss_kind"],
         auxiliary_weight=config["auxiliary_weight"],
+        scored_endpoint_weight=config["scored_endpoint_weight"],
         loss_normalization=config["loss_normalization"],
         task_scales=task_scales,
     )

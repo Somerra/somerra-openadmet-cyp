@@ -125,7 +125,7 @@ def member(run, settings):
             {"loss_kind": record["loss_kind"], "auxiliary_weight": record["auxiliary_weight"]}
         ),
     )
-    if recorded != settings:
+    if resolve_model(recorded) != settings:
         raise ValueError("Recipe does not match the fitted member")
     return {
         "run": str(run),
