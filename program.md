@@ -23,7 +23,14 @@ on internal test, with its best checkpoint at epoch 69. Preserve its original
 artifacts rather than retraining it for each candidate.
 
 Initialize a task once using the prepared bundle, completed reference and existing
-shared allocation ledger. `task.json` freezes data/evaluator hashes, runtime
+shared allocation ledger. Preserve fitted implementation hashes from the reference
+manifest. Changed model/trainer code requires explicit `init
+--check-model-compatibility`: reload the saved checkpoint and reproduce all saved
+internal-test predictions within 1e-4. Record original and compatible source
+identities, artifacts, recipe, bundle, runtime and error; never relabel old training
+as having used current code. Final fitting accepts only the original implementation
+or this exact compatibility record. The check establishes checkpoint inference
+parity, not equivalence of retraining after training-semantic changes. `task.json` freezes data/evaluator hashes, runtime
 versions, seed 42, batch 128, 100 epochs, the 200-epoch scheduler horizon and the
 promotion rule. Changes to this contract require explicit task initialization.
 

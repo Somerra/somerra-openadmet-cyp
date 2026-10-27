@@ -18,6 +18,12 @@ from .data_sources.common import write_json
 from .download import sha256_file
 from .hillclimb import qualifies
 from .hillclimb_comparison import compare_runs
+from .model_compatibility import (
+    IMPLEMENTATION_FILES,
+    check_compatibility,
+    fitted_identity,
+    require_compatible,
+)
 from .model_recipe import resolve_model
 from .reference_member_data import load_frames
 
@@ -25,6 +31,7 @@ ROOT = Path(__file__).resolve().parents[2]
 FIXED_FILES = [
     "autoresearch.py",
     "src/somerra_openadmet/regression_task.py",
+    "src/somerra_openadmet/model_compatibility.py",
     "src/somerra_openadmet/reference_member.py",
     "src/somerra_openadmet/reference_member_data.py",
     "src/somerra_openadmet/hillclimb.py",
@@ -132,7 +139,7 @@ def member(run, settings):
         "model_config": settings,
         "score": record["internal_test_metrics"]["MA-ST-RAE"],
         "best_epoch": record["best_epoch"],
-        "model_source_sha256": file_hashes(MODEL_FILES),
+        "model_source_sha256": fitted_identity(record),
         "artifacts": {
             name: sha256_file(run / name)
             for name in ["run_manifest.json", "best.ckpt", "internal-test.csv"]
@@ -147,8 +154,12 @@ def validate_member(entry):
     ):
         raise ValueError("Incumbent artifacts changed")
 
+    record = checked_run(entry["run"])
+    if entry["model_source_sha256"] != fitted_identity(record):
+        raise ValueError("Incumbent fitted source identity differs from its manifest")
 
-def initialize(bundle, reference, task_dir, campaign_ledger):
+
+def initialize(bundle, reference, task_dir, campaign_ledger, *, check_model_compatibility=False):
     bundle, reference, task_dir = map(lambda p: Path(p).resolve(), (bundle, reference, task_dir))
     CampaignLedger(campaign_ledger).snapshot()
     checked_run(reference)
@@ -159,6 +170,17 @@ def initialize(bundle, reference, task_dir, campaign_ledger):
         resolve_model({"loss_kind": ref["loss_kind"], "auxiliary_weight": ref["auxiliary_weight"]}),
     )
     initial = member(reference, settings)
+    current = file_hashes(IMPLEMENTATION_FILES)
+    environment = runtime()
+    if initial["model_source_sha256"] != current and check_model_compatibility:
+        initial["implementation_compatibility"] = check_compatibility(
+            initial, bundle, current, environment
+        )
+        # Reject source/artifact changes during the explicit check.
+        validate_member(initial)
+        if current != file_hashes(IMPLEMENTATION_FILES) or environment != runtime():
+            raise ValueError("Implementation/runtime changed during compatibility check")
+    require_compatible(initial, bundle, current, environment)
     task = {
         "version": 1,
         "bundle": str(bundle),
@@ -365,8 +387,7 @@ def prepare(task_path, output, raw, hours):
     task = read_task(task_path, check_runtime=True)
     selected = read_registry(task_path, task)["incumbent"]
     validate_member(selected)
-    if selected["model_source_sha256"] != file_hashes(MODEL_FILES):
-        raise ValueError("Restore the selected model implementation before final fitting")
+    require_compatible(selected, task["bundle"], file_hashes(IMPLEMENTATION_FILES), runtime())
     output.mkdir(parents=True, exist_ok=False)
     atomic_json(output / "model.json", selected["model_config"])
     record = {"task_id": task["task_id"], "selected": selected, "status": "running"}
@@ -399,6 +420,11 @@ def main(argv=None, default_command=None):
     init = sub.add_parser("init", help="Adopt a completed reference and freeze a task")
     for name in ["bundle", "reference", "task-dir", "campaign-ledger"]:
         init.add_argument("--" + name, type=Path, required=True)
+    init.add_argument(
+        "--check-model-compatibility",
+        action="store_true",
+        help="Explicitly verify saved checkpoint predictions before adopting changed code",
+    )
     for name in ["plan", "run", "reproduce", "status", "prepare", "_train"]:
         command = sub.add_parser(name)
         command.add_argument("--task", type=Path, required=True)
@@ -423,7 +449,13 @@ def main(argv=None, default_command=None):
         argv = [default_command, *argv]
     args = parser.parse_args(argv)
     if args.command == "init":
-        result = initialize(args.bundle, args.reference, args.task_dir, args.campaign_ledger)
+        result = initialize(
+            args.bundle,
+            args.reference,
+            args.task_dir,
+            args.campaign_ledger,
+            check_model_compatibility=args.check_model_compatibility,
+        )
     elif args.command == "status":
         task = read_task(args.task)
         result = {

@@ -160,6 +160,20 @@ continuing; relocation/import is not currently supported. Do not rewrite paths o
 hashes in a frozen task. Missing or modified artifacts intentionally fail validation.
 Never commit checkpoints or predictions to make the task portable.
 
+Adoption preserves the implementation hashes in the fitted run's manifest; it
+never substitutes the current tree's hashes. If model or trainer code differs,
+`init` refuses by default. Use `init --check-model-compatibility` to explicitly
+reload the checkpoint and compare all saved internal-test predictions (absolute
+tolerance 1e-4, matching molecule identities and endpoint order). The task records
+the original and compatible hashes, checkpoint/prediction/manifest hashes, bundle,
+recipe, runtime and observed error. Missing legacy modules remain marked missing.
+`prepare` requires either the original implementation or this exact recorded
+compatibility check, and rejects subsequent changes. This validates checkpoint
+inference, not equivalence of retraining under arbitrarily changed training code;
+training-semantic changes still require a newly evaluated candidate. Existing tasks
+must remain on their recorded revision; initialize a new directory for this update
+and reuse the existing allocation ledger.
+
 Data hashes, evaluation code, seed 42, batch 128, the 100-epoch cap and runtime
 versions are frozen in `task.json`. Model configuration and the model implementation
 in `hillclimb_model.py`/`model_recipe.py` may evolve between trials; changing the

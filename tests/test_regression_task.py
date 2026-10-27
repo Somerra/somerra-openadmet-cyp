@@ -11,6 +11,10 @@ from somerra_openadmet.model_recipe import resolve_model
 def fitted(path, score, settings):
     path.mkdir()
     record = {
+        "source_sha256": {
+            str(Path(path).relative_to("src/somerra_openadmet")): value
+            for path, value in task.file_hashes(task.IMPLEMENTATION_FILES).items()
+        },
         "complete": True,
         "smoke": False,
         "final": False,
@@ -244,3 +248,132 @@ def test_legacy_member_defaults_scored_endpoint_weight(tmp_path):
     assert task.member(path, {})["model_config"]["scored_endpoint_weight"] == 1.0
     with pytest.raises(ValueError, match="Recipe does not match"):
         task.member(path, {"scored_endpoint_weight": 2.0})
+
+
+def test_member_preserves_fitted_identity_after_code_changes(tmp_path, monkeypatch):
+    run = fitted(tmp_path / "reference", 0.7, {})
+    expected = task.member(run, {})["model_source_sha256"]
+    monkeypatch.setattr(task, "file_hashes", lambda paths: {path: "new" for path in paths})
+    assert task.member(run, {})["model_source_sha256"] == expected
+    entry = task.member(run, {})
+    entry["model_source_sha256"] = task.file_hashes(task.IMPLEMENTATION_FILES)
+    with pytest.raises(ValueError, match="fitted source identity"):
+        task.validate_member(entry)
+    manifest = run / "run_manifest.json"
+    record = json.loads(manifest.read_text())
+    del record["source_sha256"]["model_recipe.py"]
+    manifest.write_text(json.dumps(record))
+    entry = task.member(run, {})
+    assert entry["model_source_sha256"]["src/somerra_openadmet/model_recipe.py"] is None
+    del record["source_sha256"]
+    manifest.write_text(json.dumps(record))
+    with pytest.raises(ValueError, match="no recorded source"):
+        task.member(run, {})
+
+
+def test_initialization_requires_explicit_compatibility_and_records_evidence(tmp_path, monkeypatch):
+    from types import SimpleNamespace
+
+    from somerra_openadmet.model_compatibility import compatibility_binding
+
+    reference = fitted(tmp_path / "reference", 0.7, {})
+    original = task.member(reference, {})["model_source_sha256"]
+    bundle = tmp_path / "bundle"
+    bundle.mkdir()
+    (bundle / "manifest.json").write_text("{}")
+    monkeypatch.setattr(task, "CampaignLedger", lambda *a: SimpleNamespace(snapshot=lambda: {}))
+    monkeypatch.setattr(task, "compare_runs", lambda *a: {})
+    monkeypatch.setattr(task, "runtime", lambda: {"torch": "test"})
+    monkeypatch.setattr(task, "file_hashes", lambda paths: {path: "changed" for path in paths})
+    calls = []
+
+    def check(entry, bundle, current, runtime):
+        calls.append(entry)
+        return {
+            **compatibility_binding(entry, bundle, current, runtime),
+            "kind": "checkpoint_internal_test_prediction_parity_v1",
+            "rows": 981,
+            "max_abs_error": 1e-6,
+            "tolerance": 1e-4,
+        }
+
+    monkeypatch.setattr(task, "check_compatibility", check)
+    dest = tmp_path / "task"
+    with pytest.raises(ValueError, match="check-model-compatibility"):
+        task.initialize(bundle, reference, dest, tmp_path / "ledger")
+    assert not dest.exists() and not calls
+    result = task.initialize(
+        bundle, reference, dest, tmp_path / "ledger", check_model_compatibility=True
+    )
+    adopted = result["adopted_reference"]
+    assert adopted["model_source_sha256"] == original
+    assert len(calls) == 1
+    assert adopted["implementation_compatibility"]["compatible_source_sha256"] != original
+    assert json.loads((dest / "registry.json").read_text())["incumbent"] == adopted
+
+
+def test_failed_compatibility_does_not_create_task(tmp_path, monkeypatch):
+    from types import SimpleNamespace
+
+    reference = fitted(tmp_path / "reference", 0.7, {})
+    monkeypatch.setattr(task, "CampaignLedger", lambda *a: SimpleNamespace(snapshot=lambda: {}))
+    monkeypatch.setattr(task, "compare_runs", lambda *a: {})
+    monkeypatch.setattr(task, "runtime", lambda: {})
+    monkeypatch.setattr(task, "file_hashes", lambda paths: {path: "changed" for path in paths})
+
+    def fail(*args):
+        raise ValueError("Model compatibility prediction parity failed")
+
+    monkeypatch.setattr(task, "check_compatibility", fail)
+    with pytest.raises(ValueError, match="parity failed"):
+        task.initialize(
+            tmp_path,
+            reference,
+            tmp_path / "task",
+            tmp_path / "ledger",
+            check_model_compatibility=True,
+        )
+    assert not (tmp_path / "task").exists()
+
+
+def test_prepare_rejects_unverified_implementation_before_launch(frozen, tmp_path, monkeypatch):
+    task_path, contract, calls = frozen
+    bundle = tmp_path / "bundle"
+    bundle.mkdir()
+    (bundle / "manifest.json").write_text("{}")
+    contract["bundle"] = str(bundle)
+    monkeypatch.setattr(task, "runtime", lambda: {})
+    monkeypatch.setattr(task, "file_hashes", lambda paths: {path: "changed" for path in paths})
+    with pytest.raises(ValueError, match="check-model-compatibility"):
+        task.prepare(task_path, tmp_path / "final", tmp_path, 1)
+    assert not calls and not (tmp_path / "final").exists()
+
+
+def test_prepare_accepts_bound_compatibility_without_relabeling(frozen, tmp_path, monkeypatch):
+    from somerra_openadmet import reference_member
+    from somerra_openadmet.model_compatibility import compatibility_binding
+
+    task_path, contract, calls = frozen
+    bundle = tmp_path / "bundle"
+    bundle.mkdir()
+    (bundle / "manifest.json").write_text("{}")
+    contract["bundle"] = str(bundle)
+    current = {path: "changed" for path in task.IMPLEMENTATION_FILES}
+    monkeypatch.setattr(task, "runtime", lambda: {})
+    with task.registry(task_path) as state:
+        entry = state["incumbent"]
+        original = entry["model_source_sha256"]
+        entry["implementation_compatibility"] = {
+            **compatibility_binding(entry, bundle, current, {}),
+            "kind": "checkpoint_internal_test_prediction_parity_v1",
+            "rows": 981,
+            "max_abs_error": 1e-6,
+            "tolerance": 1e-4,
+        }
+    monkeypatch.setattr(task, "file_hashes", lambda paths: current)
+    exports = []
+    monkeypatch.setattr(reference_member, "export", lambda *args: exports.append(args))
+    result = task.prepare(task_path, tmp_path / "final", tmp_path, 1)
+    assert len(calls) == len(exports) == 1
+    assert result["status"] == "prepared_not_submitted"
+    assert result["selected"]["model_source_sha256"] == original
