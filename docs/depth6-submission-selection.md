@@ -30,3 +30,13 @@ requires a final fit. The loader rejects final=True for this selection bundle so
 validation cannot silently be folded into training. Predictions and metadata remain
 private. Open Code is false and the model-report link is empty. Preparation does
 not upload to the challenge.
+
+
+## Prepared data audit
+
+The derived bundle has 3,924 official training records (original train plus
+validation) and 981 validation records representing 980 molecular parents (the
+original internal test). Including eligible auxiliary records, fitting uses
+31,928 records / 31,895 parents. The previous fitting pool had 30,948 records;
+exactly 980 original validation records have been restored. New validation and
+blind-test parents remain excluded across the complete training pool.

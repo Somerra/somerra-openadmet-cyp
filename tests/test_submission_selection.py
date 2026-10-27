@@ -85,7 +85,9 @@ def test_export_selected_checkpoint_is_explicit_and_retains_holdout(tmp_path, mo
     run, bundle, raw = [tmp_path / n for n in ["run", "bundle", "raw"]]
     for path in [run, bundle, raw]:
         path.mkdir()
-    test = pd.DataFrame({"Molecule_Name": ["x", "y"], "SMILES": ["C", "CC"]})
+    test = pd.DataFrame(
+        {"Molecule_Name": [f"m{i}" for i in range(750)], "SMILES": ["C", "CC"] * 375}
+    )
     test.to_csv(raw / TEST_FILE, index=False)
     test.assign(parent=test.SMILES).to_csv(bundle / "test.csv", index=False)
     write_json(bundle / "manifest.json", {})
@@ -115,7 +117,7 @@ def test_export_selected_checkpoint_is_explicit_and_retains_holdout(tmp_path, mo
 
     def predict(model, *args):
         assert model == "selected-best"
-        return pd.DataFrame({ep: [3.0, 4.0] for ep in ACTIVITY_ENDPOINTS})
+        return pd.DataFrame({ep: np.linspace(3.0, 4.0, 750) for ep in ACTIVITY_ENDPOINTS})
 
     monkeypatch.setattr(member, "predict", predict)
     with pytest.raises(ValueError, match="Final training incomplete"):
