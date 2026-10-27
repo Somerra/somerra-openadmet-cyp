@@ -459,7 +459,7 @@ def load_model(run):
     return StudyMPNN.load_from_checkpoint(run / filename, map_location="cpu")
 
 
-def export(run, bundle, raw, output):
+def export(run, bundle, raw, output, *, selected_validation=False):
     from .constants import TEST_FILE
     from .data import load_test
     from .validation import validate_submission
@@ -468,11 +468,20 @@ def export(run, bundle, raw, output):
     if output.exists():
         raise FileExistsError(output)
     record = json.loads((Path(run) / "run_manifest.json").read_text())
-    if not record.get("complete") or not record["final"]:
+    if selected_validation:
+        if (
+            not record.get("complete")
+            or record["final"]
+            or record["data_manifest"].get("protocol") != "submission-train-plus-validation-v1"
+            or record["completed_epochs"] != record["epoch_limit"]
+            or record.get("best_epoch") is None
+        ):
+            raise ValueError("Submission checkpoint selection incomplete or wrong protocol")
+    elif not record.get("complete") or not record["final"]:
         raise ValueError("Final training incomplete")
     if sha256_file(Path(raw) / TEST_FILE) != record["data_manifest"]["test_sha256"]:
         raise ValueError("Test snapshot changed")
-    load_frames(bundle, record["recipe"], final=True)
+    load_frames(bundle, record["recipe"], final=record["final"])
     if sha256_file(Path(bundle) / "manifest.json") != record["data_manifest_sha256"]:
         raise ValueError("Data manifest changed")
     import torch
@@ -498,6 +507,16 @@ def export(run, bundle, raw, output):
             "status": "prepared_not_submitted",
             "validation": report.to_dict(),
             "source_run": str(run),
+            "checkpoint": "best.ckpt" if selected_validation else "final.ckpt",
+            "checkpoint_sha256": record[
+                "best.ckpt_sha256" if selected_validation else "final.ckpt_sha256"
+            ],
+            "selection_role": record["data_manifest"].get("validation_role")
+            if selected_validation
+            else None,
+            "selected_epoch": record.get("best_epoch")
+            if selected_validation
+            else record["completed_epochs"],
             "submission_sha256": sha256_file(output / "activity_submission.csv"),
             "open_source_code": False,
             "model_report_link": "",

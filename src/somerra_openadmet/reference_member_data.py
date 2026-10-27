@@ -138,6 +138,29 @@ def load_frames(bundle, recipe="full", final=False):
         if sha256_file(bundle / name) != digest:
             raise ValueError("Changed prepared bundle")
     official = pd.read_csv(bundle / "official.csv")
+    if manifest.get("protocol") == "submission-train-plus-validation-v1":
+        if final:
+            raise ValueError("Submission selection must retain its validation parents")
+        expected = official.original_partition.map(
+            {"train": "train", "validation": "train", "internal_test": "validation"}
+        )
+        if (
+            set(official.original_partition) != {"train", "validation", "internal_test"}
+            or not expected.equals(official.partition)
+            or official.groupby("parent").partition.nunique().max() != 1
+            or manifest["exclusion_policy"] != "exact_parent"
+        ):
+            raise ValueError("Invalid submission-selection partition mapping")
+        original = pd.read_csv(bundle / "source_assignments.csv")
+        actual = official[["Molecule_Name", "parent", "original_partition"]].rename(
+            columns={"original_partition": "partition"}
+        )
+        if (
+            not actual.sort_values("Molecule_Name")
+            .reset_index(drop=True)
+            .equals(original[actual.columns].sort_values("Molecule_Name").reset_index(drop=True))
+        ):
+            raise ValueError("Submission selection differs from original assignments")
     pool = pd.read_csv(bundle / "pool.csv")
     tasks = select_tasks(manifest, recipe)
     validation = official[official.partition == "validation"].copy()
@@ -248,4 +271,57 @@ def freeze_split(base_bundle, split_dir, output):
     }
     write_json(output / "manifest.json", manifest)
     load_frames(output)
+    return manifest
+
+
+def submission_selection_bundle(base_bundle, output):
+    """Train on old train+validation; select checkpoints on old internal test."""
+    base_bundle, output = Path(base_bundle), Path(output)
+    if output.exists():
+        raise FileExistsError(output)
+    _, _, _, original = load_frames(base_bundle)
+    if original.get("protocol") != "molecular-60-20-20-v1":
+        raise ValueError("Submission selection requires the frozen three-way bundle")
+    official = pd.read_csv(base_bundle / "official.csv")
+    official["original_partition"] = official.partition
+    official["partition"] = official.original_partition.map(
+        {"train": "train", "validation": "train", "internal_test": "validation"}
+    )
+    blind = set(pd.read_csv(base_bundle / "test.csv").parent)
+    if set(official.parent) & blind:
+        raise ValueError("Official labeled parents overlap blinded test")
+    output.mkdir(parents=True)
+    official.to_csv(output / "official.csv", index=False)
+    for name in ["pool.csv", "test.csv"]:
+        (output / name).write_bytes((base_bundle / name).read_bytes())
+    (output / "source_assignments.csv").write_bytes((base_bundle / "assignments.csv").read_bytes())
+    manifest = {
+        **{
+            k: v
+            for k, v in original.items()
+            if k
+            not in ["assignments_sha256", "internal_test_label_counts", "split_manifest_sha256"]
+        },
+        "protocol": "submission-train-plus-validation-v1",
+        "source_bundle_manifest_sha256": sha256_file(base_bundle / "manifest.json"),
+        "source_assignments_sha256": sha256_file(base_bundle / "assignments.csv"),
+        "partition_rows": official.partition.value_counts().to_dict(),
+        "validation_label_counts": official.loc[
+            official.partition == "validation", list(ACTIVITY_ENDPOINTS)
+        ]
+        .count()
+        .to_dict(),
+        "validation_role": (
+            "Former internal test, now used for checkpoint selection; not independent evaluation"
+        ),
+        "training_role": "Original train and validation plus eligible auxiliary data",
+        "file_sha256": {
+            name: sha256_file(output / name)
+            for name in ["official.csv", "pool.csv", "test.csv", "source_assignments.csv"]
+        },
+    }
+    write_json(output / "manifest.json", manifest)
+    pool, val, _, _ = load_frames(output)
+    if set(pool.parent) & (set(val.parent) | blind):
+        raise ValueError("Submission training overlaps held-out parents")
     return manifest
