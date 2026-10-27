@@ -11,6 +11,10 @@ from somerra_openadmet.research import main as run_command
 
 def main(argv=None):
     argv = sys.argv[1:] if argv is None else argv
+    if argv and argv[0] == "hillclimb":
+        from somerra_openadmet.hillclimb import main as hillclimb_main
+
+        return hillclimb_main(argv[1:])
     if argv and argv[0] == "reference":
         from somerra_openadmet.reference import main as reference_main
 

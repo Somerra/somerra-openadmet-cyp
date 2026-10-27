@@ -140,3 +140,81 @@ Follow the standing policy in `AGENTS.md`: predictions only; keep code private,
 Open Code false, and the Method Report Link empty, including third-party links.
 Keep provenance and attribution in private records. A leaderboard submission must
 never publish code or code/report links without a new explicit user instruction.
+
+## Frozen molecular-split hill climb (2026-10-26)
+
+The user authorized adopting the reviewed 60/20/20 parent split and starting the
+GPU comparison via `autoresearch.py hillclimb run`. This protocol supersedes the
+older five-fold and analogue-exclusion rules for this campaign only. Assignment
+SHA-256 is `9e69d2ec25402ad2c1d96b8f4169785926917af3db1531d552515b0167780318`.
+Validation selects checkpoints by point MA-ST-RAE; each selected checkpoint is
+scored once on internal test to rank strategies. Internal test is a development
+set. Report point scores and official-style 1,000-resample bootstrap mean/std.
+Never compare these scores numerically with older split results.
+
+Use the full pinned 26-task Scigantic member and preserve record weights. Exclude
+all validation, internal-test and official-test parent identities from all training
+sources; retain analogues. Fit target scalers only on eligible training records.
+Final fitting may restore internal holdouts but must retain official-test exclusions.
+
+The model axis is bounded: reference; interval loss on four direct tasks;
+half-weight auxiliary losses; their combination only if both single changes qualify.
+One seed (42), batch 128, 100 epochs, the original 200-epoch scheduler horizon,
+TF32 training with full FP32 evaluation, cached molecular graphs and four loader
+workers are fixed across comparisons. Keep one final model, never average seeds.
+A challenger qualifies at >=3% lower internal-test point MA-ST-RAE with no endpoint
+increase above 0.02, and a paired scaffold-bootstrap 95% delta interval entirely
+below zero; select the lowest qualifying score, otherwise retain reference. The
+paired bootstrap resamples generic Bemis-Murcko scaffold groups jointly across
+models and endpoints (acyclic molecules use canonical identity). It measures
+sampling uncertainty conditional on the fitted models, not training-seed variance.
+Keep one seed per the user instruction. Endpoint differences are descriptive,
+not established improvements. The completed study used the original point-score
+gate; the paired analysis is a labeled follow-up and applies to future decisions.
+
+Campaign spending comes from an allocation-specific ledger, separate from older
+campaigns' shared GPU history. Initialize it once from the completed study:
+
+```bash
+python autoresearch.py hillclimb import-budget --study /absolute/path/to/study.json \
+  --campaign-ledger /absolute/shared/path/to/campaign-ledger.json
+python autoresearch.py hillclimb run --bundle /absolute/path/to/bundle \
+  --output /absolute/path/to/new-run --raw /absolute/path/to/raw \
+  --campaign-ledger /absolute/shared/path/to/campaign-ledger.json
+```
+
+Reuse that same ledger across restarts, output directories and worktrees. Import
+refuses to overwrite an existing ledger. The coordinator atomically reserves the
+whole launch group before starting subprocesses; workers must claim a matching
+reservation. The coordinator charges full subprocess lifetimes after exit,
+including startup, failures and overlap. An abandoned reservation retains its full
+charge until explicitly reconciled. This path does not use the older 72-hour
+training default. There is no hard-coded prior spending in source.
+
+One smoke (0.1 h), its completed-epoch recovery check (0.05 h), at most four model
+trials (1 h each), and one final fit (1 h headroom) are permitted within the
+remaining allocation. Monitor every 15 seconds, kill budget/stalled jobs, and allow
+one recovery inside the failed job's remaining allowance. Two independent
+challengers may share the H100. A persistent coordinator runs the finite queue.
+Recovery retains the curve prefix through the restored checkpoint, removes later
+uncommitted epochs, and appends subsequent epochs with cumulative elapsed time.
+Prepare predictions after final fitting; this command never uploads them.
+
+The interval-loss experiment changes both loss shape and effective direct-task
+weight: gradients vanish inside the confidence bounds while auxiliary MAE remains
+active. Its observed worse score is conditional on that combined change, not proof
+that interval-aware losses are generally worse. All-observation normalization
+preserves reference behavior and gives densely observed auxiliary tasks more
+opportunities to contribute. A future fixed-MAE scored-endpoint-weight trial can
+isolate explicit task weighting; do not reinterpret these runs as that experiment.
+
+Use `autoresearch.py hillclimb compare --bundle ... --reference ... --candidate ...
+--output ...` for a CPU-only paired comparison of saved internal-test predictions.
+It validates bundle hashes, run contracts, row identities and the recorded scores.
+The frozen split audit reports median internal-test distance 0.53485 and official
+blind-test distance 0.50000 against the same retained official training set. The
+0.41270 blind-test distance uses all official training parents; 0.5688 came from an
+older candidate split. Residual chemistry and potency-distribution mismatch remains.
+An official prediction-only submission would provide one calibration point;
+establishing ranking correlation requires multiple comparable models. Submission
+is a separate action requiring authorization and the standing privacy policy.
