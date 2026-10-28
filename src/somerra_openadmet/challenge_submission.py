@@ -207,7 +207,8 @@ def submit(candidate_dir, raw_dir):
     if sha256_file(raw_dir / TEST_FILE) != manifest["test_sha256"]:
         raise ValueError("Blinded snapshot changed")
     frame = pd.read_csv(file)
-    if list(frame.columns) != list(IDENTIFIER_COLUMNS) + list(ACTIVITY_ENDPOINTS):
+    expected_columns = list(IDENTIFIER_COLUMNS) + list(ACTIVITY_ENDPOINTS)
+    if len(frame.columns) != len(expected_columns) or set(frame.columns) != set(expected_columns):
         raise ValueError("Only official identifiers and four prediction columns may be uploaded")
     validation = validate_submission(file, load_test(raw_dir), "activity")
     if not validation.valid or validation.warnings:
