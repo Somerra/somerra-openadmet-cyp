@@ -1,0 +1,14 @@
+{
+  "prepared_dir": "runs/regression-corpus-v1",
+  "checkpoint": "runs/chemeleon_mp.pt",
+  "output_dir": "runs/regression-chemeleon-full-h100-v1",
+  "adaptation": "full",
+  "h100_select": true,
+  "device": "cuda",
+  "precision": "bf16",
+  "memory_fraction": 0.8,
+  "free_memory_gib": 10,
+  "max_gpu_hours": 6.5,
+  "ledger": "runs/regression-gpu-budget.json",
+  "seed": 42
+}

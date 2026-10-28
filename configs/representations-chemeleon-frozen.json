@@ -1,0 +1,11 @@
+{
+  "prepared_dir": "runs/regression-corpus-v1",
+  "cache_dir": "runs/regression-chemeleon-representations-v1",
+  "output_dir": "runs/regression-chemeleon-frozen-reference-v1",
+  "adaptation": "frozen",
+  "device": "cuda",
+  "precision": "float32",
+  "max_gpu_hours": 0.75,
+  "ledger": "runs/regression-gpu-budget.json",
+  "seed": 42
+}
