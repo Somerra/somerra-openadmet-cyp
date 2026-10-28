@@ -108,3 +108,48 @@ Prediction CSV SHA-256:
 Validation: 50 focused tests passed, including shared reference, hill-climbing,
 autoresearch, submission-selection, and scaffold-ensemble tests; Ruff and diff
 whitespace checks passed.
+
+## Review diagnostic: prediction spread
+
+The requested audit compares all 750 blind prediction rows in identical order.
+Population standard deviations (`ddof=0`) are:
+
+| Endpoint | Observed official-training labels | Depth four blind | Depth six blind | Ensemble blind | Ensemble shrinkage versus mean member SD |
+|---|---:|---:|---:|---:|---:|
+| CYP1A2 | 1.0301 | 0.6097 | 0.5171 | 0.5316 | 11.18% |
+| CYP2C9 | 0.7820 | 0.5902 | 0.5863 | 0.5696 | 7.03% |
+| CYP2D6 | 0.9158 | 0.4571 | 0.4574 | 0.4163 | 9.36% |
+| CYP3A4 | 1.0930 | 0.6847 | 0.7003 | 0.6772 | 5.55% |
+
+Averaging does contract spread relative to its constituent models. The blind label
+spread is unknown, however, and the observed training labels describe a different
+population with endpoint-dependent missingness. Neither matching their variance
+nor restoring a previous model's variance is established as correct calibration.
+The official performance gap cannot be attributed to calibration from these moments.
+No recalibration has been fitted or applied, and the prediction CSV is unchanged.
+
+Private reproducible audit: the run's `review-audit/spread.py` and `spread.json`.
+The JSON records input hashes, means, SDs, 5th/50th/95th percentiles, member correlations,
+and both single-model and member-relative spread ratios. Every molecule identity/order
+and the exact equal-weight average were checked.
+
+OOF predictions can provide inputs to a calibrator, but the fitted calibrator's score
+on those same rows is a training score. Evaluate any proposed per-endpoint affine
+correction on labels excluded from both calibration fitting and base-model selection.
+Simply splitting the existing OOF table is not fully nested evaluation: other fold
+models may have trained or selected checkpoints using labels in the evaluation fold.
+Use a separate calibration/evaluation design or properly nested scaffold folds before
+claiming an unbiased gain, and freeze coefficients before applying to blind predictions.
+Transfer from smaller OOF models to a full-data refit is another hypothesis to test.
+
+## Restart limitation
+
+The series runner currently requires a fresh output directory and creates `series.json`
+exclusively. It does not resume or skip completed folds after failure. Retained curves,
+checkpoints and exports are useful diagnostic artifacts, but there is no supported
+CLI path to finish only missing folds in that same series. A fresh `prepare` and `run`
+repeats the five fits and charges all repeated work to the existing shared ledger.
+Do not delete the old state, overwrite completed artifacts, or reset spending to bypass
+this restriction. Automatic resume is deferred while the single-model workflow is the
+priority; it would require validated reuse of each member and explicit accounting for
+failed/recovered attempts.
