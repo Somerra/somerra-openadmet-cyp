@@ -1,4 +1,4 @@
-"""Supervise one depth-six submission-selection fit and export its best checkpoint."""
+"""Supervise one configured submission-selection fit and export its best checkpoint."""
 
 import argparse
 import json
@@ -24,8 +24,6 @@ def run(base_bundle, strategy, raw, output, ledger_path, hours):
     bundle = output / "data"
     submission_selection_bundle(base_bundle, bundle)
     settings = resolve_model(json.loads(Path(strategy).read_text()))
-    if settings["depth"] != 6:
-        raise ValueError("This preparation requires the chosen depth-six recipe")
     recipe = output / "model.json"
     write_json(recipe, settings)
     pool, validation, _, manifest = load_frames(bundle)
