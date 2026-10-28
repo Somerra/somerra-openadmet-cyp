@@ -162,3 +162,9 @@ folds. Whole scaffolds across all sources rotate through train, validation and
 held-out roles; average only official blind predictions. Keep individual held-out
 OOF scoring separate from ensemble evaluation. Use the remaining existing ledger,
 with a 0.65-hour series cap. Prepare privately; a new instruction is needed to submit.
+
+The subsequent review direction prioritizes a single final model with full eligible
+training coverage. Retain the completed scaffold ensemble as comparison evidence;
+it is not the preferred submission. See `docs/scaffold-ensemble.md` for the proposed
+80/20 scaffold development split followed by a fixed-epoch all-data refit. This
+proposal does not itself launch additional training or authorize a submission.

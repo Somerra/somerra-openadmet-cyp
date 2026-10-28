@@ -6,6 +6,29 @@ and registry remain historical evidence. Our matched depth-four submission score
 0.7952 officially, versus 0.8032 for depth six, reversing their validation ranking.
 Use the depth-four recipe unchanged for this first comparison.
 
+## Preferred next candidate: one model with full training coverage
+
+Following the user’s review direction, prefer a single final model over the current
+ensemble of models that each train on only three of five folds. The completed
+ensemble remains an experimental comparison; its preparation does not make it the
+recommended submission. No further ensemble training or upload is implied.
+
+Keep scaffold separation for development evaluation. For the next single-model
+candidate, freeze an 80/20 scaffold train/validation assignment before fitting,
+using the same assignment for official and auxiliary sources. Select the recipe
+and epoch count using validation only. Once fixed, refit one model on all eligible
+labeled official training records plus eligible auxiliary records for that fixed
+number of epochs. Keep exact official-blind parents excluded across sources.
+The final refit has no validation-based checkpoint selection and no independent
+local test score; its predictions require official evaluation.
+
+This is the proposed next experiment, not an already executed result or a claim
+that the single model will win. The existing five-fold OOF result remains a
+single-model scaffold-generalization diagnostic. A five-model average can reduce
+variance, but each constituent here sees roughly 19,745 of 32,909 eligible pool
+records (60%), versus full coverage in the proposed final refit. Neither scaffold
+separation nor ensembling has yet demonstrated an official improvement in our runs.
+
 ## Frozen experiment
 
 Use the same pinned 26-task source pool, sample weights, molecular parent standardization,
