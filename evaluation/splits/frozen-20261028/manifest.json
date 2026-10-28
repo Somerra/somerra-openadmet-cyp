@@ -1,0 +1,68 @@
+{
+  "balanced_official_fold_counts": {
+    "0": 980,
+    "1": 981,
+    "2": 982,
+    "3": 981,
+    "4": 981
+  },
+  "files": {
+    "assignments.csv": "87c3b5a8f644edb33dd8a22c77d359490496c4c5c33201ca9570ceb6b1475e87",
+    "identities.csv": "7c2561925834af825e48bdf20b2397ba25dc2d9cb89622b89f92208244b694d4",
+    "official-blind.csv": "768f65bc26b07c4fc185c7dc75d587c39d5430fbb421b8d3fe7fbc070fa26105"
+  },
+  "fold_roles": {
+    "internal_test": "k",
+    "train": "remaining three folds",
+    "validation": "(k + 1) % 5"
+  },
+  "molecular_counts": {
+    "internal_test": 981,
+    "train": 2944,
+    "validation": 980
+  },
+  "notes": [
+    "These assignments preserve distinct protocols; do not combine their scores as paired comparisons.",
+    "Exact reference folds apply to the published CheMeleon pool, not all R17/R25 models.",
+    "Molecular partitions are assigned to official rows; auxiliary rows follow parent exclusion rules documented in README.",
+    "Snapshot has identities and assignments only, no labels, predictions or checkpoints.",
+    "This archive does not switch the active autoresearch task or introduce a new split."
+  ],
+  "official_blind_records": 750,
+  "official_training_records": 4905,
+  "pool_records": 32909,
+  "reference_official_fold_counts": {
+    "0": 1002,
+    "1": 946,
+    "2": 960,
+    "3": 1005,
+    "4": 992
+  },
+  "reference_revision": "e70a2920d611684c9aaff07400d951e2e79dd5f6",
+  "schema_version": 1,
+  "scigantic_model_work": "paused_by_user_2026-10-28",
+  "single_model_development": {
+    "assignment": "balanced_fold",
+    "internal_test": null,
+    "train": [
+      1,
+      2,
+      3,
+      4
+    ],
+    "validation": 0
+  },
+  "source_sha256": {
+    "/mnt/data/somerra-openadmet-runs/scaffold-ensemble-20261028/fold-0/data/manifest.json": "01db9cf45b8ce9453278faf309141bf89af9c068ace1a1a40847909bd514eaae",
+    "/mnt/data/somerra-openadmet-runs/scaffold-ensemble-20261028/folds.csv": "785419fa821394b6efbea8612a05a578e119683068182880f3a396c3e87ea8c5",
+    "/mnt/data/somerra-openadmet-runs/scigantic-full-reference-20261028/audit.json": "1dabdb7dec2bb212745793918c53ccbb8de779acd7fbf9873c4a0717d18b4df7",
+    "/mnt/openclaw-home/somerra-openadmet-cyp/runs/regression-hillclimb-20261026-data/assignments.csv": "9e69d2ec25402ad2c1d96b8f4169785926917af3db1531d552515b0167780318",
+    "/mnt/openclaw-home/somerra-openadmet-cyp/runs/regression-hillclimb-20261026-data/manifest.json": "520ac3056a0df3046c730a9d409bb7f94b136dabb7e1bd48bc3e30e94ff0b910",
+    "/mnt/openclaw-home/somerra-openadmet-cyp/runs/regression-hillclimb-20261026-data/official.csv": "91dd7156241cc2e5ec7213876988e2b258f092062a6913997977a6d4e82cd18b",
+    "/mnt/openclaw-home/somerra-openadmet-cyp/runs/regression-hillclimb-20261026-data/pool.csv": "8b9eb29c99698c486622edb3088ed6375f1e8f18eb3f7b9e27d5a3d78f4cd130",
+    "/mnt/openclaw-home/somerra-openadmet-cyp/runs/regression-hillclimb-20261026-data/test.csv": "f4be36c297fc366be9374443a482e941792386cef932577f23fb3c86aeb3f11f",
+    "/tmp/cyp-scigantic-baseline/runs/scigantic-reference/source/data/training/chemeleon_26_tdi/folds.npy": "1804425a482197f7e6d2f557ff1d99bc3dd0a01433e1c7b4b2efd242667ea2fa",
+    "/tmp/cyp-scigantic-baseline/runs/scigantic-reference/source/data/training/chemeleon_26_tdi/train_table.csv": "0710044762df4f28e4d8fb23c9eb8e722538c089347c17df223ecfbb5637a407"
+  },
+  "status": "preserved_no_training_launched"
+}

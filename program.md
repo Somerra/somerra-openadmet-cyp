@@ -1,3 +1,8 @@
+> **2026-10-28 user direction:** Scigantic model reconstruction and experiments
+> are paused. Preserve data splitting independently of model work. See
+> [the frozen split archive](evaluation/splits/README.md). Earlier Scigantic
+> experiment authorizations below are historical and do not resume that work.
+
 # Regression autoresearch task
 
 Use `autoresearch.py plan|run|reproduce|status|prepare`. The default path is the

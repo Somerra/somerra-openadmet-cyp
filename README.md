@@ -235,3 +235,10 @@ artifacts, and submissions are gitignored.
 from frozen predictions without training. See [the baseline and experiment plan](docs/scigantic-baseline.md)
 for measured reconstruction agreement, evaluation limitations, and the proposed
 organizer-only training baseline. This reference has no independent local CV score.
+
+## Preserved evaluation splits
+
+Scigantic model work is paused. Exact molecular and scaffold assignments are
+versioned independently in [the split archive](evaluation/splits/README.md),
+including the latest requested published reference folds. Existing evaluation
+loaders remain unchanged.
