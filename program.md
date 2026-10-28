@@ -150,3 +150,15 @@ private, Open Code false and Method Report Link empty, including third-party lin
 A new explicit submission instruction is required; experiment authorization does
 not authorize uploading. Preserve receipts and respect cooldowns. Attribution and
 reproducibility evidence stay in private artifacts.
+
+## Authorized scaffold ensemble experiment (2026-10-28)
+
+The user requested scaffold splits and ensembling. Use the separate
+`autoresearch.py scaffold prepare|run|status` workflow described in
+`docs/scaffold-ensemble.md`; this is an explicit new protocol, not a modification
+of the frozen molecular task above. The user now authorizes a fold ensemble for
+this experiment. Retain seed 42 and the depth-four reference recipe across all five
+folds. Whole scaffolds across all sources rotate through train, validation and
+held-out roles; average only official blind predictions. Keep individual held-out
+OOF scoring separate from ensemble evaluation. Use the remaining existing ledger,
+with a 0.65-hour series cap. Prepare privately; a new instruction is needed to submit.

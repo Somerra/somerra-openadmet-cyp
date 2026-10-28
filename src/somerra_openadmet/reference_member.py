@@ -421,7 +421,10 @@ def train(
                 if error > 1e-4:
                     raise ValueError(f"Saved checkpoint prediction parity failed: {error}")
                 record["reload_max_abs_error"] = error
-                if manifest.get("protocol") == "molecular-60-20-20-v1" and record["complete"]:
+                if (
+                    manifest.get("protocol") in {"molecular-60-20-20-v1", "scaffold-five-fold-v1"}
+                    and record["complete"]
+                ):
                     from .bootstrap_activity import bootstrap_activity
 
                     official = pd.read_csv(bundle / "official.csv")
@@ -472,7 +475,8 @@ def export(run, bundle, raw, output, *, selected_validation=False):
         if (
             not record.get("complete")
             or record["final"]
-            or record["data_manifest"].get("protocol") != "submission-train-plus-validation-v1"
+            or record["data_manifest"].get("protocol")
+            not in {"submission-train-plus-validation-v1", "scaffold-five-fold-v1"}
             or record["completed_epochs"] != record["epoch_limit"]
             or record.get("best_epoch") is None
         ):
