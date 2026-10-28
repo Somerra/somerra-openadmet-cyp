@@ -60,7 +60,7 @@ def partitions(folds, heldout):
     )
 
 
-def load_fold_frames(bundle, manifest, recipe="full"):
+def load_fold_frames(bundle, manifest, recipe="full", final=False):
     """Enforce scaffold separation across official AND auxiliary rows at load time."""
     from .reference_member_data import select_tasks
 
@@ -86,13 +86,21 @@ def load_fold_frames(bundle, manifest, recipe="full"):
     if assignments.scaffold.tolist() != [scaffold(p) for p in assignments.parent]:
         raise ValueError("Scaffold identity mismatch")
     mapping = assignments.set_index("parent").fold
-    expected = partitions(official.parent.map(mapping), k)
+    single = manifest.get("protocol") == "scaffold-single-v1"
+    if final and not single:
+        raise ValueError("Scaffold folds must retain validation and held-out scaffolds")
+    expected = (
+        np.where(official.parent.map(mapping) == k, "validation", "train")
+        if single
+        else partitions(official.parent.map(mapping), k)
+    )
     if not np.array_equal(official.partition.to_numpy(), expected):
         raise ValueError("Official partition differs from scaffold rotation")
     if manifest.get("exclusion_policy") != "whole_scaffold":
         raise ValueError("Scaffold exclusion policy mismatch")
     pool_folds = pool.parent.map(mapping)
-    pool = pool.loc[~pool_folds.isin([k, (k + 1) % 5])].copy()
+    if not final:
+        pool = pool.loc[~pool_folds.isin([k] if single else [k, (k + 1) % 5])].copy()
     tasks = select_tasks(manifest, recipe)
     pool = pool.loc[pool[tasks].notna().any(axis=1)].reset_index(drop=True)
     validation = official.loc[official.partition == "validation"].reset_index(drop=True)

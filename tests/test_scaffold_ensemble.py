@@ -139,3 +139,33 @@ def test_average_requires_every_fold_and_exact_molecule_alignment():
     frames[4][ACTIVITY_ENDPOINTS[0]] = np.nan
     with pytest.raises(ValueError, match="Nonfinite"):
         aligned_mean(frames)
+
+
+def test_single_protocol_restores_all_eligible_records_only_for_final_fit(bundle, tmp_path):
+    base, model = bundle
+    output = tmp_path / "folds"
+    prepare(base, output, model, min_labels=1)
+    single = output / "fold-0/data"
+    manifest = json.loads((single / "manifest.json").read_text())
+    assignments = pd.read_csv(single / "folds.csv", keep_default_na=False)
+    official = pd.read_csv(single / "official.csv")
+    official["partition"] = np.where(
+        official.parent.map(assignments.set_index("parent").fold) == 0, "validation", "train"
+    )
+    official.to_csv(single / "official.csv", index=False)
+    manifest.update(protocol="scaffold-single-v1", fold=0)
+    manifest["file_sha256"]["official.csv"] = sha256_file(single / "official.csv")
+    write_json(single / "manifest.json", manifest)
+    train, valid, _, _ = load_frames(single)
+    assert not set(train.parent.map(scaffold)) & set(valid.parent.map(scaffold))
+    full, _, _, _ = load_frames(single, final=True)
+    pd.testing.assert_frame_equal(full, pd.read_csv(base / "pool.csv"))
+    assert set(valid.parent) <= set(full.parent)
+    assert not set(full.parent) & {"C1COCCN1"}
+    # Even final fitting checks that the frozen development partition is genuine.
+    official.loc[official.partition == "validation", "partition"] = "train"
+    official.to_csv(single / "official.csv", index=False)
+    manifest["file_sha256"]["official.csv"] = sha256_file(single / "official.csv")
+    write_json(single / "manifest.json", manifest)
+    with pytest.raises(ValueError, match="partition differs"):
+        load_frames(single, final=True)

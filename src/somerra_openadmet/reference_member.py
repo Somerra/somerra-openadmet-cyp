@@ -130,6 +130,7 @@ def train(
     auxiliary_weight=1.0,
     campaign_ledger=None,
     model_config=None,
+    encoder_checkpoint=None,
 ):
     import lightning as L
     import torch
@@ -153,6 +154,11 @@ def train(
         else {"loss_kind": loss_kind, "auxiliary_weight": auxiliary_weight}
     )
     loss_kind, auxiliary_weight = model_config["loss_kind"], model_config["auxiliary_weight"]
+    initialization = None
+    if encoder_checkpoint is not None:
+        from .foundation import encoder_identity
+
+        initialization = encoder_identity(encoder_checkpoint)
     pool, val, tasks, manifest = load_frames(bundle, recipe, final)
     output.mkdir(parents=True)
     if campaign_ledger is None:
@@ -186,10 +192,14 @@ def train(
         "completed_epochs": 0,
         "smoke": smoke,
     }
+    if initialization is not None:
+        record["initialization"] = initialization
     resume_checkpoint = None
     if resume_from is not None:
         previous = Path(resume_from)
         saved = json.loads((previous / "run_manifest.json").read_text())
+        if saved.get("initialization") != initialization:
+            raise ValueError("Resume initialization mismatch")
         for key in [
             "recipe",
             "tasks",
@@ -293,6 +303,12 @@ def train(
             record["task_normalization_counts"] = counts.tolist()
             record["task_normalization_scales"] = task_scales
         model = make_model(scaler, tasks, model_config=model_config, task_scales=task_scales)
+        if encoder_checkpoint is not None:
+            from .foundation import initialize_encoder
+
+            record["encoder_transfer"] = initialize_encoder(
+                model.message_passing, encoder_checkpoint
+            )
         plateau = Plateau()
         curve_path = output / "curve.jsonl"
         elapsed_offset = (

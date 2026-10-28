@@ -11,6 +11,10 @@ from somerra_openadmet.research import main as run_command
 
 def main(argv=None):
     argv = sys.argv[1:] if argv is None else argv
+    if argv and argv[0] == "single":
+        from somerra_openadmet.single_model import main as single_main
+
+        return single_main(argv[1:])
     if argv and argv[0] == "scaffold":
         from somerra_openadmet.scaffold_ensemble import main as scaffold_main
 

@@ -138,12 +138,10 @@ def load_frames(bundle, recipe="full", final=False):
         if sha256_file(bundle / name) != digest:
             raise ValueError("Changed prepared bundle")
     official = pd.read_csv(bundle / "official.csv")
-    if manifest.get("protocol") == "scaffold-five-fold-v1":
+    if manifest.get("protocol") in {"scaffold-five-fold-v1", "scaffold-single-v1"}:
         from .scaffold_ensemble import load_fold_frames
 
-        if final:
-            raise ValueError("Scaffold folds must retain validation and held-out scaffolds")
-        return load_fold_frames(bundle, manifest, recipe)
+        return load_fold_frames(bundle, manifest, recipe, final=final)
     if manifest.get("protocol") == "submission-train-plus-validation-v1":
         if final:
             raise ValueError("Submission selection must retain its validation parents")

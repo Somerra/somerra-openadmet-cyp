@@ -168,3 +168,14 @@ training coverage. Retain the completed scaffold ensemble as comparison evidence
 it is not the preferred submission. See `docs/scaffold-ensemble.md` for the proposed
 80/20 scaffold development split followed by a fixed-epoch all-data refit. This
 proposal does not itself launch additional training or authorize a submission.
+
+## R25-inspired single-model implementation (2026-10-28)
+
+The user authorized implementing a single-model version of Scigantic R25. Use
+`autoresearch.py single prepare|run|status` as documented in
+`docs/scigantic-single-model.md`: pinned general CheMeleon encoder, 26-task pool,
+fixed scaffold fold 0 for validation, 100-epoch selection, then one fresh full-data
+fit for the validation-selected epoch count. This is an adaptation of R25's
+components, not a reproduction of its ensemble score. Keep calibration disabled,
+seed 42, existing scoring/export checks and submission privacy. The first bounded
+execution uses up to 0.32 GPU-hours from the existing ledger, not a new allocation.
