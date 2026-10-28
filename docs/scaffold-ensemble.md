@@ -69,3 +69,19 @@ The output root contains `plan.json`, frozen `folds.csv`, and `model.json`. Each
 `series.json` records execution progress and spending. Successful completion creates
 `ensemble/activity_submission.csv`, `ensemble/oof.csv`, and `ensemble/manifest.json`.
 All predictions stay private. Open Code remains false and report links remain empty.
+
+## Completed first series
+
+All five folds completed 100 epochs successfully, charging 0.3292 GPU-hours
+(19.75 minutes of supervised training-process time). Selected epochs were
+86, 74, 50, 66, and 72. Pooled held-out OOF MA-ST-RAE was 0.69804810;
+this is a single-model scaffold-generalization score, not an ensemble test score.
+The equally weighted ensemble produced 750 valid blind predictions with no
+validation errors or warnings. It has not been submitted.
+
+Private artifacts: `/mnt/data/somerra-openadmet-runs/scaffold-ensemble-20261028`.
+Prediction CSV SHA-256:
+`ba6fbe30ae24b640ffdaef18c5b88177caa762ebc34873bfea00ce49b1c4706f`.
+Validation: 50 focused tests passed, including shared reference, hill-climbing,
+autoresearch, submission-selection, and scaffold-ensemble tests; Ruff and diff
+whitespace checks passed.

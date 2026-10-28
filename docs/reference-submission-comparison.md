@@ -34,4 +34,5 @@ Following explicit user approval, the reference was submitted and accepted on
 2026-10-28 at 09:49 UTC. Only the 750-row prediction CSV was uploaded; Open Code
 was false and the report-link field empty. The accepted receipt is preserved in
 `portal-upload/submission_receipt.json` under the artifact directory. The official
-score is pending; the portal estimates processing within two hours.
+MA-ST-RAE is 0.7952, compared with 0.8032 for the matched depth-six submission.
+This reverses the local validation ranking; lower is better.
