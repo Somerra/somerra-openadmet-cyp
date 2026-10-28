@@ -30,6 +30,8 @@ The reference CSV has 750 validated rows, no errors and no warnings.
 SHA-256: `2a4dcc0496ecafefa55aa0392c0168e5d7c23c43b876d4b61c9c0ecb5df5d880`.
 
 Artifact directory: `/mnt/data/somerra-openadmet-runs/reference-submission-20261028`.
-The reference has not been uploaded. Automatic approval review rejected the upload
-because the request to measure it did not explicitly authorize submission of this
-candidate. Submission approval is pending. No official score is available yet.
+Following explicit user approval, the reference was submitted and accepted on
+2026-10-28 at 09:49 UTC. Only the 750-row prediction CSV was uploaded; Open Code
+was false and the report-link field empty. The accepted receipt is preserved in
+`portal-upload/submission_receipt.json` under the artifact directory. The official
+score is pending; the portal estimates processing within two hours.
