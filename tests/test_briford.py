@@ -94,3 +94,39 @@ def test_scaffold_rotation_keeps_groups_together():
 def test_prediction_batch_never_drops_singleton_tail():
     assert safe_batch_size(129) == 65
     assert safe_batch_size(128) == 64
+
+
+def test_cuda_checkpoint_predictions_are_repeatable_after_training(tmp_path, monkeypatch):
+    torch = pytest.importorskip("torch")
+    pytest.importorskip("chemprop")
+    if not torch.cuda.is_available():
+        pytest.skip("CUDA parity regression")
+    monkeypatch.setenv("CUBLAS_WORKSPACE_CONFIG", ":4096:8")
+    from chemprop import data
+    from sklearn.preprocessing import StandardScaler
+
+    from somerra_openadmet.briford import make_model, predict_frame
+
+    previous_precision = torch.get_float32_matmul_precision()
+    previous_determinism = torch.are_deterministic_algorithms_enabled()
+    try:
+        torch.set_float32_matmul_precision("medium")
+        scaler = StandardScaler().fit([[1.0], [5.0]])
+        smiles = ["CCO", "CCN", "c1ccccc1", "CC(=O)O"] * 16
+        model = make_model(scaler, [1.0]).cuda()
+        ds = data.MoleculeDataset([data.MoleculeDatapoint.from_smi(s) for s in smiles])
+        batch = next(iter(data.build_dataloader(ds, batch_size=64, shuffle=False)))
+        batch.bmg.to("cuda")
+        optimizer = torch.optim.Adam(model.parameters())
+        model(batch.bmg).square().mean().backward()
+        optimizer.step()
+        checkpoint = tmp_path / "model.pt"
+        torch.save(model.state_dict(), checkpoint)
+        reloaded = make_model(scaler, [1.0]).cuda()
+        reloaded.load_state_dict(torch.load(checkpoint, weights_only=True))
+        original = predict_frame(model, smiles)
+        np.testing.assert_array_equal(original, predict_frame(model, smiles))
+        np.testing.assert_array_equal(original, predict_frame(reloaded, smiles))
+        assert torch.are_deterministic_algorithms_enabled() == previous_determinism
+    finally:
+        torch.set_float32_matmul_precision(previous_precision)

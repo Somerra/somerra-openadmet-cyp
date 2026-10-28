@@ -121,3 +121,14 @@ The 2026-10-28 execution uses private artifacts under
 follow-through are independently supervised; stopping submission does not discard
 training outputs. The initial CPU parity audit matched every initialized state-dict
 tensor to the pinned upstream model builder for a common seed and scaler.
+
+Prediction export uses deterministic CUDA reductions while retaining the upstream
+matrix precision setting. With ordinary CUDA reductions, repeated inference from
+the same trained checkpoint differed by up to 0.00544 on the mixed assay output
+scales; deterministic inference matched exactly, including after checkpoint reload.
+This setting applies only to prediction, not training. A hashed training-completion
+record allows an interrupted export to recover without fitting the model again.
+The initial union18 fold's training completed at epoch 134 (best epoch 94). Its
+original contract and an explicit inference-only contract amendment are preserved
+in the private run directory; the existing checkpoint is reused and all runtime
+charges remain in the ledger.

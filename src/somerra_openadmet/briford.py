@@ -4,6 +4,7 @@ import argparse
 import fcntl
 import importlib.metadata
 import json
+import os
 import subprocess
 import sys
 import time
@@ -139,10 +140,17 @@ def predict_frame(model, smiles):
     )
     model.eval()
     result = []
-    with torch.inference_mode():
-        for batch in loader:
-            batch.bmg.to(model.device)
-            result.append(model(batch.bmg).detach().cpu().numpy())
+    # CUDA scatter reductions otherwise vary even for the same checkpoint and batch.
+    deterministic = torch.are_deterministic_algorithms_enabled()
+    warn_only = torch.is_deterministic_algorithms_warn_only_enabled()
+    try:
+        torch.use_deterministic_algorithms(True)
+        with torch.inference_mode():
+            for batch in loader:
+                batch.bmg.to(model.device)
+                result.append(model(batch.bmg).detach().cpu().numpy())
+    finally:
+        torch.use_deterministic_algorithms(deterministic, warn_only=warn_only)
     values = np.concatenate(result)
     if len(values) != len(smiles) or not np.isfinite(values).all():
         raise ValueError("Invalid prediction shape or values")
@@ -155,6 +163,7 @@ def worker(root, member, fold, seconds):
     from chemprop import data
     from lightning.pytorch.callbacks import EarlyStopping, ModelCheckpoint
 
+    os.environ.setdefault("CUBLAS_WORKSPACE_CONFIG", ":4096:8")
     root = Path(root)
     manifest = check_contract(root)
     if not torch.cuda.is_available():
@@ -241,12 +250,27 @@ def worker(root, member, fold, seconds):
         max_time={"seconds": max(1, int(seconds - 60))},
     )
     resume = out / "last.ckpt"
-    trainer.fit(
-        model, train_loader, valid_loader, ckpt_path=str(resume) if resume.exists() else None
-    )
-    if trainer.current_epoch < 400 and not early.stopped_epoch:
-        raise RuntimeError("Allocation ended before the fold completed its training recipe")
-    state = torch.load(checkpoint.best_model_path, map_location="cpu", weights_only=False)
+    finished = out / "training_complete.json"
+    if finished.exists():
+        completion = read(finished)
+        if completion["contract_sha256"] != sha256_file(root / "contract.json"):
+            raise ValueError("Training completion belongs to another contract")
+        if completion["checkpoint_sha256"] != sha256_file(out / "best.ckpt"):
+            raise ValueError("Training checkpoint changed before export recovery")
+    else:
+        trainer.fit(
+            model, train_loader, valid_loader, ckpt_path=str(resume) if resume.exists() else None
+        )
+        if trainer.current_epoch < 400 and not early.stopped_epoch:
+            raise RuntimeError("Allocation ended before the fold completed its training recipe")
+        completion = {
+            "contract_sha256": sha256_file(root / "contract.json"),
+            "checkpoint_sha256": sha256_file(out / "best.ckpt"),
+            "epochs": trainer.current_epoch,
+            "best_val_loss": float(checkpoint.best_model_score.cpu()),
+        }
+        write(finished, completion)
+    state = torch.load(out / "best.ckpt", map_location="cpu", weights_only=False)
     model.load_state_dict(state["state_dict"])
     model.to("cuda")
     val_predictions = predict_frame(model, validation.smiles)
@@ -274,14 +298,15 @@ def worker(root, member, fold, seconds):
             "fold": fold,
             "contract_sha256": sha256_file(root / "contract.json"),
             "best_epoch": state["epoch"] + 1,
-            "epochs": trainer.current_epoch,
-            "best_val_loss": float(checkpoint.best_model_score.cpu()),
+            "epochs": completion["epochs"],
+            "best_val_loss": completion["best_val_loss"],
             "train_rows": len(training),
             "validation_rows": len(validation),
             "file_sha256": {
                 p.name: sha256_file(p)
                 for p in [
                     out / "best.ckpt",
+                    out / "training_complete.json",
                     out / "scaler.json",
                     out / "oof.csv",
                     out / "blind.csv",
