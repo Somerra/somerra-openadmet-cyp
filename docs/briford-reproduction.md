@@ -132,3 +132,18 @@ The initial union18 fold's training completed at epoch 134 (best epoch 94). Its
 original contract and an explicit inference-only contract amendment are preserved
 in the private run directory; the existing checkpoint is reused and all runtime
 charges remain in the ledger.
+
+For concurrent folds on one GPU, use the dedicated supervisor after the serial
+supervisor has released `run.lock` and its active worker has been settled:
+
+```bash
+python -m somerra_openadmet.briford_parallel --output RUN --workers 2
+```
+
+Both supervisors use the same frozen data, folds, training worker, checkpoint
+verification, and prediction export. The parallel supervisor runs bounded waves
+and reserves a separate share of the remaining allocation for each worker. It
+conservatively charges the **sum of worker wall times**, even though workers share
+one GPU, and records its own source hash and concurrency in `series.json`. A worker
+failure stops further dispatch; successful artifacts in that wave remain reusable.
+The submission watcher continues to require all 20 verified models.
