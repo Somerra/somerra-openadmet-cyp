@@ -19,3 +19,17 @@ supervisor and shared ledger. Reserve at most 0.4 GPU-hours; use the same checkp
 parity and 750-row CSV validation. Submission metadata must remain prediction-only:
 Open Code false, no model report or code links, other optional text fields empty.
 Preserve the prior depth-six score (0.8032) and submission receipt before uploading.
+
+
+## Prepared result
+
+The matched reference completed 100 epochs and selected epoch 91. Its validation
+MA-ST-RAE is 0.66551114, versus 0.64404843 for depth 6. Both used the same data
+manifest and model/training implementation; only message-passing depth differed.
+The reference CSV has 750 validated rows, no errors and no warnings.
+SHA-256: `2a4dcc0496ecafefa55aa0392c0168e5d7c23c43b876d4b61c9c0ecb5df5d880`.
+
+Artifact directory: `/mnt/data/somerra-openadmet-runs/reference-submission-20261028`.
+The reference has not been uploaded. Automatic approval review rejected the upload
+because the request to measure it did not explicitly authorize submission of this
+candidate. Submission approval is pending. No official score is available yet.
