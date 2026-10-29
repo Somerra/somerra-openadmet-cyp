@@ -652,9 +652,12 @@ def screen_representations(config_path):
     input_type = Inputs
     checkpoint_hash = CHEMELEON_SHA256
     if mol_jepa:
+        from functools import partial
+
         from .mol_jepa import MODEL_REVISION, load_foundation, load_view
         from .mol_jepa import Inputs as input_type
 
+        input_type = partial(input_type, model_dir=config["checkpoint"])
         verified, pin = load_foundation(config["checkpoint"])
         checkpoint_hash = pin["sha256"]["model.safetensors"]
         del verified
@@ -860,8 +863,12 @@ def predict_representations(config_path):
     mol_jepa = evidence["config"].get("encoder") == "mol_jepa"
     input_type = Inputs
     if mol_jepa:
+        from functools import partial
+
         from .mol_jepa import MODEL_REVISION, load_view
         from .mol_jepa import Inputs as input_type
+
+        input_type = partial(input_type, model_dir=evidence["config"]["checkpoint"])
     features = None
     if mode in {"frozen", "tokens"}:
         cache_dir = Path(config.get("cache_dir", evidence["config"]["cache_dir"]))

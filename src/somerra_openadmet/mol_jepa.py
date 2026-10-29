@@ -60,7 +60,12 @@ def load_foundation(directory):
 
 def encode(model, smiles):
     """Authors' downstream path, intentionally without no_grad/detach."""
-    batch = model.smiles_to_batch(list(smiles)).to(next(model.parameters()).device)
+    if isinstance(smiles, tuple):
+        batch, count = smiles
+    else:
+        count = len(smiles)
+        batch = model.smiles_to_batch(list(smiles))
+    batch = batch.to(next(model.parameters()).device)
     modalities = [
         f"{m['name']}_x_ptr" if f"{m['name']}_x_ptr" in batch else None
         for m in model.model.modalities_spec
@@ -69,9 +74,7 @@ def encode(model, smiles):
     active = (
         torch.stack(
             [
-                batch[k][1:] - batch[k][:-1]
-                if k is not None
-                else torch.zeros(len(smiles), device=device)
+                batch[k][1:] - batch[k][:-1] if k is not None else torch.zeros(count, device=device)
                 for k in modalities
             ]
         ).T
@@ -81,9 +84,9 @@ def encode(model, smiles):
     predictions, cls, embeddings = model.model.predict(full, active.clone(), active)
     result = {"cls": cls, "predictions": predictions, "embeddings": embeddings}
     expected = {
-        "cls": (len(smiles), 512),
-        "predictions": (len(smiles), 12, 512),
-        "embeddings": (len(smiles), 13, 512),
+        "cls": (count, 512),
+        "predictions": (count, 12, 512),
+        "embeddings": (count, 13, 512),
     }
     for name, value in result.items():
         if tuple(value.shape) != expected[name] or not torch.isfinite(value).all():
@@ -307,15 +310,29 @@ def load_view(directory, frame, view, expected_provenance):
 
 
 class Inputs:
-    def __init__(self, frame, mode, device, features=None):
+    def __init__(self, frame, mode, device, features=None, model_dir="runs/mol-jepa-model"):
         self.device = device
-        self.smiles = frame.SMILES.to_numpy()
         self.features = None if features is None else torch.as_tensor(features, device=device)
+        self.graphs = None
+        if features is None:
+            # Original featurizer/collator; graph tensors contain no learned weights or labels.
+            model, _ = load_foundation(model_dir)
+            implementation = importlib.import_module(type(model).__module__)
+            self.collate = implementation.from_data_list
+            self.batch_type = implementation.Batch
+            self.graphs = []
+            smiles = frame.SMILES.tolist()
+            for offset in range(0, len(smiles), 128):
+                self.graphs.extend(
+                    model.smiles_to_batch(smiles[offset : offset + 128]).to_data_list()
+                )
+            del model
 
     def batch(self, indices):
-        return (
-            self.features[indices] if self.features is not None else self.smiles[indices].tolist()
-        )
+        if self.features is not None:
+            return self.features[indices]
+        graphs = [self.graphs[int(i)] for i in indices]
+        return self.collate(self.batch_type, graphs, follow_batch=["graph_x"]), len(graphs)
 
 
 def profile_extraction(model, rows, run):

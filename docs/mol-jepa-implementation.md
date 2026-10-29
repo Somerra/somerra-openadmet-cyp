@@ -63,3 +63,24 @@ real-model gradients, LoRA frozen-state stability, token dimensions, cache
 alignment/immutability, and existing CheMeleon representation tests. CPU online
 outputs matched the official inference wrapper exactly on a two-molecule smoke
 batch for all three representation views.
+
+## Recovery authorized 2026-10-29
+
+The user approved increasing the existing shared ceiling from 12 to 20 GPU-hours.
+An audited amendment preserves existing charges; the previously unreconciled
+campaign contributes 4.4886 hours, including the interrupted token arm's full
+four-hour conservative charge. No allocation is reset. Timing pilots and future
+workers use the same full-process supervisor and ledger.
+
+Full/LoRA graph inputs are now precomputed once using the exact pinned upstream
+SMILES featurizer and collator. These are deterministic input graphs, not learned
+representations, so they are safe across folds. Tests verify online/cached outputs
+and encoder gradients agree. Each fold still starts with the original checkpoint.
+Measured reference batch-64 epochs fell from 13.3 to 2.3 seconds for full tuning
+and from 12.2 to 1.15 seconds for LoRA. Epoch counts, optimizer recipes, group
+splits, and inner-only selection are unchanged.
+
+Recovery evidence and status live under
+`runs/regression-mol-jepa-recovery-20261029/`. Seven completed models now have
+validated CPU blind exports. The remaining five runs retain incomplete status
+until their full five-fold training and replay checks pass. No upload occurs.

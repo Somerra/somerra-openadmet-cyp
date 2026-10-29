@@ -114,3 +114,26 @@ def test_checkpoint_replay(tmp_path, arm):
     replay, _ = restore_checkpoint(path)
     with torch.no_grad():
         torch.testing.assert_close(replay(value), expected, rtol=0, atol=1e-4)
+
+
+def test_precomputed_graphs_match_online_outputs_and_gradients():
+    from pathlib import Path
+
+    from somerra_openadmet.mol_jepa import Inputs, encode, load_foundation
+
+    directory = Path("runs/mol-jepa-model")
+    if not (directory / "provenance.json").exists():
+        pytest.skip("Pinned model not installed")
+    torch.set_num_threads(4)
+    frame = pd.DataFrame({"SMILES": ["CCO", "CCN"]})
+    model, _ = load_foundation(directory)
+    model.eval()
+    inputs = Inputs(frame, "full", "cpu", model_dir=directory)
+    online = encode(model, frame.SMILES.tolist())["cls"]
+    online.sum().backward()
+    reference = next(model.model.encoders["graph"].parameters()).grad.clone()
+    model.zero_grad(set_to_none=True)
+    cached = encode(model, inputs.batch([0, 1]))["cls"]
+    torch.testing.assert_close(cached, online, rtol=0, atol=0)
+    cached.sum().backward()
+    torch.testing.assert_close(next(model.model.encoders["graph"].parameters()).grad, reference)

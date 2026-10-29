@@ -1,4 +1,4 @@
-"""Persistent reservations for one explicitly initialized 12-GPU-hour allocation."""
+"""Persistent reservations with explicit, audited allocation amendments."""
 
 import fcntl
 import json
@@ -39,7 +39,14 @@ class CampaignLedger:
         if not self.path.exists():
             raise ValueError("Initialize the campaign ledger from the completed study first")
         state = json.loads(self.path.read_text())
-        if state["version"] != 1 or state["limit_hours"] != LIMIT_HOURS:
+        limit = state["limit_hours"]
+        amendments = state.get("limit_amendments", [])
+        valid_limit = limit == LIMIT_HOURS or (
+            bool(amendments)
+            and amendments[-1].get("new_limit_hours") == limit
+            and bool(amendments[-1].get("authorization"))
+        )
+        if state["version"] != 1 or not math.isfinite(limit) or limit <= 0 or not valid_limit:
             raise ValueError("Campaign allocation contract mismatch")
         charges = [state["historical_hours"]] + [
             r.get("used_hours", r["reserved_hours"]) for r in state["reservations"].values()
@@ -87,6 +94,26 @@ class CampaignLedger:
         with self.locked():
             return self._totals(self._read())
 
+    def amend_limit(self, hours, authorization):
+        """Record an explicitly authorized ceiling change without resetting charges."""
+        if not math.isfinite(hours) or hours <= 0 or not authorization.strip():
+            raise ValueError("A finite limit and explicit authorization are required")
+        with self.locked():
+            state = self._read()
+            if hours < self._totals(state)["committed_hours"]:
+                raise ValueError("New limit is below committed spending")
+            state.setdefault("limit_amendments", []).append(
+                {
+                    "old_limit_hours": state["limit_hours"],
+                    "new_limit_hours": hours,
+                    "authorization": authorization,
+                    "recorded_unix": time.time(),
+                }
+            )
+            state["limit_hours"] = hours
+            self._write(state)
+        return self.snapshot()
+
     def reserve_many(self, allocations):
         """Reserve the whole launch group atomically, before any subprocess starts."""
         allocations = [(str(Path(run).resolve()), hours) for run, hours in allocations]
@@ -100,9 +127,9 @@ class CampaignLedger:
                 raise ValueError("Run already reserved")
             if (
                 self._totals(state)["committed_hours"] + sum(h for _, h in allocations)
-                > LIMIT_HOURS
+                > state["limit_hours"]
             ):
-                raise ValueError("Campaign allocation exceeds 12 hours")
+                raise ValueError(f"Campaign allocation exceeds {state['limit_hours']:g} hours")
             for run, hours in allocations:
                 state["reservations"][run] = {"reserved_hours": hours, "status": "reserved"}
             self._write(state)

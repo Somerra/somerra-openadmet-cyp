@@ -98,3 +98,17 @@ def test_failed_launch_releases_unstarted_reservation(tmp_path, monkeypatch):
     with pytest.raises(OSError, match="launch failed"):
         run_campaign(bundle, tmp_path / "campaign", tmp_path, ledger.path)
     assert ledger.snapshot()["committed_hours"] == pytest.approx(7.364)
+
+
+def test_explicit_limit_amendment_preserves_spending(tmp_path):
+    ledger, _ = initialized(tmp_path, used=11)
+    with pytest.raises(ValueError, match="exceeds"):
+        ledger.reserve_many([(tmp_path / "blocked", 2)])
+    ledger.amend_limit(20, "User approved 20 hours for Mol-JEPA recovery")
+    assert ledger.snapshot()["committed_hours"] == 11
+    ledger.reserve_many([(tmp_path / "allowed", 2)])
+    assert CampaignLedger(ledger.path).snapshot()["committed_hours"] == 13
+    with pytest.raises(ValueError, match="below committed"):
+        ledger.amend_limit(12, "Cannot discard charges")
+    with pytest.raises(ValueError, match="authorization"):
+        ledger.amend_limit(24, "")
