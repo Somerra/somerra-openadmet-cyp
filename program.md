@@ -168,3 +168,16 @@ training coverage. Retain the completed scaffold ensemble as comparison evidence
 it is not the preferred submission. See `docs/scaffold-ensemble.md` for the proposed
 80/20 scaffold development split followed by a fixed-epoch all-data refit. This
 proposal does not itself launch additional training or authorize a submission.
+
+## briford reproduction (2026-10-28)
+
+Scigantic reconstruction is paused. The user authorized a fresh-data reproduction
+of briford's historical four-component recipe, including its five-fold ensembles
+and published calibration, with a NEW four-GPU-hour allocation. Use
+`autoresearch.py briford prepare|run|status|predict` and
+`docs/briford-reproduction.md`. This is a one-time reproduction exception to the
+single-final-model preference. Do not change existing evaluation tasks or splits.
+After all 20 networks and the prediction artifact pass verification, one interim
+prediction-only submission is authorized, respecting cooldown and AGENTS.md.
+No code/report links, Open Code false. Preserve the receipt and compare the official
+score; do not automatically tune or resubmit after seeing the result.

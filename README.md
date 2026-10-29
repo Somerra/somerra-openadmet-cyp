@@ -27,7 +27,9 @@ structure-matched 60/20/20 splits. See [molecular similarity and split matching]
 for the objective, acceptance gate, private artifacts, and evaluation limitations.
 The primary regression task adopts reviewed assignments explicitly and freezes them for subsequent trials.
 
-Nothing in this repository uploads a challenge submission.
+Training commands do not upload submissions. The separate, explicitly executed
+Workbench submission watcher supports authorized prediction-only uploads; see the
+[October 28 run and official result](docs/briford-run-20261028.md).
 
 ## Environment
 
@@ -235,3 +237,7 @@ artifacts, and submissions are gitignored.
 from frozen predictions without training. See [the baseline and experiment plan](docs/scigantic-baseline.md)
 for measured reconstruction agreement, evaluation limitations, and the proposed
 organizer-only training baseline. This reference has no independent local CV score.
+
+The current Workbench/briford baseline is a source-data reproduction of the
+historical four-component submission. See [the recipe, splits and commands](docs/briford-reproduction.md).
+Scigantic model work remains paused; previous evaluation assignments are unchanged.
