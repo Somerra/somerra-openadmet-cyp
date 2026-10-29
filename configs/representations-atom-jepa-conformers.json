@@ -1,0 +1,8 @@
+{
+  "prepared_dir": "runs/regression-corpus-v1",
+  "blind_csv": "data/raw/cyp-challenge-TEST-BLINDED.csv",
+  "output_dir": "runs/regression-atom-jepa-conformers-v1",
+  "workers": 8,
+  "threads": 1,
+  "max_cpu_hours": 2
+}

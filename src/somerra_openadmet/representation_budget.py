@@ -48,7 +48,18 @@ def maybe_supervise(operation, config_path):
     hours = float(config["max_gpu_hours"])
     ledger = CampaignLedger(ledger_path(config))
     output.parent.mkdir(parents=True, exist_ok=True)
-    ledger.reserve_many([(output, hours)])
+    pilot_allocation = None
+    if operation in {"frozen-pilot", "atom-pilot-cache", "conformer-cache", "conformer-fit"}:
+        from .frozen_pilot_budget import PilotReservation
+
+        pilot_allocation = PilotReservation(config)
+        pilot_allocation.reserve()
+    try:
+        ledger.reserve_many([(output, hours)])
+    except BaseException:
+        if pilot_allocation is not None:
+            pilot_allocation.finish()
+        raise
     start, process = time.monotonic(), None
     command = [sys.executable, "-m", __name__, operation, str(config_path)]
     try:
@@ -82,6 +93,8 @@ def maybe_supervise(operation, config_path):
             process.wait()
         spent = (time.monotonic() - start) / 3600 if process is not None else 0.0
         ledger.settle(output, spent, "exited" if process is not None else "not_started")
+        if pilot_allocation is not None:
+            pilot_allocation.finish()
         evidence = {
             "campaign_ledger": str(ledger.path),
             "charged_hours": spent,
@@ -93,6 +106,9 @@ def maybe_supervise(operation, config_path):
 
 
 def main():
+    from .atom_jepa import cache_representations as atom_cache
+    from .conformer_sensitivity import cache_stage, fit_stage
+    from .frozen_benchmark import screen as frozen_screen
     from .representation_training import (
         predict_representations,
         profile_representations,
@@ -106,6 +122,10 @@ def main():
         "screen": screen_representations,
         "predict": predict_representations,
         "profile": profile_representations,
+        "frozen-pilot": frozen_screen,
+        "atom-pilot-cache": atom_cache,
+        "conformer-cache": cache_stage,
+        "conformer-fit": fit_stage,
     }
     config = json.loads(Path(config_path).read_text())
     if os.environ.get("SOMERRA_REPRESENTATION_WORKER") != str(Path(config["output_dir"]).resolve()):

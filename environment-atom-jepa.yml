@@ -1,0 +1,26 @@
+name: somerra-atom-jepa
+channels:
+  - conda-forge
+dependencies:
+  - python=3.12.15
+  - pytorch-gpu=2.13.0
+  - chemprop=2.3.1
+  - rdkit=2026.03.6
+  - numpy=2.5.3
+  - pandas=3.0.6
+  - scipy=1.18.1
+  - scikit-learn=1.9.1
+  - joblib=1.6.0
+  - huggingface_hub=1.32.0
+  - hatchling=1.32.4
+  - editables=0.5
+  - setuptools=81.0.0
+  - lightgbm>=4.5,<5
+  - pytest>=8.3,<9
+  - ruff>=0.12,<1
+  - pip
+  - pip:
+      - e3nn==0.6.0
+      - torch-geometric==2.8.1
+      - ase==3.29.0
+      - safetensors==0.8.0
