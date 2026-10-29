@@ -441,8 +441,13 @@ def test_gpu_worker_keeps_reservation_for_supervisor_on_failure(tmp_path, monkey
     assert not json.loads((output / "run_manifest.json").read_text())["complete"]
 
 
-def test_export_rejects_partial_runs_before_allocating(tmp_path):
+def test_export_rejects_partial_runs_before_allocating(tmp_path, monkeypatch):
+    import sys
+
     from somerra_openadmet.representation_training import predict_representations
+
+    # CPU-only CI must validate manifests without the optional neural dependencies.
+    monkeypatch.setitem(sys.modules, "torch", None)
 
     source = tmp_path / "partial"
     source.mkdir()

@@ -30,13 +30,16 @@ def ledger_path(config):
 
 def maybe_supervise(operation, config_path):
     """Return a completed child result for GPU calls; None means CPU/claimed worker."""
-    import torch
-
     config_path = Path(config_path).resolve()
     config = json.loads(config_path.read_text())
     device = config.get("device", "auto")
-    if device == "cpu" or (device == "auto" and not torch.cuda.is_available()):
+    if device == "cpu":
         return None
+    if device == "auto":
+        import torch
+
+        if not torch.cuda.is_available():
+            return None
     output = Path(config["output_dir"]).resolve()
     if os.environ.get("SOMERRA_REPRESENTATION_WORKER") == str(output):
         return None
