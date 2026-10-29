@@ -64,14 +64,16 @@ def selected_folds(config, available):
 
 
 def recipe_for(mode: str, config: dict):
-    if mode not in {"frozen", "full"}:
+    if mode not in {"frozen", "full", "tokens", "lora"}:
         raise ValueError("adaptation must be frozen or full")
     defaults = {
-        "epochs": 300 if mode == "frozen" else 60,
-        "batch_size": 256 if mode == "frozen" else 64,
-        "learning_rate": 1e-3 if mode == "frozen" else 1e-4,
+        "epochs": 300 if mode in {"frozen", "tokens"} else 60,
+        "batch_size": 256 if mode in {"frozen", "tokens"} else 64,
+        "learning_rate": 1e-3
+        if mode in {"frozen", "tokens"}
+        else (5e-5 if config.get("encoder") == "mol_jepa" else 1e-4),
         "weight_decay": 1e-4,
-        "optimizer": "adam" if mode == "frozen" else "adamw",
+        "optimizer": "adam" if mode in {"frozen", "tokens"} else "adamw",
         "warmup_fraction": 0.0,
         "precision": "float32" if config.get("h100_select") else config.get("precision", "float32"),
     }
@@ -126,7 +128,16 @@ def make_model(
     head_dropout=0.0,
     target_mean=None,
     target_scale=None,
+    encoder="chemeleon",
 ):
+    if encoder == "mol_jepa":
+        from .mol_jepa import Regressor
+
+        if head_dropout or target_mean is not None or target_scale is not None:
+            raise ValueError("Mol-JEPA uses the declared raw-target reference head")
+        return Regressor(mode, checkpoint)
+    if encoder != "chemeleon" or mode not in {"frozen", "full"}:
+        raise ValueError("Unsupported encoder/adaptation")
     import torch
 
     class Regressor(torch.nn.Module):
@@ -195,6 +206,17 @@ def optimizer_for(model, recipe):
     )
 
 
+def gradients_valid(model):
+    import torch
+
+    allowed = getattr(model, "inactive_parameter_names", set())
+    gradients = [(n, p.grad) for n, p in model.named_parameters() if p.requires_grad]
+    return bool(gradients) and all(
+        (g is None and n in allowed) or (g is not None and torch.isfinite(g).all())
+        for n, g in gradients
+    )
+
+
 def precision_probe(model, inputs, indices, targets, requested):
     """Check BF16 forward/backward, then restore every weight and BN buffer."""
     import torch
@@ -221,8 +243,7 @@ def precision_probe(model, inputs, indices, targets, requested):
             loss = masked_mae(model(value), target)
         if loss is not None and torch.isfinite(loss):
             loss.backward()
-            gradients = [p.grad for p in model.parameters() if p.requires_grad]
-            finite = all(g is not None and torch.isfinite(g).all() for g in gradients)
+            finite = gradients_valid(model)
             if parity and finite:
                 result["actual"] = "bf16"
         if result["actual"] != "bf16":
@@ -255,18 +276,14 @@ def step(model, optimizer, inputs, indices, targets, precision):
     optimizer.zero_grad(set_to_none=True)
     with autocast(inputs.device, precision):
         prediction = model(value)
-        if model.target_mean is not None:
+        if getattr(model, "target_mean", None) is not None:
             prediction = (prediction - model.target_mean) / model.target_scale
             target = (target - model.target_mean) / model.target_scale
         loss = masked_mae(prediction, target)
     if not torch.isfinite(loss):
         raise ValueError("Non-finite training loss")
     loss.backward()
-    gradients = [p.grad for p in model.parameters() if p.requires_grad]
-    if (
-        any(g is None for g in gradients)
-        or not torch.stack([torch.isfinite(g).all() for g in gradients]).all()
-    ):
+    if not gradients_valid(model):
         raise ValueError("Missing/non-finite gradient in a trainable parameter")
     optimizer.step()
     return float(loss.detach()), load_seconds
@@ -320,6 +337,7 @@ def train_model(
         head_dropout=config.get("head_dropout", 0.0),
         target_mean=means,
         target_scale=scales,
+        encoder=config.get("encoder", "chemeleon"),
     ).to(run.device)
     optimizer = optimizer_for(model, recipe)
     probe_indices = batch_indices(indices, recipe["batch_size"], merge_singleton=True)[0]
@@ -404,7 +422,9 @@ def profile_batches(config, reference, inputs, targets, fit_indices, frame, run,
     import torch
 
     candidates = (
-        [256, 512, 1024, 2048] if config["adaptation"] == "frozen" else [64, 128, 256, 512, 1024]
+        [256, 512, 1024, 2048]
+        if config["adaptation"] in {"frozen", "tokens"}
+        else [64, 128, 256, 512, 1024]
     )
     sizes = sorted({min(size, len(fit_indices)) for size in candidates})
     # Include the longest molecules in every profiling batch to exercise activation pressure.
@@ -416,7 +436,11 @@ def profile_batches(config, reference, inputs, targets, fit_indices, frame, run,
         result = {"batch_size": size, "status": "oom"}
         try:
             torch.manual_seed(config.get("seed", 42) + fold)
-            model = make_model(config["adaptation"], config.get("checkpoint")).to(run.device)
+            model = make_model(
+                config["adaptation"],
+                config.get("checkpoint"),
+                encoder=config.get("encoder", "chemeleon"),
+            ).to(run.device)
             optimizer = optimizer_for(model, reference)
             indices = ordered[:size]
             precision, smoke = precision_probe(
@@ -467,6 +491,22 @@ def save_checkpoint(path, model, optimizer, metadata):
     import torch
 
     parameters = None
+    if hasattr(model, "arm"):
+        saved = {
+            **metadata,
+            "schema_version": 2,
+            "encoder": "mol_jepa",
+            "state_dict": {k: v.detach().cpu() for k, v in model.state_dict().items()},
+            "optimizer_state": optimizer.state_dict(),
+            "tasks": list(ACTIVITY_ENDPOINTS),
+            "trainable_parameters": {
+                n: p.numel() for n, p in model.named_parameters() if p.requires_grad
+            },
+        }
+        temporary = path.with_suffix(".pt.partial")
+        torch.save(saved, temporary)
+        os.replace(temporary, path)
+        return
     if model.encoder is not None:
         # Convert Chemprop's str-enums/Lightning metadata to plain JSON primitives.
         # This keeps new checkpoints loadable with weights_only=True without allowlists.
@@ -494,6 +534,12 @@ def restore_checkpoint(path, device="cpu"):
     import torch
 
     saved = torch.load(path, weights_only=True, map_location="cpu")
+    if saved.get("schema_version") == 2 and saved.get("encoder") == "mol_jepa":
+        if saved["tasks"] != list(ACTIVITY_ENDPOINTS):
+            raise ValueError("Checkpoint task mismatch")
+        model = make_model(saved["adaptation"], saved["model_dir"], encoder="mol_jepa")
+        model.load_state_dict(saved["state_dict"])
+        return model.to(device).eval(), saved
     if saved.get("schema_version") != 1 or saved["tasks"] != list(ACTIVITY_ENDPOINTS):
         raise ValueError("Unsupported representation checkpoint")
     if saved["checkpoint_sha256"] != CHEMELEON_SHA256:
@@ -585,6 +631,7 @@ def screen_representations(config_path):
         config_path,
         {
             "prepared_dir",
+            "encoder",
             "checkpoint",
             "cache_dir",
             "adaptation",
@@ -601,6 +648,16 @@ def screen_representations(config_path):
         {"prepared_dir", "adaptation", "output_dir", "max_gpu_hours"},
     )
     mode = config["adaptation"]
+    mol_jepa = config.get("encoder") == "mol_jepa"
+    input_type = Inputs
+    checkpoint_hash = CHEMELEON_SHA256
+    if mol_jepa:
+        from .mol_jepa import MODEL_REVISION, load_foundation, load_view
+        from .mol_jepa import Inputs as input_type
+
+        verified, pin = load_foundation(config["checkpoint"])
+        checkpoint_hash = pin["sha256"]["model.safetensors"]
+        del verified
     recipe = recipe_for(mode, config)
     if not 0 <= config.get("head_dropout", 0.0) < 1:
         raise ValueError("head_dropout must be in [0, 1)")
@@ -615,20 +672,29 @@ def screen_representations(config_path):
     folds = sorted(int(f) for f in frame.fold.unique())
     requested = selected_folds(config, folds)
     features, cache = None, None
-    if mode == "frozen":
+    if mode in {"frozen", "tokens"}:
         if not config.get("cache_dir"):
             raise ValueError("Frozen training requires cache_dir")
-        features, cache = load_cache(Path(config["cache_dir"]), frame)
+        if mol_jepa:
+            features, cache = load_view(
+                Path(config["cache_dir"]),
+                frame,
+                "predictions" if mode == "tokens" else "cls",
+                {"model_revision": MODEL_REVISION, "checkpoint_sha256": checkpoint_hash},
+            )
+        else:
+            features, cache = load_cache(Path(config["cache_dir"]), frame)
     else:
         if not config.get("checkpoint"):
             raise ValueError("Full tuning requires checkpoint")
         # Verify provenance before reserving GPU time.
-        del_model = foundation(Path(config["checkpoint"]))
-        del del_model
+        if not mol_jepa:
+            del_model = foundation(Path(config["checkpoint"]))
+            del del_model
     with Run(config) as run:
         run.record.update(
             prepared_manifest=prepared,
-            checkpoint_sha256=CHEMELEON_SHA256,
+            checkpoint_sha256=checkpoint_hash,
             cache_manifest=cache,
             completed_folds=[],
             selected_folds=requested,
@@ -638,7 +704,7 @@ def screen_representations(config_path):
             promoted=False,
         )
         run.save()
-        inputs = Inputs(frame, mode, run.device, features)
+        inputs = input_type(frame, mode, run.device, features)
         rows = []
         for position, fold in enumerate(requested):
             fit = np.flatnonzero(frame.fold.to_numpy() != fold)
@@ -709,7 +775,8 @@ def screen_representations(config_path):
                 optimizer,
                 {
                     "adaptation": mode,
-                    "checkpoint_sha256": CHEMELEON_SHA256,
+                    "checkpoint_sha256": checkpoint_hash,
+                    "model_dir": config.get("checkpoint"),
                     "fold": fold,
                     "seed": seed,
                     "recipe": chosen,
@@ -720,7 +787,7 @@ def screen_representations(config_path):
             )
             # Verify the full held-out prediction table on CPU before accepting the fold.
             replay_model, _ = restore_checkpoint(checkpoint)
-            replay_inputs = Inputs(
+            replay_inputs = input_type(
                 frame.iloc[holdout], mode, "cpu", None if features is None else features[holdout]
             )
             replay = predictions(
@@ -790,14 +857,30 @@ def predict_representations(config_path):
     if len(frame) != EXPECTED_TEST_ROWS:
         raise ValueError("Expected 750 blind molecules")
     mode = evidence["config"]["adaptation"]
+    mol_jepa = evidence["config"].get("encoder") == "mol_jepa"
+    input_type = Inputs
+    if mol_jepa:
+        from .mol_jepa import MODEL_REVISION, load_view
+        from .mol_jepa import Inputs as input_type
     features = None
-    if mode == "frozen":
+    if mode in {"frozen", "tokens"}:
         cache_dir = Path(config.get("cache_dir", evidence["config"]["cache_dir"]))
-        features, cache = load_cache(cache_dir, frame)
+        if mol_jepa:
+            features, cache = load_view(
+                cache_dir,
+                frame,
+                "predictions" if mode == "tokens" else "cls",
+                {
+                    "model_revision": MODEL_REVISION,
+                    "checkpoint_sha256": evidence["checkpoint_sha256"],
+                },
+            )
+        else:
+            features, cache = load_cache(cache_dir, frame)
         if cache != evidence["cache_manifest"]:
             raise ValueError("Prediction cache differs from training representation provenance")
     with Run(config) as run:
-        inputs = Inputs(frame, mode, run.device, features)
+        inputs = input_type(frame, mode, run.device, features)
         values = []
         for fold in evidence["completed_folds"]:
             path = source / f"fold-{fold}.pt"

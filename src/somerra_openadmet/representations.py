@@ -389,6 +389,10 @@ def cache_representations(config_path: Path):
     if supervised is not None:
         return supervised
 
+    if json.loads(Path(config_path).read_text()).get("encoder") == "mol_jepa":
+        from .mol_jepa import cache_representations as extract
+
+        return extract(config_path)
     import torch
     from chemprop import nn
 

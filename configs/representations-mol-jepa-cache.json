@@ -1,0 +1,12 @@
+{
+  "encoder": "mol_jepa",
+  "prepared_dir": "runs/regression-corpus-v1",
+  "checkpoint": "runs/mol-jepa-model",
+  "device": "cuda",
+  "threads": 8,
+  "seed": 42,
+  "blind_csv": "data/raw/cyp-challenge-TEST-BLINDED.csv",
+  "output_dir": "runs/regression-mol-jepa-cache-v1",
+  "batch_size": "auto",
+  "max_gpu_hours": 0.5
+}
