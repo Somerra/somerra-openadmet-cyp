@@ -64,8 +64,14 @@ def selected_folds(config, available):
 
 
 def recipe_for(mode: str, config: dict):
-    if mode not in {"frozen", "full", "tokens", "lora"}:
-        raise ValueError("adaptation must be frozen or full")
+    encoder = config.get("encoder", "chemeleon")
+    allowed = {"chemeleon": {"frozen", "full"}, "mol_jepa": {"frozen", "full", "tokens", "lora"}}
+    if encoder not in allowed or mode not in allowed[encoder]:
+        raise ValueError(f"Unsupported encoder/adaptation: {encoder}/{mode}")
+    if encoder == "mol_jepa" and (
+        config.get("standardize_targets", False) or config.get("head_dropout", 0)
+    ):
+        raise ValueError("Mol-JEPA requires the raw-target reference head")
     defaults = {
         "epochs": 300 if mode in {"frozen", "tokens"} else 60,
         "batch_size": 256 if mode in {"frozen", "tokens"} else 64,
@@ -227,10 +233,12 @@ def precision_probe(model, inputs, indices, targets, requested):
     value = inputs.batch(indices)
     target = torch.as_tensor(targets[indices], device=inputs.device)
     result = {"requested": requested, "actual": "float32"}
+    bf16_started = False
     try:
         model.eval()
         with torch.no_grad():
             reference = model(value).float()
+            bf16_started = True
             with autocast(inputs.device, "bf16"):
                 prediction = model(value).float()
             error = float((reference - prediction).abs().max())
@@ -248,6 +256,10 @@ def precision_probe(model, inputs, indices, targets, requested):
                 result["actual"] = "bf16"
         if result["actual"] != "bf16":
             result["fallback_reason"] = "BF16 parity or finite-gradient check failed"
+    except FloatingPointError as exc:
+        if not bf16_started:
+            raise
+        result["fallback_reason"] = str(exc)
     except (NotImplementedError, RuntimeError) as exc:
         if isinstance(exc, torch.cuda.OutOfMemoryError):
             raise
@@ -492,10 +504,16 @@ def save_checkpoint(path, model, optimizer, metadata):
 
     parameters = None
     if hasattr(model, "arm"):
+        from .mol_jepa import WEIGHT_SHA256
+
+        if metadata.get("checkpoint_sha256", WEIGHT_SHA256) != WEIGHT_SHA256:
+            raise ValueError("Unexpected foundation provenance")
         saved = {
             **metadata,
             "schema_version": 2,
             "encoder": "mol_jepa",
+            "checkpoint_sha256": WEIGHT_SHA256,
+            "model_dir": str(Path(metadata.get("model_dir") or "runs/mol-jepa-model").resolve()),
             "state_dict": {k: v.detach().cpu() for k, v in model.state_dict().items()},
             "optimizer_state": optimizer.state_dict(),
             "tasks": list(ACTIVITY_ENDPOINTS),
@@ -530,14 +548,18 @@ def save_checkpoint(path, model, optimizer, metadata):
     os.replace(temporary, path)
 
 
-def restore_checkpoint(path, device="cpu"):
+def restore_checkpoint(path, device="cpu", *, model_dir=None):
     import torch
 
     saved = torch.load(path, weights_only=True, map_location="cpu")
     if saved.get("schema_version") == 2 and saved.get("encoder") == "mol_jepa":
+        from .mol_jepa import WEIGHT_SHA256
+
+        if saved.get("checkpoint_sha256") != WEIGHT_SHA256:
+            raise ValueError("Unexpected foundation provenance")
         if saved["tasks"] != list(ACTIVITY_ENDPOINTS):
             raise ValueError("Checkpoint task mismatch")
-        model = make_model(saved["adaptation"], saved["model_dir"], encoder="mol_jepa")
+        model = make_model(saved["adaptation"], model_dir or saved["model_dir"], encoder="mol_jepa")
         model.load_state_dict(saved["state_dict"])
         return model.to(device).eval(), saved
     if saved.get("schema_version") != 1 or saved["tasks"] != list(ACTIVITY_ENDPOINTS):
@@ -624,9 +646,6 @@ def profile_representations(config_path):
 def screen_representations(config_path):
     from .representation_budget import maybe_supervise
 
-    supervised = maybe_supervise("screen", config_path)
-    if supervised is not None:
-        return supervised
     config = read_config(
         config_path,
         {
@@ -647,6 +666,10 @@ def screen_representations(config_path):
         },
         {"prepared_dir", "adaptation", "output_dir", "max_gpu_hours"},
     )
+    recipe_for(config["adaptation"], config)
+    supervised = maybe_supervise("screen", config_path)
+    if supervised is not None:
+        return supervised
     mode = config["adaptation"]
     mol_jepa = config.get("encoder") == "mol_jepa"
     input_type = Inputs
@@ -654,13 +677,12 @@ def screen_representations(config_path):
     if mol_jepa:
         from functools import partial
 
-        from .mol_jepa import MODEL_REVISION, load_foundation, load_view
+        from .mol_jepa import MODEL_REVISION, load_view, verify_foundation
         from .mol_jepa import Inputs as input_type
 
         input_type = partial(input_type, model_dir=config["checkpoint"])
-        verified, pin = load_foundation(config["checkpoint"])
+        pin = verify_foundation(config["checkpoint"])
         checkpoint_hash = pin["sha256"]["model.safetensors"]
-        del verified
     recipe = recipe_for(mode, config)
     if not 0 <= config.get("head_dropout", 0.0) < 1:
         raise ValueError("head_dropout must be in [0, 1)")

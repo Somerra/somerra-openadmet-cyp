@@ -1,86 +1,76 @@
-# Mol-JEPA implementation and campaign
+# Mol-JEPA comparison implementation
 
-Issue #14 uses the original reference and inner-selected H100 protocol. The
-2026-10-28 CheMeleon quickpass is contextual evidence, not the matched baseline.
+The original-protocol screening matrix is complete: four CheMeleon controls and
+all eight Mol-JEPA reference/H100 variants have five-fold OOF predictions,
+checkpoint replay, and locally validated 750-row blind exports. Nothing was
+promoted or submitted. See [results and limitations](mol-jepa-results-20261029.md).
 
-The user confirmed noncommercial research use on 2026-10-29. Model source,
-checksums, the CC BY-NC model card, and installed dependency versions are retained
-privately under `runs/mol-jepa-model`. The model revision is
-`4c912b450175f31b5ba913a5dc921c03b27b985a`; downstream source is pinned to
-`27f0065b69c73d18eec7a32ecc413b6dc3f33d90` under `runs/mol-jepa-source`.
+## Model and environment
 
-Use `runs/mol-jepa-env/bin/python`, an isolated pip overlay on the existing Conda
-neural environment. The Conda-native cuik_molmaker package is intentional:
-installing the pip cuik-molmaker-pin wheel produces an incompatible RDKit shared
-library dependency. Pip's missing-distribution warning does not describe whether
-this native replacement imports. Chemprop import and representation tests pass
-with the Conda package.
+The user confirmed noncommercial research use on 2026-10-29. The immutable model
+revision is `4c912b450175f31b5ba913a5dc921c03b27b985a`; the authors' downstream
+source revision is `27f0065b69c73d18eec7a32ecc413b6dc3f33d90`. The CC BY-NC model
+card, source checkout, weight/code checksums, exact pip versions, and Conda package
+records remain private under `runs/mol-jepa-model` and `runs/mol-jepa-source`.
 
-The existing cache/screen/predict commands accept Mol-JEPA configurations through
-`encoder: mol_jepa`. Adaptation values are `frozen`, `tokens`, `full`, and `lora`.
-Mol-JEPA uses cache schema 2 with three independently checksummed views and a root
-completion marker. Existing CheMeleon caches/checkpoints retain schema 1.
+Use the isolated `runs/mol-jepa-env/bin/python` overlay on the neural Conda
+environment. The Conda-native cuik_molmaker package is intentional: the pip
+cuik-molmaker-pin wheel conflicts with these RDKit libraries. Do not replace it
+solely to eliminate pip's missing-distribution warning. Real Chemprop/Mol-JEPA
+imports, GPU training, and CPU replay were exercised successfully.
 
-Training calls the authors' differentiable encode/predict path. The inference
-wrapper's `no_grad` path is not used for training. Full tuning leaves all encoder
-parameters enabled, but permits absent gradients only for non-graph expert
-encoders, whose input modalities are absent from SMILES-only data. LoRA freezes
-the base model and its BatchNorm state. Its attention wrapper explicitly calls
-the PEFT output projection so adapters receive gradients instead of being
-bypassed by PyTorch's raw-weight access. Both train and eval avoid that bypass.
+## Interfaces and invariants
 
-The four reference recipes follow the issue, including 60 adaptation epochs.
-The H100 arms reuse bounded inner-only recipe selection. Extraction profiles batches 64–1024 independently, chooses the smallest within
-5% of peak throughput, and stores float32 representations.
+Existing cache/screen/predict commands accept `encoder: mol_jepa` and adaptation
+`frozen`, `tokens`, `full`, or `lora`. Invalid encoder/head combinations fail before
+supervision or reservation. The model's three float32 views use cache schema 2;
+individual views use the shared checksum, shape, finite-value, and identity-alignment
+reader. Existing CheMeleon schema-1 caches/checkpoints remain supported.
 
-`python scripts/run_mol_jepa_campaign.py` runs the prerequisite CheMeleon matrix,
-then Mol-JEPA extraction and eight five-fold runs, followed by private paired
-comparisons and CPU blind exports. Stage allocations total 22 GPU-hours for
-Mol-JEPA; the existing shared ledger and per-run projection checks remain active.
-The driver stops on failure, preserves partial artifacts, and never submits.
-Do not restart under new run names to evade historical charges.
+Training uses the differentiable encode/predict path. Deterministic input graphs
+are precomputed with the pinned original featurizer/collator, not a learned encoder.
+Online/cached output and gradient equivalence is tested. Full tuning permits missing
+gradients only for explicitly absent non-graph experts; actual full-arm optimizer
+steps are covered in tests and all ten full-tuning folds completed.
 
-The initial campaign is interrupted, not running. Its last artifact was written
-at 2026-10-29 02:26 UTC during the H100 token arm. The full/LoRA arms and
-final comparisons/exports are incomplete. The stale allocation needs reconciliation
-before recovery. Completed scores are screening evidence only.
+LoRA freezes base parameters and encoder BatchNorm state. Its attention path calls
+the adapted output projection explicitly. Pre-norm/batch-first assumptions are
+checked; zero-initialized LoRA reproduces the pinned model within declared tolerance.
+BF16 non-finite outputs trigger float32 fallback during probing; malformed shapes
+and float32 numerical failures still fail. Fold checkpoints validate the foundation
+checksum and store an absolute model directory. `restore_checkpoint(..., model_dir=...)`
+allows explicit relocation while enforcing the same pin. Historical relative paths
+remain readable from their original working directory or with that override.
 
-This PR is stacked on #16 and preserves its newer full-process campaign supervisor.
-Set `SOMERRA_CAMPAIGN_LEDGER` to the existing initialized shared ledger; no new
-ledger is created and no historical charge is reset. The 22-hour stage-cap sum
-is not an independent allocation or permission to enlarge that shared budget.
-The historical campaign used the earlier ledger implementation; its receipts
-remain local.
+Each fold starts from the original pretrained state. Full weight loading and
+checksum verification are intentionally retained per fresh model; caching a mutable
+pretrained model/state across folds is deferred. Preflight reads verified provenance
+without constructing another full model. Graph caching removes the dominant repeated
+featurization cost (reference epoch times: full 13.3→2.3 s; LoRA 12.2→1.15 s).
 
-Campaign status is in `runs/regression-mol-jepa-campaign-v2/status.json`.
-The first attempt stopped before GPU reservation because of the native dependency
-conflict; its failure evidence is retained in the v1 status directory. A running
-campaign is not a completed issue. Reports, five-fold coverage, budget
-reconciliation, and replay evidence must all be reviewed before closing #14.
+## Resumption and accounting
 
-Validation: 30 targeted tests passed, including all four checkpoint replay paths,
-real-model gradients, LoRA frozen-state stability, token dimensions, cache
-alignment/immutability, and existing CheMeleon representation tests. CPU online
-outputs matched the official inference wrapper exactly on a two-molecule smoke
-batch for all three representation views.
+`python scripts/run_mol_jepa_campaign.py --resume --output PATH` verifies completed
+stage configs and artifact checksums before reusing them. `--plan PLAN.json` accepts
+a list of `{operation, name, config}` stage entries, allowing recovered run paths
+without editing source. Partial output is preserved and rejected; supply a separately
+accounted recovery config for an interrupted stage. Status text alone never skips
+training. Comparisons include matched frozen/full families and explicitly separate
+tokens-vs-frozen and LoRA-vs-full pairs. Export is CPU-only and never uploads.
 
-## Recovery authorized 2026-10-29
+PR #16's full-process supervisor remains in force. The user explicitly approved a
+20-hour shared ceiling on 2026-10-29, recorded as an amendment preserving all earlier
+charges. Reconciliation retained the interrupted token run's conservative four-hour
+charge. No fresh ledger or spending reset is allowed.
 
-The user approved increasing the existing shared ceiling from 12 to 20 GPU-hours.
-An audited amendment preserves existing charges; the previously unreconciled
-campaign contributes 4.4886 hours, including the interrupted token arm's full
-four-hour conservative charge. No allocation is reset. Timing pilots and future
-workers use the same full-process supervisor and ledger.
+The original recovery stopped on a full repository volume while saving fold 0.
+All 152 recovery files were checksum-verified and relocated to
+`/mnt/data/somerra-openadmet-runs/mol-jepa-recovery-20261029`; the old repository path
+is a symlink. The successful recovery uses a frozen source snapshot and a 20-GiB
+storage preflight. Earlier failures and charges are retained. Final evidence is under
+`runs/regression-mol-jepa-recovery-20261029`: `recovery-status.json`, `final-report.json`,
+`adaptation-comparisons.json`, `storage-relocation.json`, and per-run artifacts.
 
-Full/LoRA graph inputs are now precomputed once using the exact pinned upstream
-SMILES featurizer and collator. These are deterministic input graphs, not learned
-representations, so they are safe across folds. Tests verify online/cached outputs
-and encoder gradients agree. Each fold still starts with the original checkpoint.
-Measured reference batch-64 epochs fell from 13.3 to 2.3 seconds for full tuning
-and from 12.2 to 1.15 seconds for LoRA. Epoch counts, optimizer recipes, group
-splits, and inner-only selection are unchanged.
-
-Recovery evidence and status live under
-`runs/regression-mol-jepa-recovery-20261029/`. Seven completed models now have
-validated CPU blind exports. The remaining five runs retain incomplete status
-until their full five-fold training and replay checks pass. No upload occurs.
+Review fixes after the completed campaign do not replace its source snapshot or
+retroactively change its recipes. CPU regressions cover those fixes; published
+screening numbers refer to the preserved executed snapshot.

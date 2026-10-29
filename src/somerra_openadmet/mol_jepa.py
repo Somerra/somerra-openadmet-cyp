@@ -18,6 +18,7 @@ from .download import sha256_file
 
 SOURCE_REVISION = "27f0065b69c73d18eec7a32ecc413b6dc3f33d90"
 MODEL_REVISION = "4c912b450175f31b5ba913a5dc921c03b27b985a"
+WEIGHT_SHA256 = "a443592193075334b55483501f1e04cdf4ef9c461db103f687ba4335b036cf14"
 FILES = (
     "configuration_moljepa.py",
     "modeling_moljepa.py",
@@ -28,7 +29,7 @@ FILES = (
 )
 
 
-def load_foundation(directory):
+def verify_foundation(directory):
     directory = Path(directory).resolve()
     evidence = json.loads((directory / "provenance.json").read_text())
     if (
@@ -38,9 +39,17 @@ def load_foundation(directory):
         raise ValueError("Unreviewed Mol-JEPA revision")
     if evidence.get("permitted_use") != "user-confirmed noncommercial research":
         raise ValueError("Missing permitted-use evidence")
+    if evidence["sha256"].get("model.safetensors") != WEIGHT_SHA256:
+        raise ValueError("Unexpected Mol-JEPA foundation checksum")
     for name in FILES:
         if sha256_file(directory / name) != evidence["sha256"][name]:
             raise ValueError(f"Mol-JEPA checksum mismatch: {name}")
+    return evidence
+
+
+def load_foundation(directory):
+    directory = Path(directory).resolve()
+    evidence = verify_foundation(directory)
     package = "_pinned_moljepa_" + evidence["sha256"]["modeling_moljepa.py"][:16]
     if package not in sys.modules:
         module = types.ModuleType(package)
@@ -58,7 +67,7 @@ def load_foundation(directory):
     return model, evidence
 
 
-def encode(model, smiles):
+def encode(model, smiles, *, cls_only=False):
     """Authors' downstream path, intentionally without no_grad/detach."""
     if isinstance(smiles, tuple):
         batch, count = smiles
@@ -88,9 +97,14 @@ def encode(model, smiles):
         "predictions": (count, 12, 512),
         "embeddings": (count, 13, 512),
     }
-    for name, value in result.items():
-        if tuple(value.shape) != expected[name] or not torch.isfinite(value).all():
-            raise ValueError(f"Invalid Mol-JEPA representation: {name}")
+    from .representations import NonFiniteRepresentationError
+
+    for name in ("cls",) if cls_only else result:
+        value = result[name]
+        if tuple(value.shape) != expected[name]:
+            raise ValueError(f"Invalid Mol-JEPA representation shape: {name}")
+        if not torch.isfinite(value).all():
+            raise NonFiniteRepresentationError(f"Non-finite Mol-JEPA representation: {name}")
     return result
 
 
@@ -115,6 +129,8 @@ class AttentionWithLoRA(nn.Module):
 
     def __init__(self, attention):
         super().__init__()
+        if not attention.batch_first or not attention._qkv_same_embed_dim:
+            raise ValueError("LoRA attention requires batch-first equal-width QKV")
         self.attention = attention
         self.batch_first = True
 
@@ -175,6 +191,8 @@ def install_lora(model):
     )
     # Use explicit layer calls even in eval to avoid fused fastpaths reading raw weights.
     for layer in core.transformer_head.transformer.layers:
+        if not layer.norm_first or not layer.self_attn.batch_first:
+            raise ValueError("Pinned LoRA layers require pre-norm batch-first attention")
         layer.self_attn = AttentionWithLoRA(layer.self_attn)
 
         def forward(src, src_mask=None, src_key_padding_mask=None, is_causal=False, layer=layer):
@@ -234,7 +252,7 @@ class Regressor(nn.Module):
 
     def forward(self, value):
         if self.encoder is not None:
-            value = encode(self.encoder, value)["cls"]
+            value = encode(self.encoder, value, cls_only=True)["cls"]
         return self.head(value)
 
 
@@ -269,11 +287,6 @@ def write_views(output, rows, views, metadata):
 
 
 def load_view(directory, frame, view, expected_provenance):
-    import numpy as np
-    import pandas as pd
-
-    from .representations import identities
-
     directory = Path(directory)
     root = json.loads((directory / "manifest.json").read_text())
     if root.get("schema_version") != 2 or not root.get("complete"):
@@ -285,28 +298,12 @@ def load_view(directory, frame, view, expected_provenance):
     manifest = json.loads((folder / "manifest.json").read_text())
     if manifest != root["views"][view]:
         raise ValueError("View manifest changed")
-    for name, field in [("rows.csv", "rows_sha256"), ("embeddings.npy", "embeddings_sha256")]:
-        if sha256_file(folder / name) != manifest[field]:
-            raise ValueError("Cache checksum mismatch")
-    rows = pd.read_csv(folder / "rows.csv")
-    if not identities(rows).equals(rows):
-        raise ValueError("Invalid cache identities")
-    query = identities(frame)
-    positions = pd.Series(range(len(rows)), index=rows.Molecule_Name)
-    if not set(query.Molecule_Name).issubset(positions.index):
-        raise ValueError("Cache missing molecule IDs")
-    indices = positions.loc[query.Molecule_Name].to_numpy()
-    if not np.array_equal(rows.iloc[indices].smiles_sha256, query.smiles_sha256):
-        raise ValueError("Cache SMILES mismatch")
-    array = np.load(folder / "embeddings.npy", allow_pickle=False, mmap_mode="r")
-    shape = {
-        "cls": (len(rows), 512),
-        "predictions": (len(rows), 12, 512),
-        "embeddings": (len(rows), 13, 512),
-    }[view]
-    if array.shape != shape or array.dtype != np.float32 or not np.isfinite(array).all():
-        raise ValueError("Invalid cached representation")
-    return np.asarray(array[indices]), root
+    from .representations import read_cache_array
+
+    dimensions = {"cls": (512,), "predictions": (12, 512), "embeddings": (13, 512)}[view]
+    if manifest.get("schema_version") != 1 or not manifest.get("complete"):
+        raise ValueError("Incomplete representation view")
+    return read_cache_array(folder, frame, manifest, dimensions), root
 
 
 class Inputs:

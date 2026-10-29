@@ -92,7 +92,7 @@ def test_real_model_gradients_and_frozen_state(arm):
 
 
 @pytest.mark.parametrize("arm", ["frozen", "tokens", "full", "lora"])
-def test_checkpoint_replay(tmp_path, arm):
+def test_checkpoint_replay(tmp_path, arm, monkeypatch):
     from pathlib import Path
 
     from somerra_openadmet.mol_jepa import Regressor
@@ -111,6 +111,7 @@ def test_checkpoint_replay(tmp_path, arm):
     optimizer = torch.optim.Adam(model.parameters())
     path = tmp_path / "fold.pt"
     save_checkpoint(path, model, optimizer, {"adaptation": arm, "model_dir": str(directory)})
+    monkeypatch.chdir(tmp_path)
     replay, _ = restore_checkpoint(path)
     with torch.no_grad():
         torch.testing.assert_close(replay(value), expected, rtol=0, atol=1e-4)
@@ -137,3 +138,83 @@ def test_precomputed_graphs_match_online_outputs_and_gradients():
     torch.testing.assert_close(cached, online, rtol=0, atol=0)
     cached.sum().backward()
     torch.testing.assert_close(next(model.model.encoders["graph"].parameters()).grad, reference)
+
+
+def test_zero_lora_matches_pinned_model():
+    from pathlib import Path
+
+    from somerra_openadmet.mol_jepa import encode, install_lora, load_foundation
+
+    directory = Path("runs/mol-jepa-model")
+    if not (directory / "provenance.json").exists():
+        pytest.skip("Pinned model not installed")
+    torch.set_num_threads(4)
+    model, _ = load_foundation(directory)
+    model.eval()
+    with torch.no_grad():
+        expected = encode(model, ["CCO", "CCN"])["cls"]
+    install_lora(model)
+    model.eval()
+    with torch.no_grad():
+        actual = encode(model, ["CCO", "CCN"])["cls"]
+    torch.testing.assert_close(actual, expected, rtol=1e-5, atol=1e-6)
+
+
+def test_probe_falls_back_for_nonfinite_bf16_only():
+    from somerra_openadmet.representation_training import precision_probe
+    from somerra_openadmet.representations import NonFiniteRepresentationError
+
+    class Probe(torch.nn.Linear):
+        def forward(self, value):
+            if torch.is_autocast_enabled("cpu"):
+                raise NonFiniteRepresentationError("non-finite probe")
+            return super().forward(value)
+
+    class Inputs:
+        device = "cpu"
+
+        def batch(self, indices):
+            return torch.ones(len(indices), 2)
+
+    model = Probe(2, 4)
+    before = {k: v.clone() for k, v in model.state_dict().items()}
+    precision, record = precision_probe(model, Inputs(), np.array([0, 1]), np.ones((2, 4)), "bf16")
+    assert precision == "float32"
+    assert "non-finite" in record["fallback_reason"]
+    for name, value in model.state_dict().items():
+        torch.testing.assert_close(value, before[name], rtol=0, atol=0)
+
+
+def test_restore_rejects_different_foundation(tmp_path):
+    from somerra_openadmet.constants import ACTIVITY_ENDPOINTS
+    from somerra_openadmet.representation_training import restore_checkpoint
+
+    path = tmp_path / "bad.pt"
+    torch.save(
+        {
+            "schema_version": 2,
+            "encoder": "mol_jepa",
+            "tasks": list(ACTIVITY_ENDPOINTS),
+            "checkpoint_sha256": "wrong",
+        },
+        path,
+    )
+    with pytest.raises(ValueError, match="foundation provenance"):
+        restore_checkpoint(path)
+
+
+def test_full_arm_uses_real_training_step():
+    from pathlib import Path
+
+    from somerra_openadmet.mol_jepa import Inputs, Regressor
+    from somerra_openadmet.representation_training import step
+
+    directory = Path("runs/mol-jepa-model")
+    if not (directory / "provenance.json").exists():
+        pytest.skip("Pinned model not installed")
+    torch.set_num_threads(4)
+    model = Regressor("full", directory).train()
+    inputs = Inputs(pd.DataFrame({"SMILES": ["CCO", "CCN"]}), "full", "cpu", model_dir=directory)
+    optimizer = torch.optim.AdamW(model.parameters(), lr=5e-5)
+    loss, _ = step(model, optimizer, inputs, np.array([0, 1]), np.ones((2, 4)), "float32")
+    assert np.isfinite(loss)

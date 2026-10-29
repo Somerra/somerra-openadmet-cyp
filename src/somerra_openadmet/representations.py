@@ -36,6 +36,10 @@ COMMON_KEYS = {
 }
 
 
+class NonFiniteRepresentationError(FloatingPointError):
+    """A representation is non-finite; shape/provenance errors remain separate."""
+
+
 def atomic_json(path: Path, value):
     temporary = path.with_suffix(path.suffix + ".partial")
     temporary.write_text(json.dumps(value, indent=2, sort_keys=True, allow_nan=False) + "\n")
@@ -317,6 +321,10 @@ def load_cache(directory: Path, frame: pd.DataFrame, *, checkpoint_sha256=CHEMEL
     }
     if any(manifest.get(k) != v for k, v in expected.items()):
         raise ValueError("Incompatible representation cache provenance")
+    return read_cache_array(directory, frame, manifest, (2048,)), manifest
+
+
+def read_cache_array(directory, frame, manifest, dimensions):
     for filename, field in (("rows.csv", "rows_sha256"), ("embeddings.npy", "embeddings_sha256")):
         if sha256_file(directory / filename) != manifest[field]:
             raise ValueError("Representation cache checksum mismatch")
@@ -328,7 +336,7 @@ def load_cache(directory: Path, frame: pd.DataFrame, *, checkpoint_sha256=CHEMEL
     if (
         list(matrix.shape) != manifest["shape"]
         or matrix.dtype != np.float32
-        or matrix.shape != (len(rows), 2048)
+        or matrix.shape != (len(rows), *dimensions)
         or not np.isfinite(matrix).all()
     ):
         raise ValueError("Invalid cached representation dimensions/values")
@@ -340,7 +348,7 @@ def load_cache(directory: Path, frame: pd.DataFrame, *, checkpoint_sha256=CHEMEL
     if not np.array_equal(aligned.smiles_sha256, query.smiles_sha256):
         raise ValueError("Cache SMILES do not match requested identities")
     positions = pd.Series(np.arange(len(rows)), index=rows.Molecule_Name).loc[query.Molecule_Name]
-    return np.asarray(matrix[positions.to_numpy()]), manifest
+    return np.asarray(matrix[positions.to_numpy()])
 
 
 def profile_extraction(model, aggregate, dataset, rows, precision, run):
