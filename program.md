@@ -1,10 +1,23 @@
 # Regression autoresearch task
 
-Use `autoresearch.py plan|run|reproduce|status|prepare`. The default path is the
-frozen molecular regression task. Historical CPU/fold-based commands require the
-`legacy` prefix; the previous fixed-series GPU comparison uses `hillclimb`.
+## Current default: Workbench scaffold protocol (2026-10-29)
 
-## Current task
+Follow [the Workbench protocol](docs/workbench-protocol.md) for new regression
+submission candidates until the user changes direction. Preserve each bundle's
+five scaffold folds, train on four, and select checkpoints on the fifth. Focus
+on model architecture, CYP-specific models with auxiliary tasks, task-loss
+weights, and model-combination weights. OOF is development evaluation, not an
+untouched test. Keep model families on the same data and evaluation tools.
+
+`autoresearch.py briford prepare|run|status|predict` implements the historical
+Chemprop reference. General specialist and Mol-JEPA adapters are not implemented
+by this documentation. Bare `autoresearch.py plan|run|reproduce|status|prepare`
+still dispatches to the preserved molecular task below; it does not implement the
+new default protocol. Historical CPU commands use `legacy`; the older fixed-series
+GPU comparison uses `hillclimb`. Do not mutate existing task contracts to switch
+protocols, and do not reuse the completed reproduction's submission authorization.
+
+## Historical molecular task (preserved contract)
 
 Keep the reviewed 60/20/20 molecular-parent assignments fixed. Their SHA-256 is
 `9e69d2ec25402ad2c1d96b8f4169785926917af3db1531d552515b0167780318`.

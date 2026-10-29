@@ -18,6 +18,20 @@ The user requires prediction-only submissions for this challenge.
 This policy was explicitly established by the user on 2026-10-24 and remains in
 force unless the user changes it.
 
+## Default regression research protocol (2026-10-29)
+
+Until the user changes direction, use the preserved Workbench scaffold folds for
+future submission candidates. Follow [the default protocol](docs/workbench-protocol.md)
+for bundle-specific assignments, training/validation roles, OOF evaluation, and
+ensemble construction. Reuse saved row assignments; do not substitute Butina,
+60/20/20 molecular, or Scigantic CheMeleon splits for a matched comparison.
+
+Focus experiments on architecture and task/model weights. Work towards CYP-specific
+models with auxiliary tasks, including Mol-JEPA specialists. A specialist may have
+multiple auxiliary outputs. Keep data preparation and evaluation shared across
+model families. Preserve historical artifacts and contracts. This direction does
+not authorize an upload or change the prediction-only policy above.
+
 ## Third-party reference predictions
 
 Scigantic reference (R25) is a reconstruction of third-party published predictions,

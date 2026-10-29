@@ -1,5 +1,10 @@
 # briford reproduction from source measurements
 
+For new architecture and task/model-weight experiments, follow the
+[default Workbench protocol](workbench-protocol.md). This page records the
+historical reproduction; its one-time training and submission authorizations
+do not authorize new runs or uploads.
+
 This workflow targets the historical four-component Workbench submission reporting
 MA-ST-RAE 0.4378. It trains fresh models; no published predictions, checkpoints, or
 Scigantic-derived data tables are used. Scigantic model work remains paused.
