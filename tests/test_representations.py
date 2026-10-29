@@ -556,3 +556,29 @@ def test_cost_projection_does_not_extrapolate_gpu_startup_over_all_folds():
 
     history = [{"seconds": 100}, {"seconds": 1}, {"seconds": 1}]
     assert projected_training_seconds(history, epochs=10, future_fits=4) == pytest.approx(56.4)
+
+
+@pytest.mark.parametrize(
+    "config",
+    [
+        {"encoder": "chemeleon", "adaptation": "lora"},
+        {"encoder": "chemeleon", "adaptation": "tokens"},
+        {"encoder": "mol-jepa", "adaptation": "full"},
+        {"encoder": "mol_jepa", "adaptation": "full", "standardize_targets": True},
+        {"encoder": "mol_jepa", "adaptation": "full", "head_dropout": 0.1},
+    ],
+)
+def test_invalid_encoder_recipe_rejected_before_supervision(tmp_path, monkeypatch, config):
+    from somerra_openadmet import representation_budget
+    from somerra_openadmet.representation_training import screen_representations
+
+    def forbidden(*args):
+        raise AssertionError("Invalid config must not reserve or launch")
+
+    monkeypatch.setattr(representation_budget, "maybe_supervise", forbidden)
+    path = tmp_path / "bad.json"
+    atomic_json(
+        path, {**config, "prepared_dir": "unused", "output_dir": "unused", "max_gpu_hours": 1}
+    )
+    with pytest.raises(ValueError):
+        screen_representations(path)

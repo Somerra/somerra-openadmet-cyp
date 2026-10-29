@@ -1,0 +1,14 @@
+{
+  "encoder": "mol_jepa",
+  "prepared_dir": "runs/regression-corpus-v1",
+  "checkpoint": "runs/mol-jepa-model",
+  "device": "cuda",
+  "threads": 8,
+  "seed": 42,
+  "adaptation": "tokens",
+  "h100_select": true,
+  "precision": "bf16",
+  "output_dir": "runs/regression-mol-jepa-tokens-h100-v1",
+  "max_gpu_hours": 4,
+  "cache_dir": "runs/regression-mol-jepa-cache-v1"
+}
