@@ -131,7 +131,7 @@ def test_remaining_budget_includes_prior_pilot_and_all_extension_stages(tmp_path
     root, extraction, ledger = tmp_path / "pilot", tmp_path / "extract", tmp_path / "ledger.json"
     monkeypatch.setattr(pilot, "ROOT", root)
     monkeypatch.setattr(pilot, "EXTRACTION_PREFIX", extraction)
-    monkeypatch.setattr(pilot, "LEDGER", ledger)
+    monkeypatch.setattr(pilot, "pilot_ledger_path", lambda config: ledger)
     records = {
         str(extraction): {"used_hours": 0.1, "reserved_hours": 1.5},
         str(root / "original-fit"): {"used_hours": 0.2, "reserved_hours": 0.3},

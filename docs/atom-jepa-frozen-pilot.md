@@ -101,8 +101,24 @@ openadmet-cyp regression prepare --data-dir data/raw --output-dir runs/regressio
 
 GPU stages require `SOMERRA_CAMPAIGN_LEDGER` to name the existing initialized,
 absolute shared campaign ledger, as required by current `main`. Do not create or
-reset a ledger to run this pilot. Restore the original
-`runs/regression-gpu-budget.json` alongside its historical run paths when resuming.
+reset a ledger to run this pilot. Bind the **original existing** pilot history to
+that campaign once, without copying either ledger or allocating GPU time:
+
+```bash
+python -m somerra_openadmet.frozen_pilot_budget \
+  --campaign-ledger "$SOMERRA_CAMPAIGN_LEDGER" \
+  --bind-history /absolute/original-checkout/runs/regression-gpu-budget.json
+```
+
+The shared campaign retains the absolute history path, its binding-time digest,
+and committed pilot hours. Binding is idempotent for that path and refuses to
+redirect an existing binding. All pilot stages and drivers resolve this binding,
+independent of checkout or working directory. Missing or empty history is refused.
+An explicit `ledger` config must name that same absolute file; relative or
+different paths are rejected. Old generated configs with a relative `ledger`
+must omit that field or use the bound absolute path before launching new work.
+Historical run paths from other checkouts remain charged. CPU report replay also
+uses the binding for accounting, but reserves no GPU time.
 The original ledger's four-hour subset remains an additional atomic cap; new GPU
 work is also reserved and charged by the current full-process campaign supervisor.
 CPU-only setup, checks, and report replay allocate no GPU time.

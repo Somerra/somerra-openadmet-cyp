@@ -41,6 +41,12 @@ with train-1/test-1 (augmentation), test-2/test-10 with test-1 for a fixed head
 (combined effect). All results are reported, with means/sample SD across seeds and
 paired cluster-bootstrap intervals. Baseline CheMeleon and Mol-JEPA scores are
 fixed references from the original pilot; this extension does not tune them.
+Cross-model comparisons use **one evaluation conformer** only. Two/ten-conformer
+evaluation is a test-time ensemble and is reported as within-Atom-JEPA sensitivity;
+its scores do not support a matched ranking against single-prediction references.
+The raw-target, no-dropout, final-epoch head remains a limitation. See the
+[results and outstanding head validation](atom-jepa-results-20261029.md) before
+interpreting differences as representation quality.
 
 This is an exploratory follow-up motivated by already-observed pilot results.
 Repeated evaluation on fold 0 is not independent confirmation. Additional-fold

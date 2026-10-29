@@ -9,18 +9,17 @@ import json
 from pathlib import Path
 
 from somerra_openadmet.frozen_benchmark import PROTOCOL, screen
-from somerra_openadmet.frozen_pilot_budget import is_pilot_charge
+from somerra_openadmet.frozen_pilot_budget import is_pilot_charge, pilot_ledger_path
 from somerra_openadmet.representations import atomic_json
 
 ROOT = Path("runs/regression-frozen-representation-pilot-v1")
-LEDGER = Path("runs/regression-gpu-budget.json")
 EXTRACTION_PREFIX = Path("runs/regression-atom-jepa-representations-v1")
 EXTRACTION = Path("runs/regression-atom-jepa-representations-v1-retry-2")
 CAP = 4.0
 
 
 def charged_hours():
-    records = json.loads(LEDGER.read_text()) if LEDGER.exists() else {}
+    records = json.loads(pilot_ledger_path({}).read_text())
     total = 0.0
     for path, record in records.items():
         if (
@@ -129,7 +128,7 @@ def main():
                 "precision": "float32",
                 "threads": 8,
                 "max_gpu_hours": allocation,
-                "ledger": str(LEDGER),
+                "ledger": str(pilot_ledger_path({})),
             }
             config_path = ROOT / f"{name}.json"
             atomic_json(config_path, config)

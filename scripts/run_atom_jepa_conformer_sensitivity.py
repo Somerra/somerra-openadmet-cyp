@@ -7,7 +7,7 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 import torch
-from run_frozen_representation_pilot import CAP, EXTRACTION, LEDGER, charged_hours
+from run_frozen_representation_pilot import CAP, EXTRACTION, charged_hours
 from run_frozen_representation_pilot import ROOT as PILOT
 
 from somerra_openadmet.conformer_sensitivity import (
@@ -29,6 +29,7 @@ from somerra_openadmet.frozen_benchmark import (
     scores,
     screen,
 )
+from somerra_openadmet.frozen_pilot_budget import pilot_ledger_path
 from somerra_openadmet.frozen_resume import completed_head, validate_evaluation
 from somerra_openadmet.representation_training import oof_rows
 from somerra_openadmet.representations import atomic_json, prepared_data
@@ -53,7 +54,7 @@ def config_for(output, maximum=0.1):
         "precision": "float32",
         "threads": 8,
         "max_gpu_hours": allocation(maximum),
-        "ledger": str(LEDGER),
+        "ledger": str(pilot_ledger_path({})),
         "prepared_dir": str(PREPARED),
         "checkpoint": "runs/atom-jepa-model",
     }
@@ -301,7 +302,7 @@ def report():
         )
         contrasts.append(contrast)
     atomic_json(ROOT / "paired_comparisons.json", contrasts)
-    ledger = json.loads(LEDGER.read_text())
+    ledger = json.loads(pilot_ledger_path({}).read_text())
     extension_hours = sum(
         r.get("used_hours", r["reserved_hours"])
         for path, r in ledger.items()
@@ -336,6 +337,12 @@ def report():
         "",
         "Original fold-0 scores, three seeds; same MLP and label splits. "
         "No baseline refitting or model-specific tuning in this follow-up.",
+        "Compare these single-prediction references only with Atom-JEPA at one evaluation "
+        "conformer. Two/ten evaluation conformers are test-time ensembles and belong to "
+        "the within-Atom-JEPA sensitivity analysis, not a matched cross-model ranking.",
+        "The historical raw-target, no-dropout, final-epoch head has not established "
+        "representation quality; a regularized, inner-selected head and same-cache "
+        "constant/ridge/tree controls remain outstanding.",
         "",
         "| Baseline | MA-ST-RAE |",
         "|---|---:|",

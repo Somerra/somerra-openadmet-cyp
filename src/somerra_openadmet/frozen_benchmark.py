@@ -29,6 +29,9 @@ from .representations import (
 )
 
 PROTOCOL = "matched_frozen_v1"
+# Historical recipe: retain it for artifact replay, not as a validated probe of
+# representation quality. See docs/atom-jepa-results-20261029.md for the outstanding
+# regularized, inner-selected head experiment; it needs a new protocol version.
 RECIPE = {
     "epochs": 300,
     "batch_size": 256,

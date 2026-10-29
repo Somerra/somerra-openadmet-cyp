@@ -5,6 +5,13 @@ pIC50 endpoints, and head seeds 42/43/44. They are exploratory single-fold resul
 not five-fold OOF results or leaderboard scores. Lower MA-ST-RAE is better. Values
 are the mean and sample standard deviation of individual-seed scores.
 
+These results measure performance under the historical fixed head, not a validated
+ranking of representation quality. Scores near 1 are weak relative to the
+metric's constant-mean reference. The denominator uses the **evaluation-set mean**
+for each endpoint, not a fitted training-mean predictor. A same-split training-mean
+control has not yet been scored. The scores alone do not establish overfitting;
+head regularization and checkpoint selection remain unresolved experimental issues.
+
 ## Original pilot
 
 | Frozen features | Dimensions | Raw MA-ST-RAE | Standardized MA-ST-RAE |
@@ -21,15 +28,36 @@ Every head uses input -> 512 -> BatchNorm -> ReLU -> 4, Adam 1e-3, weight decay
 1e-4, batch 256, 300 epochs, float32, endpoint-balanced masked MAE in raw pIC50,
 and the final checkpoint. The number of first-layer parameters differs with
 embedding width. Standardization uses outer-training rows only.
+Here, "standardized" refers to **features**; targets remain raw pIC50.
 
-## Conformer sensitivity
+## Cross-model comparison with one prediction per molecule
+
+For the follow-up, compare only one evaluation conformer against the references.
+All rows below use standardized features, the same three head seeds, and no
+test-time or seed averaging. Ten training conformers still provide additional
+training views; this table matches prediction count, not input modality.
+
+| Frozen features | Training conformers | Evaluation predictions | MA-ST-RAE |
+|---|---:|---:|---:|
+| CheMeleon mean | n/a | 1 | 1.115816 ± 0.021415 |
+| Mol-JEPA CLS | n/a | 1 | 1.005796 ± 0.016864 |
+| Atom-JEPA scalar | 1 | 1 | 1.096170 ± 0.006767 |
+| Atom-JEPA invariant | 1 | 1 | 1.128870 ± 0.009236 |
+| Atom-JEPA scalar | 10 | 1 | 1.007057 ± 0.014735 |
+| Atom-JEPA invariant | 10 | 1 | 1.011773 ± 0.026734 |
+
+The augmented Atom-JEPA means are close to Mol-JEPA here and do not establish an
+advantage over it. These remain conditional results under the weak historical head.
+
+## Within-Atom-JEPA conformer sensitivity
 
 Both views are standardized. The scaler is held fixed across conformer counts,
 using the original conformer on outer-training molecules. With multiple training
 conformers, each molecule still occurs once per epoch: one conformer is sampled
 uniformly using a separate RNG. Every fit performs 4,800 optimizer updates with
 the same molecular batch order for each paired head seed. Evaluation averages
-predictions, not embeddings.
+predictions, not embeddings. Two/ten evaluation conformers are **test-time
+ensembles**, unlike the single-prediction CheMeleon and Mol-JEPA references.
 
 | Training conformers | Evaluation conformers | Scalar MA-ST-RAE | Invariant MA-ST-RAE |
 |---:|---:|---:|---:|
@@ -51,12 +79,43 @@ The scalar-minus-invariant difference for ten conformers has interval
 [-0.028898, 0.047142], so these data do not distinguish the two readouts clearly.
 Intervals use 1,000 cluster resamples and do not correct for multiple comparisons.
 
-The ten-conformer Atom-JEPA scores are numerically below the fixed CheMeleon and
-Mol-JEPA references. They use additional 3D views, and the follow-up was motivated
-by inspection of this same fold. Additional-fold confirmation is needed before
-claiming a general ranking or promoting a model. Encoders also differ in
+The train-1/test-10 improvement isolates prediction averaging without extra
+training signal: scalar improves from 1.096170 to 1.035640 and invariant from
+1.128870 to 1.034538. This is compatible with variance reduction and does not
+demonstrate that the encoder captures useful additional 3D information. Averaging
+does not guarantee improvement in general. The train-10/test-10 scores must not
+be used to rank Atom-JEPA against the single-prediction references.
+
+The follow-up was motivated by inspection of this same fold. A stronger-head
+validation and additional-fold confirmation are needed before claiming a general
+ranking or promoting a model. Encoders also differ in
 pretraining data and modalities; the pilot does not isolate a causal effect of
 pretraining architecture or establish absence of pretraining data overlap.
+
+## Outstanding head validation
+
+The v1 recipe and completed artifacts remain unchanged for reproducibility.
+Before drawing representation conclusions, a separately versioned frozen-head
+experiment should:
+
+- Use one persisted inner holdout from outer-training molecules for all models,
+  respecting the existing cluster groups. Fit feature and target scalers on inner
+  training rows only, and never select epochs or hyperparameters on outer fold 0.
+- Reuse the shared target-standardization and dropout support with the same MLP
+  and prespecified search budget for every model. Select checkpoints by the same
+  inner-holdout criterion; report learning curves and selected epochs.
+- Rerun all three references with one evaluation prediction per molecule. Report
+  conformer prediction averaging separately. Seed ensembles would need equivalent
+  training/inference accounting and are not interchangeable with conformer views.
+- Score training-mean, ridge, and LightGBM controls on the same caches, labels, and
+  split; select control hyperparameters only within the training partition. The
+  previously reported approximately 0.74 tree result is context, not a matched
+  control until its split and protocol are reproduced here.
+
+This rerun is **outstanding**. The review response adds no GPU experiments and
+does not silently replace the historical protocol. Any execution must reserve
+from the remaining original four-hour allocation and the shared campaign budget.
+Encoder fine-tuning remains deferred.
 
 ## Cost and retained evidence
 
