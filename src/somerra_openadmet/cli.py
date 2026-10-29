@@ -113,6 +113,9 @@ def build_parser() -> argparse.ArgumentParser:
     embed.add_argument("--output-dir", type=Path, required=True)
     screen = stages.add_parser("screen-neural")
     _run_config_arguments(screen)
+    for stage in ("cache-representations", "screen-representations", "predict-representations"):
+        command = stages.add_parser(stage)
+        command.add_argument("--config", type=Path, required=True)
     neural_export = stages.add_parser(
         "export-neural", help="Export a complete neural fold ensemble"
     )
@@ -165,6 +168,19 @@ def main(argv: list[str] | None = None) -> None:
                     output_dir=args.output_dir,
                 )
             )
+        elif args.stage == "cache-representations":
+            from .representations import cache_representations
+
+            _json(cache_representations(args.config))
+        elif args.stage in {"screen-representations", "predict-representations"}:
+            from .representation_training import predict_representations, screen_representations
+
+            run = (
+                screen_representations
+                if args.stage == "screen-representations"
+                else predict_representations
+            )
+            _json(run(args.config))
         elif args.stage == "export-neural":
             from .neural_export import export
 

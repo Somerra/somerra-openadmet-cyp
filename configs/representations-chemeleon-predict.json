@@ -1,0 +1,8 @@
+{
+  "run_dir": "runs/regression-chemeleon-full-reference-v1",
+  "blind_csv": "data/raw/cyp-challenge-TEST-BLINDED.csv",
+  "output_dir": "runs/regression-chemeleon-full-predictions-v1",
+  "device": "cpu",
+  "batch_size": 256,
+  "max_gpu_hours": 0.5
+}

@@ -1,0 +1,12 @@
+{
+  "prepared_dir": "runs/regression-corpus-v1",
+  "blind_csv": "data/raw/cyp-challenge-TEST-BLINDED.csv",
+  "checkpoint": "runs/chemeleon_mp.pt",
+  "output_dir": "runs/regression-chemeleon-representations-v1",
+  "batch_size": "auto",
+  "device": "cuda",
+  "precision": "float32",
+  "memory_fraction": 0.8,
+  "free_memory_gib": 10,
+  "max_gpu_hours": 0.25
+}
