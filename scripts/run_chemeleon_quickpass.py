@@ -1,32 +1,24 @@
 """Bounded five-outer-fold benchmark; no inner split or score-based recipe selection."""
 
 import argparse
-import gc
 import json
-import math
 import os
 import shutil
 import sys
 from datetime import UTC, datetime
 from pathlib import Path
 
-import numpy as np
-
 from somerra_openadmet.constants import ACTIVITY_ENDPOINTS
 from somerra_openadmet.download import sha256_file
 from somerra_openadmet.regression_report import compare
+from somerra_openadmet.representation_budget import ledger_path
 from somerra_openadmet.representation_training import (
-    Inputs,
-    profile_batches,
-    recipe_for,
+    profile_representations,
     screen_representations,
 )
 from somerra_openadmet.representations import (
-    Run,
     atomic_json,
     cache_representations,
-    load_cache,
-    prepared_data,
     provenance,
 )
 
@@ -42,14 +34,14 @@ def main(output: Path):
 
     prepared = Path("runs/regression-corpus-v1")
     checkpoint = Path("runs/chemeleon_mp.pt")
-    ledger = Path("runs/regression-gpu-budget.json")
+    ledger = ledger_path({})
     common = {
         "prepared_dir": str(prepared),
         "device": "cuda",
         "threads": 8,
         "memory_fraction": 0.8,
         "free_memory_gib": 10,
-        "ledger": str(ledger),
+        "campaign_ledger": str(ledger),
         "seed": 42,
     }
     protocol = {
@@ -104,48 +96,20 @@ def main(output: Path):
         atomic_json(output / "cache-config.json", cache_config)
         cache_representations(output / "cache-config.json")
         update("profiling")
-        frame, manifest = prepared_data(prepared)
-        features, _ = load_cache(output / "cache", frame)
-        recipes = {}
-        with Run({**common, "output_dir": str(output / "profiling"), "max_gpu_hours": 0.10}) as run:
-            # Profiling consumes no real activity labels, even from the training folds.
-            dummy_targets = np.zeros((len(frame), len(ACTIVITY_ENDPOINTS)), dtype=np.float32)
-            for mode in ("frozen", "full"):
-                config = {
-                    **common,
-                    "adaptation": mode,
-                    "checkpoint": str(checkpoint),
-                    "precision": "bf16",
-                }
-                reference = recipe_for(mode, {})
-                inputs = Inputs(frame, mode, run.device, features if mode == "frozen" else None)
-                batch = profile_batches(
-                    config,
-                    reference,
-                    inputs,
-                    dummy_targets,
-                    np.arange(len(frame)),
-                    frame,
-                    run,
-                    0 if mode == "frozen" else 1,
-                )
-                scale = max(1.0, min(math.sqrt(batch / reference["batch_size"]), 4.0))
-                recipes[mode] = {
-                    **reference,
-                    "batch_size": batch,
-                    "learning_rate": reference["learning_rate"] * scale,
-                    "warmup_fraction": 0.05,
-                    "precision": "bf16",
-                }
-                del inputs
-                gc.collect()
-            run.record.update(complete=True, recipes=recipes, real_labels_used=False)
-        # Freeze both recipes before evaluating any outer holdout.
+        profile_config = {
+            **common,
+            "output_dir": str(output / "profiling"),
+            "checkpoint": str(checkpoint),
+            "cache_dir": str(output / "cache"),
+            "max_gpu_hours": 0.10,
+        }
+        atomic_json(output / "profile-config.json", profile_config)
+        profiled = profile_representations(output / "profile-config.json")
+        recipes = profiled["recipes"]
         atomic_json(
             output / "recipes.json",
-            {"recipes": recipes, "training_sha256": manifest["training_sha256"]},
+            {"recipes": recipes, "training_sha256": profiled["training_sha256"]},
         )
-        del features
         for mode in ("frozen", "full"):
             update(mode, recipes=recipes)
             recipe = recipes[mode]
@@ -188,7 +152,7 @@ def main(output: Path):
         ledger_data = json.loads(ledger.read_text())
         hours = sum(
             record.get("used_hours", record["reserved_hours"])
-            for path, record in ledger_data.items()
+            for path, record in ledger_data["reservations"].items()
             if Path(path).is_relative_to(output.resolve())
         )
         summary = {

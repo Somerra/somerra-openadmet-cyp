@@ -30,7 +30,7 @@ COMMON_KEYS = {
     "memory_fraction",
     "free_memory_gib",
     "max_gpu_hours",
-    "ledger",
+    "campaign_ledger",
     "threads",
     "seed",
 }
@@ -196,7 +196,8 @@ class Run:
     def __enter__(self):
         import torch
 
-        from .budget import GPUBudget
+        from .campaign_budget import WorkerBudget
+        from .representation_budget import ledger_path
 
         self.output.mkdir(parents=True, exist_ok=False)
         self.start = time.monotonic()
@@ -204,13 +205,14 @@ class Run:
         self.save()
         try:
             if self.device == "cuda":
-                allocation = GPUBudget(
-                    Path(self.config.get("ledger", "runs/regression-gpu-budget.json")),
-                    self.output,
-                    self.hours,
-                )
+                shared_ledger = ledger_path(self.config)
+                if os.environ.get("SOMERRA_REPRESENTATION_WORKER") != str(self.output.resolve()):
+                    raise ValueError("GPU runs require the shared campaign supervisor")
+                allocation = WorkerBudget(shared_ledger, self.output, self.hours)
                 allocation.reserve()
                 self.allocation = allocation
+                self.record["campaign_ledger"] = str(shared_ledger)
+                self.record["accounting_scope"] = "worker elapsed; coordinator settles full process"
                 free, total = torch.cuda.mem_get_info()
                 fraction = float(self.config.get("memory_fraction", 0.8))
                 headroom = float(self.config.get("free_memory_gib", 10)) * 2**30
@@ -381,6 +383,12 @@ def profile_extraction(model, aggregate, dataset, rows, precision, run):
 
 
 def cache_representations(config_path: Path):
+    from .representation_budget import maybe_supervise
+
+    supervised = maybe_supervise("cache", config_path)
+    if supervised is not None:
+        return supervised
+
     import torch
     from chemprop import nn
 

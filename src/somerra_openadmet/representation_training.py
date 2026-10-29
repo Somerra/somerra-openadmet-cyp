@@ -118,7 +118,15 @@ def inner_split(frame, fit_indices, seed):
     return train, val
 
 
-def make_model(mode, checkpoint=None, encoder_parameters=None, input_dim=2048):
+def make_model(
+    mode,
+    checkpoint=None,
+    encoder_parameters=None,
+    input_dim=2048,
+    head_dropout=0.0,
+    target_mean=None,
+    target_scale=None,
+):
     import torch
 
     class Regressor(torch.nn.Module):
@@ -134,17 +142,32 @@ def make_model(mode, checkpoint=None, encoder_parameters=None, input_dim=2048):
                     else foundation(Path(checkpoint))
                 )
                 self.aggregate = nn.MeanAggregation()
-            self.head = torch.nn.Sequential(
+            layers = [
                 torch.nn.Linear(input_dim, 512),
                 torch.nn.BatchNorm1d(512),
                 torch.nn.ReLU(),
-                torch.nn.Linear(512, len(ACTIVITY_ENDPOINTS)),
+            ]
+            if head_dropout:
+                layers.append(torch.nn.Dropout(head_dropout))
+            layers.append(torch.nn.Linear(512, len(ACTIVITY_ENDPOINTS)))
+            self.head = torch.nn.Sequential(*layers)
+            self.head_dropout = head_dropout
+            self.register_buffer(
+                "target_mean",
+                None if target_mean is None else torch.tensor(target_mean, dtype=torch.float32),
+            )
+            self.register_buffer(
+                "target_scale",
+                None if target_scale is None else torch.tensor(target_scale, dtype=torch.float32),
             )
 
         def forward(self, value):
             if self.encoder is not None:
                 value = self.aggregate(self.encoder(value), value.batch)
-            return self.head(value)
+            prediction = self.head(value).float()
+            if self.target_mean is not None:
+                prediction = prediction * self.target_scale + self.target_mean
+            return prediction
 
     return Regressor()
 
@@ -231,7 +254,11 @@ def step(model, optimizer, inputs, indices, targets, precision):
     load_seconds = time.monotonic() - started
     optimizer.zero_grad(set_to_none=True)
     with autocast(inputs.device, precision):
-        loss = masked_mae(model(value), target)
+        prediction = model(value)
+        if model.target_mean is not None:
+            prediction = (prediction - model.target_mean) / model.target_scale
+            target = (target - model.target_mean) / model.target_scale
+        loss = masked_mae(prediction, target)
     if not torch.isfinite(loss):
         raise ValueError("Non-finite training loss")
     loss.backward()
@@ -269,13 +296,31 @@ def validation_mae(prediction, target):
     return float(np.nanmean(np.nanmean(np.abs(prediction - target), axis=0)))
 
 
+def projected_training_seconds(history, epochs, future_fits):
+    """Exclude first-epoch startup from a conservative remaining-work estimate."""
+    durations = [row["seconds"] for row in history[1:]] or [history[-1]["seconds"]]
+    return float(np.median(durations)) * (epochs - len(history) + future_fits * epochs) * 1.2
+
+
 def train_model(
     config, recipe, inputs, targets, indices, run, tag, *, val_indices=None, seed=42, future_fits=0
 ):
     import torch
 
     torch.manual_seed(seed)
-    model = make_model(config["adaptation"], config.get("checkpoint")).to(run.device)
+    means, scales = None, None
+    if config.get("standardize_targets", False):
+        means = np.nanmean(targets[indices], axis=0).astype(np.float32)
+        scales = np.maximum(np.nanstd(targets[indices], axis=0), 1e-6).astype(np.float32)
+        if not np.isfinite(means).all() or not np.isfinite(scales).all():
+            raise ValueError("Training-only target normalization has missing endpoints")
+    model = make_model(
+        config["adaptation"],
+        config.get("checkpoint"),
+        head_dropout=config.get("head_dropout", 0.0),
+        target_mean=means,
+        target_scale=scales,
+    ).to(run.device)
     optimizer = optimizer_for(model, recipe)
     probe_indices = batch_indices(indices, recipe["batch_size"], merge_singleton=True)[0]
     precision, smoke = precision_probe(
@@ -337,14 +382,15 @@ def train_model(
             "complete": epoch + 1 == recipe["epochs"],
             "microbatch_size": recipe["batch_size"],
             "gradient_accumulation": 1,
+            "loss_units": "standardized" if means is not None else "pIC50",
+            "target_mean": None if means is None else means.tolist(),
+            "target_scale": None if scales is None else scales.tolist(),
         }
         atomic_json(artifact, record)
-        if epoch == 0:
-            estimate = (
-                (time.monotonic() - epoch_start)
-                * (recipe["epochs"] - 1 + future_fits * recipe["epochs"])
-                * 1.2
-            )
+        if epoch == min(2, recipe["epochs"] - 1):
+            # The first epoch includes CUDA/kernel initialization. Use warmed-up
+            # epochs for projection; the supervisor still enforces the hard deadline.
+            estimate = projected_training_seconds(history, recipe["epochs"], future_fits)
             run.record.setdefault("cost_projections", {})[tag] = estimate
             run.save()
             run.check(estimate)
@@ -435,6 +481,9 @@ def save_checkpoint(path, model, optimizer, metadata):
         "optimizer_state": optimizer.state_dict(),
         "tasks": list(ACTIVITY_ENDPOINTS),
         "input_dim": model.head[0].in_features,
+        "head_dropout": model.head_dropout,
+        "target_mean": None if model.target_mean is None else model.target_mean.cpu().tolist(),
+        "target_scale": None if model.target_scale is None else model.target_scale.cpu().tolist(),
     }
     temporary = path.with_suffix(".pt.partial")
     torch.save(saved, temporary)
@@ -453,6 +502,9 @@ def restore_checkpoint(path, device="cpu"):
         saved["adaptation"],
         encoder_parameters=saved["encoder_parameters"],
         input_dim=saved["input_dim"],
+        head_dropout=saved.get("head_dropout", 0.0),
+        target_mean=saved.get("target_mean"),
+        target_scale=saved.get("target_scale"),
     )
     model.load_state_dict(saved["state_dict"])
     return model.to(device).eval(), saved
@@ -473,7 +525,62 @@ def oof_rows(frame, indices, prediction):
     return pd.concat(rows, ignore_index=True)
 
 
+def profile_representations(config_path):
+    """Throughput-only profiling in a supervised, label-free worker."""
+    from .representation_budget import maybe_supervise
+
+    config = read_config(
+        config_path,
+        {"prepared_dir", "cache_dir", "checkpoint"},
+        {"prepared_dir", "cache_dir", "checkpoint", "output_dir", "max_gpu_hours"},
+    )
+    supervised = maybe_supervise("profile", config_path)
+    if supervised is not None:
+        return supervised
+    frame, manifest = prepared_data(Path(config["prepared_dir"]))
+    features, _ = load_cache(Path(config["cache_dir"]), frame)
+    recipes = {}
+    with Run(config) as run:
+        targets = np.zeros((len(frame), len(ACTIVITY_ENDPOINTS)), dtype=np.float32)
+        for mode in ("frozen", "full"):
+            model_config = {**config, "adaptation": mode, "precision": "bf16"}
+            reference = recipe_for(mode, {})
+            inputs = Inputs(frame, mode, run.device, features if mode == "frozen" else None)
+            batch = profile_batches(
+                model_config,
+                reference,
+                inputs,
+                targets,
+                np.arange(len(frame)),
+                frame,
+                run,
+                0 if mode == "frozen" else 1,
+            )
+            scale = max(1.0, min(math.sqrt(batch / reference["batch_size"]), 4.0))
+            recipes[mode] = {
+                **reference,
+                "batch_size": batch,
+                "learning_rate": reference["learning_rate"] * scale,
+                "warmup_fraction": 0.05,
+                "precision": "bf16",
+            }
+            del inputs
+            gc.collect()
+        run.record.update(
+            complete=True,
+            recipes=recipes,
+            real_labels_used=False,
+            training_sha256=manifest["training_sha256"],
+        )
+    return run.record
+
+
 def screen_representations(config_path):
+    from .representation_budget import maybe_supervise
+
+    supervised = maybe_supervise("screen", config_path)
+    if supervised is not None:
+        return supervised
     config = read_config(
         config_path,
         {
@@ -488,11 +595,17 @@ def screen_representations(config_path):
             "warmup_fraction",
             "selected_folds",
             "h100_select",
+            "head_dropout",
+            "standardize_targets",
         },
         {"prepared_dir", "adaptation", "output_dir", "max_gpu_hours"},
     )
     mode = config["adaptation"]
     recipe = recipe_for(mode, config)
+    if not 0 <= config.get("head_dropout", 0.0) < 1:
+        raise ValueError("head_dropout must be in [0, 1)")
+    if type(config.get("standardize_targets", False)) is not bool:
+        raise ValueError("standardize_targets must be boolean")
     if type(config.get("h100_select", False)) is not bool:
         raise ValueError("h100_select must be boolean")
     frame, prepared = prepared_data(Path(config["prepared_dir"]))
@@ -653,6 +766,11 @@ def screen_representations(config_path):
 
 
 def predict_representations(config_path):
+    from .representation_budget import maybe_supervise
+
+    supervised = maybe_supervise("predict", config_path)
+    if supervised is not None:
+        return supervised
     config = read_config(
         config_path,
         {"run_dir", "blind_csv", "cache_dir", "batch_size"},

@@ -411,26 +411,33 @@ def test_full_checkpoint_round_trip(tmp_path):
     assert all(v.device == torch.device("cpu") for v in restored.state_dict().values())
 
 
-def test_gpu_reservation_is_finalized_when_memory_setup_fails(tmp_path, monkeypatch):
+def test_gpu_worker_keeps_reservation_for_supervisor_on_failure(tmp_path, monkeypatch):
     torch = pytest.importorskip("torch")
     monkeypatch.setattr(torch.cuda, "is_available", lambda: True)
     monkeypatch.setattr(torch.cuda, "mem_get_info", lambda: (1 * 2**30, 96 * 2**30))
     monkeypatch.setattr(torch.cuda, "max_memory_allocated", lambda: 0)
     monkeypatch.setattr(torch.cuda, "max_memory_reserved", lambda: 0)
     output, ledger = tmp_path / "failed-gpu", tmp_path / "ledger.json"
+    from somerra_openadmet.campaign_budget import CampaignLedger
+
+    atomic_json(
+        ledger, {"version": 1, "limit_hours": 12.0, "historical_hours": 0, "reservations": {}}
+    )
+    CampaignLedger(ledger).reserve_many([(output, 0.01)])
+    monkeypatch.setenv("SOMERRA_CAMPAIGN_LEDGER", str(ledger))
+    monkeypatch.setenv("SOMERRA_REPRESENTATION_WORKER", str(output.resolve()))
     with pytest.raises(RuntimeError, match="Insufficient free"):
         with Run(
             {
                 "output_dir": str(output),
                 "device": "cuda",
                 "max_gpu_hours": 0.01,
-                "ledger": str(ledger),
             }
         ):
             pytest.fail("Should fail before entering the workload")
     records = json.loads(ledger.read_text())
-    assert records[str(output.resolve())]["status"] == "finished"
-    assert "used_hours" in records[str(output.resolve())]
+    assert records["reservations"][str(output.resolve())]["status"] == "running"
+    assert "used_hours" not in records["reservations"][str(output.resolve())]
     assert not json.loads((output / "run_manifest.json").read_text())["complete"]
 
 
@@ -449,8 +456,98 @@ def test_export_rejects_partial_runs_before_allocating(tmp_path):
             "blind_csv": "unused.csv",
             "output_dir": str(output),
             "max_gpu_hours": 0.1,
+            "device": "cpu",
         },
     )
     with pytest.raises(ValueError, match="completed five-fold"):
         predict_representations(config)
     assert not output.exists()
+
+
+def test_shared_campaign_setting_wins_and_rejects_legacy(tmp_path, monkeypatch):
+    from somerra_openadmet.representation_budget import ledger_path
+
+    shared = tmp_path / "shared.json"
+    atomic_json(
+        shared, {"version": 1, "limit_hours": 12.0, "historical_hours": 0, "reservations": {}}
+    )
+    monkeypatch.setenv("SOMERRA_GPU_LEDGER", str(shared))
+    monkeypatch.delenv("SOMERRA_CAMPAIGN_LEDGER", raising=False)
+    assert ledger_path({"campaign_ledger": str(tmp_path / "other.json")}) == shared
+    atomic_json(
+        shared, {"version": 1, "limit_hours": 72, "historical_hours": 0, "reservations": {}}
+    )
+    with pytest.raises(ValueError, match="allocation contract"):
+        ledger_path({})
+
+
+def test_supervisor_reserves_before_launch_and_settles_after_exit(tmp_path, monkeypatch):
+    pytest.importorskip("torch")
+    from somerra_openadmet import representation_budget as budget
+    from somerra_openadmet.campaign_budget import CampaignLedger
+
+    ledger, output, config = tmp_path / "shared.json", tmp_path / "run", tmp_path / "config.json"
+    atomic_json(
+        ledger, {"version": 1, "limit_hours": 12.0, "historical_hours": 0, "reservations": {}}
+    )
+    atomic_json(config, {"output_dir": str(output), "device": "cuda", "max_gpu_hours": 0.01})
+    monkeypatch.setenv("SOMERRA_CAMPAIGN_LEDGER", str(ledger))
+    monkeypatch.delenv("SOMERRA_REPRESENTATION_WORKER", raising=False)
+
+    class Child:
+        returncode = 0
+
+        def __init__(self, *args, **kwargs):
+            assert CampaignLedger(ledger).snapshot()["reserved_hours"] == 0.01
+            CampaignLedger(ledger).claim_worker(output, 0.01)
+            output.mkdir()
+            atomic_json(output / "worker-result.json", {"complete": True})
+
+        def wait(self, timeout=None):
+            return 0
+
+        def poll(self):
+            return 0
+
+    monkeypatch.setattr(budget.subprocess, "Popen", Child)
+    assert budget.maybe_supervise("screen", config)["complete"]
+    record = json.loads(ledger.read_text())["reservations"][str(output)]
+    assert record["status"] == "exited" and record["used_hours"] >= 0
+    assert CampaignLedger(ledger).snapshot()["reserved_hours"] == 0
+
+
+def test_standardization_is_training_only_and_checkpoint_replays(corpus, tmp_path):
+    torch = pytest.importorskip("torch")
+    from somerra_openadmet import representation_training as training
+
+    frame, prepared, cache, _, _ = corpus
+    config = {
+        "prepared_dir": str(prepared),
+        "cache_dir": str(cache),
+        "output_dir": str(tmp_path / "normalized"),
+        "adaptation": "frozen",
+        "device": "cpu",
+        "max_gpu_hours": 0.1,
+        "threads": 1,
+        "epochs": 1,
+        "selected_folds": [0],
+        "batch_size": 8,
+        "head_dropout": 0.2,
+        "standardize_targets": True,
+    }
+    path = tmp_path / "normalized.json"
+    atomic_json(path, config)
+    result = training.screen_representations(path)
+    assert result["requested_folds_complete"]
+    saved = torch.load(tmp_path / "normalized/fold-0.pt", weights_only=True)
+    expected = frame.loc[frame.fold != 0, list(ACTIVITY_ENDPOINTS)].mean()
+    np.testing.assert_allclose(saved["target_mean"], expected, rtol=1e-6)
+    assert saved["head_dropout"] == 0.2
+    assert result["cpu_replay_max_abs"]["0"] <= 1e-4
+
+
+def test_cost_projection_does_not_extrapolate_gpu_startup_over_all_folds():
+    from somerra_openadmet.representation_training import projected_training_seconds
+
+    history = [{"seconds": 100}, {"seconds": 1}, {"seconds": 1}]
+    assert projected_training_seconds(history, epochs=10, future_fits=4) == pytest.approx(56.4)

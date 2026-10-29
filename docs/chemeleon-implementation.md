@@ -3,7 +3,7 @@
 The new commands implement the four-target standalone comparison: immutable foundation
 representations, a frozen MLP, full encoder tuning, bounded H100 recipe selection, and
 local prediction export. Historical neural commands and artifacts retain their behavior.
-No training campaign or challenge submission is implied by this draft.
+The authorized outer-only experiments are complete; results are recorded below.
 
 ## Authorized outer-fold quick pass
 
@@ -33,9 +33,12 @@ environment, input hashes, exact folds, and prediction-only policy metadata priv
   SHA-256 pinned in issue #13. Read its architecture from the checkpoint. Scigantic's
   arm-C configuration declares depth 4, so it is a separate recipe, not our encoder
   definition. Our mean aggregation also differs from its NormAggregation.
-- The new trainer uses raw-pIC50 endpoint-balanced masked MAE and a 512-unit MLP with
-  BatchNorm/ReLU. The historical runner uses a 256-unit head, normalized targets and
-  Huber loss, so its scores do not isolate a representation change.
+- The original recipes use raw-pIC50 endpoint-balanced masked MAE and a 512-unit MLP
+  with BatchNorm/ReLU. The reviewed follow-up adds opt-in `standardize_targets` and
+  `head_dropout`: normalization is fit only on the current training partition,
+  training loss is in standardized units, and all predictions/metrics/replays remain
+  in pIC50 units. Both statistics and dropout architecture are saved in checkpoints.
+  Original checkpoints and defaults remain compatible.
 - BF16 is a training option with forward-parity and finite-gradient checks. Persisted
   evaluation predictions use float32; every completed fold must replay on CPU within
   1e-4 pIC50. Record failures instead of weakening the tolerance silently.
@@ -49,6 +52,13 @@ environment, input hashes, exact folds, and prediction-only policy metadata priv
 ## Commands
 
 Use the existing neural Conda environment, with this package installed editable.
+Set `SOMERRA_CAMPAIGN_LEDGER` to the absolute path of the already initialized shared
+12-hour campaign ledger before any GPU command. `SOMERRA_GPU_LEDGER` is accepted as
+an environment alias only when it points to that same campaign-format ledger.
+Environment settings take precedence over optional `campaign_ledger` configuration;
+the committed configs carry no ledger paths. Legacy 72-hour ledgers are rejected.
+These commands never initialize or reset campaign spending.
+
 Paths in configurations resolve from the repository root. Each output directory must
 be new. Completed caches are read via their atomic manifest; interrupted runs retain
 an incomplete run manifest and any completed epoch/fold evidence.
@@ -78,12 +88,15 @@ updates, exposures, elapsed time, and loader time. Timing-based projections stop
 when the remaining allocation is insufficient. A singleton final batch is merged, so
 its actual size can be nominal batch size plus one.
 
-Initial configuration reservations sum to **11.5 GPU-hours**, leaving 0.5 hours within
-the proposed 12-hour issue ceiling for smoke checks/recovery. Reconcile historical
-GPU-hour versus process-hour entries before launching; the ledger's existing 72-hour
-ceiling remains in force. The supplied set is not an additional independent budget.
-CPU export reserves no GPU time but obeys its configured wall-time limit. Do not
-run copies with new output names to evade cumulative campaign accounting.
+The example configuration caps sum to **11.5 GPU-hours**, but are not a new allocation.
+Every command reserves from the same persistent 12-hour campaign, including historical
+spending and other worktrees. A coordinator reserves before launch, enforces a hard
+wall-time limit, waits for the worker to exit, and settles its full process lifetime.
+The adjacent `.accounting.json` and shared ledger contain that authoritative charge;
+the worker manifest also records the narrower time inside its computation context.
+CPU runs reserve no GPU time and retain a wall-time limit. Failed/killed workers do
+not release their reservation early. The original pilot's measured legacy charges
+were reconciled into the shared campaign without deleting historical ledger entries.
 
 CUDA runs default to an 80% allocator ceiling and at least 10 GiB free headroom,
 reduced for current free memory. This controls this process only, not a reservation
@@ -127,9 +140,16 @@ blind prediction values, or disclosed blind-overlap exception into this primary 
 
 ## Still required before closing issue #13
 
-Run measured H100 extraction/training profiles and complete the declared five-fold
-matrix; produce the private paired comparison report and blind replay/export evidence.
-Pin an exact solved Conda environment alongside those run artifacts (the draft records
-installed versions and source hashes). Confirm the cumulative ledger before reserving
-the campaign. These experimental deliverables are not satisfied by unit tests or by
-the presence of runnable configurations.
+The first five-fold pilot is documented in `chemeleon-quickpass-20261028.md`. The review
+follow-up completed fixed constant/Ridge/LightGBM controls on cached features and fixed
+reference/regularized neural recipes through `scripts/run_chemeleon_controls.py`.
+Results and the timing-only recovery are documented in
+[`chemeleon-controls-20261029.md`](chemeleon-controls-20261029.md).
+All retain the original Butina split hash for a paired comparison; they do not switch
+to the newer scaffold task mid-series. Mol-JEPA must use this same explicit protocol
+for this comparison, or both methods must be rerun together on a new one.
+
+Nested confirmation, promotion, and blind export/submission are separate from these
+outer-only experiments. CPU replay is required for every neural fold. The pilot retains
+the Conda package records and exact source snapshot; follow-up artifacts pin source,
+data/cache hashes, recipes, and all prediction/checkpoint evidence privately.
