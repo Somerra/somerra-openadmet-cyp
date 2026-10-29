@@ -1,0 +1,329 @@
+{
+  "accounting": {
+    "concurrency": 2,
+    "limit_seconds": 14400.0,
+    "method": "sum_of_worker_wall_seconds_on_one_shared_gpu",
+    "used_seconds": 3386.1935565117747
+  },
+  "artifact_directory": "/mnt/data/somerra-openadmet-runs/briford-20261028",
+  "calibration": {
+    "CYP1A2_pIC50_direct_inhibition": {
+      "adjusted_pearson": 0.7930735197051181,
+      "floor_count": 2,
+      "oof_pearson": 0.6008132725038773,
+      "raw_mean": 4.92878619904,
+      "raw_sd": 0.6896343599476795,
+      "target_mean": 4.412,
+      "target_sd": 1.2316431761020483
+    },
+    "CYP2C9_pIC50_direct_inhibition": {
+      "adjusted_pearson": 0.8760733765292551,
+      "floor_count": 0,
+      "oof_pearson": 0.712254777666061,
+      "raw_mean": 4.898246611226667,
+      "raw_sd": 0.707914539316059,
+      "target_mean": 4.83,
+      "target_sd": 0.9645567875587099
+    },
+    "CYP2D6_pIC50_direct_inhibition": {
+      "adjusted_pearson": 0.7734972210106613,
+      "floor_count": 0,
+      "oof_pearson": 0.46596218133172373,
+      "raw_mean": 4.651563586886667,
+      "raw_sd": 0.37415581430503214,
+      "target_mean": 3.57,
+      "target_sd": 0.9
+    },
+    "CYP3A4_pIC50_direct_inhibition": {
+      "adjusted_pearson": 0.8806229455616141,
+      "floor_count": 0,
+      "oof_pearson": 0.8230120986557141,
+      "raw_mean": 4.760560091813333,
+      "raw_sd": 0.9375185058350017,
+      "target_mean": 4.88,
+      "target_sd": 1.1201523867543732
+    }
+  },
+  "fits": {
+    "d6_isoform6": [
+      {
+        "best_epoch": 44,
+        "best_val_loss": 0.19852468371391296,
+        "epochs": 84,
+        "fold": 0,
+        "train_rows": 18614,
+        "validation_rows": 4650
+      },
+      {
+        "best_epoch": 12,
+        "best_val_loss": 0.19748808443546295,
+        "epochs": 52,
+        "fold": 1,
+        "train_rows": 18612,
+        "validation_rows": 4652
+      },
+      {
+        "best_epoch": 30,
+        "best_val_loss": 0.19708426296710968,
+        "epochs": 70,
+        "fold": 2,
+        "train_rows": 18615,
+        "validation_rows": 4649
+      },
+      {
+        "best_epoch": 42,
+        "best_val_loss": 0.19443583488464355,
+        "epochs": 82,
+        "fold": 3,
+        "train_rows": 18600,
+        "validation_rows": 4664
+      },
+      {
+        "best_epoch": 38,
+        "best_val_loss": 0.19513411819934845,
+        "epochs": 78,
+        "fold": 4,
+        "train_rows": 18615,
+        "validation_rows": 4649
+      }
+    ],
+    "d6_single1": [
+      {
+        "best_epoch": 18,
+        "best_val_loss": 0.647662878036499,
+        "epochs": 58,
+        "fold": 0,
+        "train_rows": 1194,
+        "validation_rows": 299
+      },
+      {
+        "best_epoch": 12,
+        "best_val_loss": 0.6764928102493286,
+        "epochs": 52,
+        "fold": 1,
+        "train_rows": 1194,
+        "validation_rows": 299
+      },
+      {
+        "best_epoch": 15,
+        "best_val_loss": 0.6604958772659302,
+        "epochs": 55,
+        "fold": 2,
+        "train_rows": 1194,
+        "validation_rows": 299
+      },
+      {
+        "best_epoch": 18,
+        "best_val_loss": 0.6322783827781677,
+        "epochs": 58,
+        "fold": 3,
+        "train_rows": 1195,
+        "validation_rows": 298
+      },
+      {
+        "best_epoch": 16,
+        "best_val_loss": 0.5687878727912903,
+        "epochs": 56,
+        "fold": 4,
+        "train_rows": 1195,
+        "validation_rows": 298
+      }
+    ],
+    "mt_aux8": [
+      {
+        "best_epoch": 13,
+        "best_val_loss": 0.2524559795856476,
+        "epochs": 53,
+        "fold": 0,
+        "train_rows": 3924,
+        "validation_rows": 981
+      },
+      {
+        "best_epoch": 11,
+        "best_val_loss": 0.2677275538444519,
+        "epochs": 51,
+        "fold": 1,
+        "train_rows": 3924,
+        "validation_rows": 981
+      },
+      {
+        "best_epoch": 71,
+        "best_val_loss": 0.2715218663215637,
+        "epochs": 111,
+        "fold": 2,
+        "train_rows": 3924,
+        "validation_rows": 981
+      },
+      {
+        "best_epoch": 35,
+        "best_val_loss": 0.262011855840683,
+        "epochs": 75,
+        "fold": 3,
+        "train_rows": 3924,
+        "validation_rows": 981
+      },
+      {
+        "best_epoch": 23,
+        "best_val_loss": 0.25978946685791016,
+        "epochs": 63,
+        "fold": 4,
+        "train_rows": 3924,
+        "validation_rows": 981
+      }
+    ],
+    "union18": [
+      {
+        "best_epoch": 94,
+        "best_val_loss": 0.1812715232372284,
+        "epochs": 134,
+        "fold": 0,
+        "train_rows": 25337,
+        "validation_rows": 6333
+      },
+      {
+        "best_epoch": 93,
+        "best_val_loss": 0.1791173666715622,
+        "epochs": 133,
+        "fold": 1,
+        "train_rows": 25338,
+        "validation_rows": 6332
+      },
+      {
+        "best_epoch": 67,
+        "best_val_loss": 0.1850442737340927,
+        "epochs": 107,
+        "fold": 2,
+        "train_rows": 25330,
+        "validation_rows": 6340
+      },
+      {
+        "best_epoch": 43,
+        "best_val_loss": 0.18370841443538666,
+        "epochs": 83,
+        "fold": 3,
+        "train_rows": 25337,
+        "validation_rows": 6333
+      },
+      {
+        "best_epoch": 17,
+        "best_val_loss": 0.182035893201828,
+        "epochs": 57,
+        "fold": 4,
+        "train_rows": 25338,
+        "validation_rows": 6332
+      }
+    ]
+  },
+  "leaderboard_note": "Rank and displayed scores are the recorded post-submission snapshot, not a live rank.",
+  "leaderboard_snapshot": {
+    "MA-Kendall's \u03c4": 0.5785,
+    "MA-MAE": 0.6294,
+    "MA-R\u00b2": 0.6244,
+    "MA-ST-RAE": 0.4349,
+    "MA-Spearman's \u03c1": 0.7552,
+    "Model Report Link": "Not submitted",
+    "Open Code": "No",
+    "Proprietary Data": "No",
+    "Rank": 24,
+    "Submitted": "2026-10-28 21:50 UTC",
+    "Username": "Somerra"
+  },
+  "provenance": {
+    "private_artifact_sha256": {
+      "contract.json": "a1ea53c81adfc72ca34fbdcb40465c2afd57dae82861c1b6f82d42215e672ae1",
+      "data/manifest.json": "3302e77c714a8f41ece330f0e86b8d0e3ce1cc65bcf094d5052ebfca20a30a69",
+      "followthrough.json": "602290ea3ada72714bea5342f4e63b6c582f453f30a121b475b42bdf389567f8",
+      "predictions/run_manifest.json": "847306c59ec82d703859206f69c06238376414cdb79da681c9db6393b05838ee",
+      "predictions/submission_receipt.json": "7646f0176dd9c834fb946ce052452f774e3cf2dc69101d6bc95f259633a357b0",
+      "series.json": "1c73bc487688baf4ce391beda2ff7ddef678591c1a8a7ef365c7c54cbde3e613"
+    },
+    "training_code_sha256": {
+      "briford.py": "fefa7185ce7835bd9c6833fad8294ba468e8590ff82ca2eb39c0df3ee7f9ac1f",
+      "data_sources/workbench.py": "38f9a5cb6bbbf8c4ed59aff739027cb661a6e12e9366341eba4f9da133ebd607",
+      "metrics.py": "30cb9a95a32d2b87bf761575bbf3e046e5bb7d750178b5e89321a5cae5d910c7",
+      "reference_member.py": "d101965c706940a099e7b7a0946d49a9a5ba8df56cb98072d95c31980a6e2ec1",
+      "validation.py": "3b023a089aa119eb6b246cede797b045ab87d077078507ec87f6db069c5c7afa"
+    }
+  },
+  "raw_oof_metrics": {
+    "MA-ST-RAE": 0.6283837582526419,
+    "components": {
+      "CYP1A2_pIC50_direct_inhibition": {
+        "denominator": 694.0464937478519,
+        "labels": 1412,
+        "numerator": 511.1412088999999
+      },
+      "CYP2C9_pIC50_direct_inhibition": {
+        "denominator": 403.15059234205444,
+        "labels": 1285,
+        "numerator": 220.89729799999998
+      },
+      "CYP2D6_pIC50_direct_inhibition": {
+        "denominator": 625.365891461621,
+        "labels": 1493,
+        "numerator": 508.62518827499997
+      },
+      "CYP3A4_pIC50_direct_inhibition": {
+        "denominator": 1223.2994357089558,
+        "labels": 2335,
+        "numerator": 508.6699212
+      }
+    },
+    "endpoints": {
+      "CYP1A2_pIC50_direct_inhibition": 0.7364653715629869,
+      "CYP2C9_pIC50_direct_inhibition": 0.547927504500797,
+      "CYP2D6_pIC50_direct_inhibition": 0.8133241598550063,
+      "CYP3A4_pIC50_direct_inhibition": 0.4158179970917778
+    }
+  },
+  "recipe": {
+    "aggregation": "NormAggregation(100)",
+    "batch_norm": true,
+    "batch_size": 64,
+    "depth": 5,
+    "dropout": 0.1,
+    "ffn_hidden_dim": 300,
+    "ffn_num_layers": 2,
+    "final_lr": 0.0001,
+    "hidden_dim": 700,
+    "init_lr": 0.0001,
+    "loss": "mae",
+    "max_epochs": 400,
+    "max_lr": 0.001,
+    "n_folds": 5,
+    "patience": 40,
+    "precision": "16-mixed",
+    "seed": 42,
+    "warmup_epochs": 2
+  },
+  "references": {
+    "briford_historical_ma_st_rae": 0.4377997714479094,
+    "previous_depth4_official_ma_st_rae": 0.7952,
+    "scigantic_r25_official_ma_st_rae": 0.4436
+  },
+  "run_id": "briford-20261028",
+  "runtime_versions": {
+    "chemprop": "2.3.1",
+    "lightning": "2.6.6",
+    "numpy": "2.5.3",
+    "pandas": "3.0.6",
+    "rdkit": "2026.3.6",
+    "torch": "2.13.0"
+  },
+  "status": "accepted_and_scored",
+  "submission": {
+    "model_report_link": "",
+    "observed_at_utc": "2026-10-28T21:50:08.303628+00:00",
+    "open_source_code": false,
+    "status": "accepted",
+    "submission_sha256": "0e763564e98d5cfa681e964bc2f702ca79ef9e2bcfe2d9459019c8cb303d26a4",
+    "submit_post_started_utc": "2026-10-28T21:50:06.830170+00:00",
+    "validation": {
+      "errors": [],
+      "rows": 750,
+      "track": "activity",
+      "valid": true,
+      "warnings": []
+    }
+  }
+}

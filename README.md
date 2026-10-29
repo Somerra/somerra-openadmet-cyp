@@ -27,7 +27,9 @@ structure-matched 60/20/20 splits. See [molecular similarity and split matching]
 for the objective, acceptance gate, private artifacts, and evaluation limitations.
 The primary regression task adopts reviewed assignments explicitly and freezes them for subsequent trials.
 
-Nothing in this repository uploads a challenge submission.
+Training commands do not upload submissions. The separate, explicitly executed
+Workbench submission watcher supports authorized prediction-only uploads; see the
+[October 28 run and official result](docs/briford-run-20261028.md).
 
 ## Environment
 

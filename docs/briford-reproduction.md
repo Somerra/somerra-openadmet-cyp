@@ -4,6 +4,10 @@ This workflow targets the historical four-component Workbench submission reporti
 MA-ST-RAE 0.4378. It trains fresh models; no published predictions, checkpoints, or
 Scigantic-derived data tables are used. Scigantic model work remains paused.
 
+The completed October 28 reproduction scored **0.4349 official MA-ST-RAE**.
+See the [run and submission result](briford-run-20261028.md) for the accepted receipt,
+model composition, training curves summary, and evaluation limitations.
+
 The union18 data/task definition is pinned to Workbench commit
 `971f6a7f24d86e59bab219347c3e14c006ae4e35`. Training, specialist definitions,
 scaffold assignment and calibration follow
