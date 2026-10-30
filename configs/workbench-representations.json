@@ -1,0 +1,22 @@
+{
+  "protocol": "workbench-mt-aux8-frozen-v1",
+  "data_dir": "/mnt/data/somerra-openadmet-runs/briford-20261028/data",
+  "output_dir": "/mnt/data/somerra-openadmet-runs/workbench-representations-20261030",
+  "device": "cuda",
+  "threads": 4,
+  "precision": "float32",
+  "max_gpu_hours": 0.75,
+  "campaign_ledger": "/mnt/openclaw-home/somerra-openadmet-cyp/runs/campaign-budget-20261026/ledger.json",
+  "encoders": {
+    "chemeleon": {
+      "cache_dir": "/mnt/openclaw-home/somerra-openadmet-cyp/runs/regression-chemeleon-representations-v1"
+    },
+    "mol_jepa": {
+      "cache_dir": "/mnt/openclaw-home/somerra-openadmet-cyp/runs/regression-mol-jepa-cache-v1",
+      "checkpoint": "/mnt/openclaw-home/somerra-openadmet-cyp/runs/mol-jepa-model"
+    },
+    "atom_jepa": {
+      "cache_dir": "/mnt/openclaw-home/somerra-openadmet-cyp/runs/regression-atom-jepa-representations-v1-retry-2"
+    }
+  }
+}

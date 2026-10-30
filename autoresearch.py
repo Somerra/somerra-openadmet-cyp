@@ -11,6 +11,10 @@ from somerra_openadmet.research import main as run_command
 
 def main(argv=None):
     argv = sys.argv[1:] if argv is None else argv
+    if argv and argv[0] == "workbench-probe":
+        from somerra_openadmet.workbench_probe import main as probe_main
+
+        return probe_main(argv[1:])
     if argv and argv[0] == "briford":
         from somerra_openadmet.briford import main as briford_main
 

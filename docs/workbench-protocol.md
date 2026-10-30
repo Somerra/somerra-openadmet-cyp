@@ -76,6 +76,12 @@ This balances row counts approximately, not labels or molecular similarity to th
 official blind set. Row order, bundle membership, and RDKit behavior can affect
 the result. A seed alone is not sufficient to preserve the split.
 
+The default RDKit scaffold SMILES retains stereochemical distinctions. Preflight
+of the [matched representation study](workbench-representations.md) found two
+connectivities spanning folds in `mt_aux8` (four rows). Exact saved-scaffold
+disjointness does not guarantee stereo-insensitive parent disjointness. The study
+records these inherited exceptions and keeps the original assignments for parity.
+
 **Reuse saved assignments, not just the splitter.** The reference artifacts are:
 
 ```text

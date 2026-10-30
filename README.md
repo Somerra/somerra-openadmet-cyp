@@ -22,7 +22,10 @@ experiments are deferred until the user changes direction; historical calibrated
 results remain preserved.
 
 The implemented reference runs through `autoresearch.py briford`; generic model
-adapters are next work. Use `autoresearch.py molecular run` for the historical
+adapters are next work. The [matched frozen-representation comparison](docs/workbench-representations.md)
+now runs through `autoresearch.py workbench-probe plan|run|status` for CheMeleon,
+Mol-JEPA, and Atom-JEPA on the same Workbench eight-task bundle and five folds.
+Use `autoresearch.py molecular run` for the historical
 molecular task described below. Bare `plan`/`run` retain compatibility but warn
 that they invoke the historical 60/20/20 protocol.
 
