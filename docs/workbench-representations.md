@@ -71,3 +71,42 @@ curves and batch-order digests, fitted weights/counts, checkpoints, predictions,
 and selected epochs. CPU checkpoint replay must match GPU predictions within
 1e-4 for all eight tasks. Inputs are reverified before accepting completed results.
 The runner neither predicts the official blind set nor uploads anything.
+
+## Planned follow-up: specialists for every scored CYP
+
+The completed study above used one shared eight-output head per representation.
+It did not test specialists. Workbench's historical CYP2D6-only specialists are
+an inherited recipe choice, not evidence that other CYPs should lack specialists.
+
+The next proposed comparison uses the same `mt_aux8` parent bundle and its exact
+fold assignments for each of CYP1A2, CYP2C9, CYP2D6, and CYP3A4:
+
+| Arm | Outputs | Question |
+|---|---|---|
+| Shared reference | All four potency tasks and all four log2fc auxiliaries | Existing shared-model performance |
+| Single-task specialist | One CYP's official potency | Does focusing on one scored endpoint help? |
+| Auxiliary specialist | That CYP's potency and its own log2fc auxiliary | Does within-CYP auxiliary supervision help the specialist? |
+
+Use the same frozen encoder/readout and head recipe within each comparison,
+changing only the selected tasks and output count. Inherit folds before filtering
+rows without any selected labels. This intentionally changes available supervision
+and eligible training rows, so it is not an architecture-only ablation. All three
+representations must receive identical rows, labels, and task weights within an
+arm. Fit normalization on the retained training rows only. A specialist's scored
+task has weight 1 and its auxiliary has weight 0.3; record the resulting loss
+scale and selection criterion rather than equating raw losses across arms.
+
+Score each CYP on the identical official labeled validation rows across arms,
+using the shared evaluator. Retain one seed `42 + fold`, all five saved folds,
+validation-selected checkpoints, and uncalibrated outputs. Report per-CYP and
+macro results; comparisons remain development evidence. Do not tune combination
+weights in this ablation or infer a benefit from the historical CYP2D6 ensemble.
+
+The complete three-representation matrix adds 120 fits: three encoders × four
+CYPs × two specialist arms × five folds. The 15 shared-reference fits can be
+reused after hash and recipe verification. This is a proposed design, not a
+completed or launched experiment. The current runner fixes eight outputs and
+still needs task-mask/output-head support plus matched filtering tests. Profile
+the extension and bound it under the existing allocation before launch; do not
+reset spending. ChEMBL, Veith, TDI, and Emax specialist extensions are separate
+source/supervision experiments, not part of this first official-data comparison.
