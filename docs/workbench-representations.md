@@ -6,6 +6,9 @@ Atom-JEPA uses the single cached seed-42 conformer. This is a comparison of
 available representations under a common head, not a causal isolation of
 pretraining architecture. Representation widths imply different parameter counts.
 
+The [completed five-fold results](workbench-representations-results-20261030.md)
+include all 15 fits, paired uncertainty, and the uncalibrated Chemprop context.
+
 The user requested all three representations on Workbench folds with identical
 auxiliary supervision. Use the preserved `mt_aux8` bundle: 4,905 molecular rows,
 four official direct-inhibition pIC50 tasks, and four single-concentration log2fc

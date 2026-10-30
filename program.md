@@ -25,6 +25,12 @@ Workbench folds. Historical CPU commands use `legacy`; the older fixed-series
 GPU comparison uses `hillclimb`. Do not mutate existing task contracts to switch
 protocols, and do not reuse the completed reproduction's submission authorization.
 
+For the completed three-encoder comparison on Workbench's eight-task bundle, use
+`autoresearch.py workbench-probe plan|run|status --config CONFIG`. Its
+[protocol and results](docs/workbench-representations.md) preserve the saved folds,
+shared auxiliary supervision, and raw predictions. It is a frozen-head comparison,
+not a generic encoder fine-tuning or automatic submission workflow.
+
 ## Historical molecular task (preserved contract)
 
 Keep the reviewed 60/20/20 molecular-parent assignments fixed. Their SHA-256 is
