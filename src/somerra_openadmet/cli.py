@@ -113,7 +113,12 @@ def build_parser() -> argparse.ArgumentParser:
     embed.add_argument("--output-dir", type=Path, required=True)
     screen = stages.add_parser("screen-neural")
     _run_config_arguments(screen)
-    for stage in ("cache-representations", "screen-representations", "predict-representations"):
+    for stage in (
+        "cache-conformers",
+        "cache-representations",
+        "screen-representations",
+        "predict-representations",
+    ):
         command = stages.add_parser(stage)
         command.add_argument("--config", type=Path, required=True)
     neural_export = stages.add_parser(
@@ -168,6 +173,10 @@ def main(argv: list[str] | None = None) -> None:
                     output_dir=args.output_dir,
                 )
             )
+        elif args.stage == "cache-conformers":
+            from .atom_jepa import cache_conformers
+
+            _json(cache_conformers(args.config))
         elif args.stage == "cache-representations":
             from .representations import cache_representations
 

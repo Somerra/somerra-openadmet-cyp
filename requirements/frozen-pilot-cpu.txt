@@ -1,0 +1,13 @@
+# Install torch==2.13.0 from the official CPU index first (see CI).
+numpy==2.5.3
+pandas==3.0.6
+scipy==1.18.1
+scikit-learn==1.9.1
+rdkit==2026.3.6
+joblib==1.6.0
+huggingface-hub==1.32.0
+lightgbm>=4.5,<5
+hatchling==1.32.4
+editables==0.5
+pytest>=8.3,<9
+ruff>=0.12,<1

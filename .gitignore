@@ -1,4 +1,5 @@
 .venv/
+.venv-pilot/
 __pycache__/
 *.py[cod]
 .pytest_cache/

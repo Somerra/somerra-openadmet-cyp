@@ -391,6 +391,10 @@ def profile_extraction(model, aggregate, dataset, rows, precision, run):
 
 
 def cache_representations(config_path: Path):
+    if json.loads(Path(config_path).read_text()).get("encoder") == "atom_jepa":
+        from .atom_jepa import cache_representations as extract
+
+        return extract(config_path)
     from .representation_budget import maybe_supervise
 
     supervised = maybe_supervise("cache", config_path)
