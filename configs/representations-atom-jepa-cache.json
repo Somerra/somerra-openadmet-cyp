@@ -1,0 +1,14 @@
+{
+  "encoder": "atom_jepa",
+  "prepared_dir": "runs/regression-corpus-v1",
+  "blind_csv": "data/raw/cyp-challenge-TEST-BLINDED.csv",
+  "checkpoint": "runs/atom-jepa-model",
+  "conformer_cache": "runs/regression-atom-jepa-conformers-v1",
+  "output_dir": "runs/regression-atom-jepa-representations-v1-retry-2",
+  "device": "cuda",
+  "precision": "float32",
+  "threads": 8,
+  "memory_fraction": 0.8,
+  "free_memory_gib": 10,
+  "max_gpu_hours": 1.5
+}

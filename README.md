@@ -214,6 +214,15 @@ Neither is selected by the primary `plan`, `run` or `reproduce` commands.
 
 ## Why these baselines
 
+The [matched frozen-representation pilot](docs/atom-jepa-frozen-pilot.md) compares
+Atom-JEPA, CheMeleon, and Mol-JEPA using the same MLP and fold-0 splits.
+The [conformer follow-up](docs/atom-jepa-conformer-sensitivity.md) preserves the
+training-step budget and cumulative four-GPU-hour cap. See the
+[results and limitations](docs/atom-jepa-results-20261029.md). Fine-tuning is deferred
+for this pilot; these results do not change the primary autoresearch task.
+The [v2 frozen probe](docs/frozen-probe-v2.md) adds target standardization, dropout,
+inner-holdout checkpoint selection, and matched training-mean/ridge/LightGBM controls.
+
 Regression research follows an [autoresearch-style protocol](program.md): edit one
 model recipe in `train.py`, keep the evaluator fixed, and retain only the best
 configurations. The current model task freezes its prepared data bundle and source

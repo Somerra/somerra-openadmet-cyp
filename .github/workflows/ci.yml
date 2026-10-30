@@ -38,3 +38,29 @@ jobs:
         run: ruff format --check .
       - name: Test
         run: pytest
+
+  frozen-pilot-cpu:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    env:
+      CUDA_VISIBLE_DEVICES: ""
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Create Python environment
+        uses: conda-incubator/setup-miniconda@be893c923ea9cf1cf7cd510fbdde27c7e18cbdcb # v4.1.0
+        with:
+          miniforge-version: 26.7.2-0
+          activate-environment: frozen-pilot-cpu
+          python-version: "3.12"
+          auto-activate: false
+      - name: Install pinned CPU dependencies
+        run: |
+          python -m pip install torch==2.13.0 --index-url https://download.pytorch.org/whl/cpu
+          python -m pip install -r requirements/frozen-pilot-cpu.txt
+          python -m pip install --no-build-isolation --no-deps -e .
+      - name: Test frozen pilot without checkpoints or GPU
+        run: |
+          python -c "import torch; assert not torch.cuda.is_available()"
+          pytest tests/test_atom_jepa.py tests/test_frozen_benchmark.py tests/test_frozen_pilot_budget.py tests/test_conformer_sensitivity.py tests/test_frozen_resume.py tests/test_atom_jepa_setup.py tests/test_frozen_probe.py --junitxml=/tmp/frozen-pilot.xml
+          python -c "import xml.etree.ElementTree as E; suites=list(E.parse('/tmp/frozen-pilot.xml').getroot().iter('testsuite')); assert sum(int(s.get('skipped',0)) for s in suites)==0"

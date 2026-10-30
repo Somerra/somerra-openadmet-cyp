@@ -552,6 +552,10 @@ def restore_checkpoint(path, device="cpu", *, model_dir=None):
     import torch
 
     saved = torch.load(path, weights_only=True, map_location="cpu")
+    if saved.get("schema_version") == 3 and saved.get("protocol") == "matched_frozen_v1":
+        from .frozen_benchmark import restore_head
+
+        return restore_head(path, device)
     if saved.get("schema_version") == 2 and saved.get("encoder") == "mol_jepa":
         from .mol_jepa import WEIGHT_SHA256
 
@@ -644,6 +648,10 @@ def profile_representations(config_path):
 
 
 def screen_representations(config_path):
+    if json.loads(Path(config_path).read_text()).get("protocol") == "matched_frozen_v1":
+        from .frozen_benchmark import screen
+
+        return screen(config_path)
     from .representation_budget import maybe_supervise
 
     config = read_config(
