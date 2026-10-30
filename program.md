@@ -6,14 +6,20 @@ Follow [the Workbench protocol](docs/workbench-protocol.md) for new regression
 submission candidates until the user changes direction. Preserve each bundle's
 five scaffold folds, train on four, and select checkpoints on the fifth. Focus
 on model architecture, CYP-specific models with auxiliary tasks, task-loss
-weights, and model-combination weights. OOF is development evaluation, not an
-untouched test. Keep model families on the same data and evaluation tools.
+weights, model-combination weights, and declared own-data calibration experiments.
+Use training-fold label counts for new count-derived task weights and raw
+predictions as the initial baseline. OOF is development evaluation, not an
+untouched test; report OOF-tuned results separately and mark independent estimates
+unavailable unless actually measured. Keep model families on the same data and
+evaluation tools. Borrowed leaderboard calibration constants remain on hold for
+future submissions pending eligibility clarification; preserve historical results.
 
 `autoresearch.py briford prepare|run|status|predict` implements the historical
 Chemprop reference. General specialist and Mol-JEPA adapters are not implemented
-by this documentation. Bare `autoresearch.py plan|run|reproduce|status|prepare`
-still dispatches to the preserved molecular task below; it does not implement the
-new default protocol. Historical CPU commands use `legacy`; the older fixed-series
+by this change. Use `autoresearch.py molecular plan|run|reproduce|status|prepare`
+for the preserved molecular task below. Bare commands retain compatibility, but
+`plan`/`run` now warn that they use the historical 60/20/20 protocol rather than
+Workbench folds. Historical CPU commands use `legacy`; the older fixed-series
 GPU comparison uses `hillclimb`. Do not mutate existing task contracts to switch
 protocols, and do not reuse the completed reproduction's submission authorization.
 

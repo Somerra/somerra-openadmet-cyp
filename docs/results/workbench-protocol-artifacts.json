@@ -1,0 +1,65 @@
+{
+  "members": {
+    "d6_isoform6": {
+      "fold_counts": {
+        "0": 4650,
+        "1": 4652,
+        "2": 4649,
+        "3": 4664,
+        "4": 4649
+      },
+      "rows": 23264
+    },
+    "d6_single1": {
+      "fold_counts": {
+        "0": 299,
+        "1": 299,
+        "2": 299,
+        "3": 298,
+        "4": 298
+      },
+      "rows": 1493
+    },
+    "mt_aux8": {
+      "fold_counts": {
+        "0": 981,
+        "1": 981,
+        "2": 981,
+        "3": 981,
+        "4": 981
+      },
+      "rows": 4905
+    },
+    "union18": {
+      "fold_counts": {
+        "0": 6333,
+        "1": 6332,
+        "2": 6340,
+        "3": 6333,
+        "4": 6332
+      },
+      "rows": 31670
+    }
+  },
+  "path_base": "Paths in sha256 are relative to the restored run directory. Preserve original bytes; do not rewrite paths inside hashed manifests.",
+  "reference_revision": "8c72c7559471febaf0962fd551b4eaab8db3a136",
+  "run_id": "briford-20261028",
+  "runtime_versions": {
+    "chemprop": "2.3.1",
+    "lightning": "2.6.6",
+    "numpy": "2.5.3",
+    "pandas": "3.0.6",
+    "rdkit": "2026.3.6",
+    "torch": "2.13.0"
+  },
+  "sha256": {
+    "contract.json": "a1ea53c81adfc72ca34fbdcb40465c2afd57dae82861c1b6f82d42215e672ae1",
+    "data/d6_isoform6.csv": "2512ba5961e5963a81533ac6e9238b087bbbbd104301d8bd8b52429826542358",
+    "data/d6_single1.csv": "4b608c5e92651a13a316b8dc12d974c1b56aed409250875137607b73d0160bac",
+    "data/manifest.json": "3302e77c714a8f41ece330f0e86b8d0e3ce1cc65bcf094d5052ebfca20a30a69",
+    "data/mt_aux8.csv": "3975e5781fc2a369eb9e4ca3f4fb72315e31574c155e047b29acd67c33e57594",
+    "data/preparation.json": "4f8b367e6d15cdc7b0ed387d88a2ac9554db820a7f7e027c6f0ea17dfc2548b7",
+    "data/union18.csv": "ff8a1f98d7454f2c11c4687fa1aad8a9f92b386d7b4fff997648c08e4d390f31"
+  },
+  "union_revision": "971f6a7f24d86e59bab219347c3e14c006ae4e35"
+}

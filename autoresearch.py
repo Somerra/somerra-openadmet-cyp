@@ -43,6 +43,17 @@ def main(argv=None):
         )
     from somerra_openadmet.regression_task import main as task_main
 
+    if argv and argv[0] == "molecular":
+        return task_main(argv[1:])
+    if argv and argv[0] in {"plan", "run"}:
+        print(
+            "WARNING: bare autoresearch.py plan/run uses the historical 60/20/20 "
+            "molecular task, not the default Workbench scaffold protocol. "
+            "See docs/workbench-protocol.md. Use 'autoresearch.py molecular "
+            f"{argv[0]}' to select the historical task explicitly, or "
+            "'autoresearch.py briford' for the implemented Workbench reference.",
+            file=sys.stderr,
+        )
     return task_main(argv)
 
 

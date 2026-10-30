@@ -16,11 +16,14 @@ default for future regression submission candidates. Reuse each data bundle's
 saved five folds; train on four and select a checkpoint on the fifth. Develop
 CYP-specific models with auxiliary tasks, focusing comparisons on architecture,
 task-loss weights, and model-combination weights. OOF scores are development
-evidence; only the challenge supplies official blind-test scores.
+evidence; only the challenge supplies official blind-test scores. Calibration
+learned from our own data is a separate experiment axis; the historical borrowed
+leaderboard constants are not cleared for future submissions.
 
 The implemented reference runs through `autoresearch.py briford`; generic model
-adapters are next work. Bare `autoresearch.py run` still invokes the historical
-molecular task described below. This documentation does not change CLI dispatch.
+adapters are next work. Use `autoresearch.py molecular run` for the historical
+molecular task described below. Bare `plan`/`run` retain compatibility but warn
+that they invoke the historical 60/20/20 protocol.
 
 ## What is here
 

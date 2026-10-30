@@ -190,7 +190,8 @@ def test_task_changes_fail_and_model_source_is_separate(tmp_path, monkeypatch):
         task.read_task(path)
 
 
-def test_primary_routes_to_new_task_without_loading_legacy(monkeypatch):
+@pytest.mark.parametrize("command", ["plan", "run"])
+def test_bare_molecular_command_warns_without_changing_dispatch(monkeypatch, capsys, command):
     import importlib.util
 
     spec = importlib.util.spec_from_file_location(
@@ -200,7 +201,37 @@ def test_primary_routes_to_new_task_without_loading_legacy(monkeypatch):
     spec.loader.exec_module(entry)
     monkeypatch.setattr(task, "main", lambda argv: argv)
     monkeypatch.setitem(sys.modules, "legacy_train", None)
-    assert entry.main(["plan", "--task", "frozen.json"]) == ["plan", "--task", "frozen.json"]
+    argv = [command, "--task", "frozen.json"]
+    assert entry.main(argv) == argv
+    captured = capsys.readouterr()
+    assert captured.out == ""
+    assert "historical 60/20/20" in captured.err
+    assert "docs/workbench-protocol.md" in captured.err
+    assert f"autoresearch.py molecular {command}" in captured.err
+
+    # The explicit route forwards all arguments without warning or changing the recipe.
+    assert entry.main(["molecular", *argv]) == argv
+    assert capsys.readouterr().err == ""
+
+
+def test_workbench_route_does_not_warn_or_load_molecular_task(monkeypatch, capsys):
+    import importlib.util
+
+    from somerra_openadmet import briford
+
+    spec = importlib.util.spec_from_file_location(
+        "primary", Path(__file__).parents[1] / "autoresearch.py"
+    )
+    entry = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(entry)
+    monkeypatch.setattr(briford, "main", lambda argv: argv)
+    monkeypatch.setitem(sys.modules, "somerra_openadmet.regression_task", None)
+    assert entry.main(["briford", "status", "--output", "saved-run"]) == [
+        "status",
+        "--output",
+        "saved-run",
+    ]
+    assert capsys.readouterr().err == ""
 
 
 def test_supervisor_failed_launch_releases_reservation(tmp_path, monkeypatch):

@@ -3,13 +3,16 @@
 Adopted on 2026-10-29, until the user changes direction. Future regression
 submission candidates use the preserved Workbench scaffold assignments. The main
 experimental variables are model architecture, task-loss weights, and the weights
-used to combine models. Prefer developing CYP-specific models with auxiliary
+used to combine models. Calibration learned from our own development data is a
+separate, declared experiment axis. Prefer developing CYP-specific models with auxiliary
 prediction tasks over relying exclusively on one model for all four endpoints.
 
 This default follows our [October 28 reproduction](briford-run-20261028.md), which
 scored 0.4349 official MA-ST-RAE. That result motivates the choice; it does not
 isolate a causal benefit from the split strategy. The historical Workbench recipe
-is the reference here, not the changing upstream default.
+is the reference here, not the changing upstream default. Adopting its folds does
+not adopt its leaderboard-derived calibration constants for new submissions; see
+[calibration experiments and eligibility](#calibration-experiments-and-eligibility).
 
 ## What is fixed, and what can change
 
@@ -21,6 +24,7 @@ is the reference here, not the changing upstream default.
 | Training-only fitted target scalers; masked missing labels | Weights combining completed model configurations |
 | Scoring on official direct-inhibition labels, with the shared evaluator | Regularization and training policy, as separately declared changes |
 | Official blind identities and prediction-only submission policy | Auxiliary-task selection within a declared, fixed bundle |
+| Raw predictions and declared calibration provenance | Calibration using only our own OOF predictions and training-label moments |
 
 Changing a data source or regenerating folds is a separate protocol change, not
 an architecture improvement. Record any training-policy change explicitly; a new
@@ -86,6 +90,14 @@ Each CSV records `molecule_name`, `smiles`, `connectivity`, `scaffold`, `fold`, 
 task columns. A new experiment should record the source manifest and CSV hashes,
 then verify identities and assignments against them. Never overwrite the reference.
 
+The portable [artifact hash record](results/workbench-protocol-artifacts.json)
+pins SHA-256 values for the four prepared CSVs, preparation metadata, data manifest,
+and amended training contract using paths relative to the run directory. It also
+records row/fold counts and the splitter revisions/runtime versions. The absolute
+directory above is only a locator: restored artifacts must match these hashes
+before reuse. These are the completed run's bytes, not hashes of a new preparation
+from mutable public sources.
+
 Each bundle has its own partition: fold 0 in union18 is not necessarily fold 0 in
 mt_aux8. Within a bundle, every model family uses the same assignments, including
 all auxiliary observations for each row. Do not split an auxiliary table
@@ -113,11 +125,35 @@ configuration. Report MA-ST-RAE, each endpoint's ST-RAE, label counts, and per-f
 results using official direct-inhibition labels. Retain curves and selected epochs.
 
 The same held-out fold selects the checkpoint and supplies OOF scores. Consequently
-OOF is **development evaluation**, not an untouched internal test. Repeated model
-or weight selection on OOF adds adaptivity. No new confirmation split is required
-by this default. The 750 supplied blind molecules remain the official external
-test; their labels are unavailable locally. Only the challenge supplies an
-official score.
+OOF is **development evaluation**, not an untouched internal test. Checkpoint
+selection, architecture/task-weight search, and OOF tuning of combinations or
+calibration all add adaptivity. We retain four training folds to match the user's
+chosen Workbench workflow and its training coverage. This is a deliberate
+comparability tradeoff, not a claim that checkpoint-selected OOF is unbiased or
+that its ranking will transfer to the leaderboard. No independent internal
+held-out estimate exists under this default.
+
+Every comparison must distinguish these results, even when some are unavailable:
+
+| Result | What must be reported |
+|---|---|
+| Raw checkpoint-selected OOF | Fixed combination weights; per-fold/per-endpoint scores and checkpoint-selection rule; development only |
+| OOF-tuned combination or calibration | Separate score, fitting rows, search scope and selected parameters; reused development data, not a held-out gain |
+| Independent held-out estimate | `Not available` unless a separately recorded design excludes scoring rows from training and all selection/fitting steps |
+| Official score | Exact submission receipt and pipeline; `Not submitted` for a candidate without its own official evaluation |
+
+The three-train/one-validation/one-score rotation (score k, select on (k+1)%5)
+is an optional, separately declared follow-up using the same scaffold assignments.
+It changes training coverage from about 80% to 60% and requires matched control
+fits. It is not silently imposed by this documentation. Such OOF scores avoid
+checkpoint selection on the scoring fold, but repeated architecture or weight
+search on them still makes them development results. An independent estimate
+requires the entire selection process to exclude the scoring data.
+
+The 750 supplied blind molecules remain the official external test; their labels
+are unavailable locally. Only the challenge supplies an official score. Neither
+the observed local-to-official error gap nor the historical ranking reversal
+establishes that this split strategy or any particular correction will fix transfer.
 
 When comparing candidates, pair predictions by molecule and endpoint within the
 same parent bundle and fold. Across bundles, join OOF predictions by identity,
@@ -133,7 +169,17 @@ normalized so the four scored weights average one. Each auxiliary has weight
 0.3. These fixed weights are calculated during preparation from the full member
 table's label counts, including held-out label availability; target scalers are
 still fitted on training rows only. CYP2D6 specialist weights are 1 for its scored
-task and 0.3 per auxiliary. Preserve these as the comparison baseline.
+task and 0.3 per auxiliary. Preserve those recorded weights when reproducing the
+historical fits; do not relabel their provenance.
+
+For **new specialists and reweighting experiments**, compute any count-derived
+weights from that fit's training rows only, after the declared row/task mask.
+Normalize inverse counts over the selected scored tasks to mean one; a single
+scored task therefore has weight 1. Keep auxiliary weight 0.3 initially and reject
+zero-label training heads. Record each fold's counts and resulting weight vector.
+Apply the same rule to the matched Chemprop control. Moving from full-table to
+training-fold counts is a declared change from the historical baseline, not a
+free architecture gain. User-chosen fixed weights do not require label counts.
 
 Changing a loss weight can also change gradient scale and which checkpoint wins.
 Record the masking rule, target scales, reduction denominator, and validation
@@ -155,19 +201,52 @@ baseline, while treating alternative endpoint-specific model weights as an
 explicit experiment. Weights selected on OOF must be reported as tuned on that
 development set, not independently validated gains.
 
-Calibration is a separate final step. Preserve raw predictions and the historical
-calibration rule for matched comparisons; do not silently retune it during an
-architecture or weighting experiment. Its constants incorporate historical
-leaderboard feedback. The 0.4349 score measures the complete calibrated pipeline,
-not the raw model alone. Details are in
-[calibration and verification](briford-reproduction.md#calibration-and-verification).
+## Calibration experiments and eligibility
+
+Calibration is an explicit experiment axis, evaluated with the base predictions
+and model-combination weights fixed. For new candidates, compare raw predictions
+against an endpoint-specific calibration fitted only from our own OOF predictions
+and observed official training labels (including moments calculated from those
+labels). Declare the transform family, fitting objective, regularization, fitting
+rows, parameters, and any clipping rule before scoring it. Do not use borrowed
+OOF multipliers, population moments, or the CYP2D6 mean/SD override. Auxiliary
+assay values are not official-label population moments.
+
+Fitting a calibrator on all OOF rows and scoring those same rows is an in-sample
+postprocessing result; label it as such. Excluding a scoring fold from calibrator
+fitting avoids direct reuse at that layer, but does not make existing base OOF
+predictions independent: the base models for other folds can have trained on the
+scoring fold's labels, and its own checkpoint was selected on that fold. A clean
+held-out calibration comparison requires the complete base-model/selection/
+calibration pipeline to exclude the scoring data. Do not call a cheap re-fit over
+the existing OOF table an independent estimate. No such estimator is implemented
+by this PR; calibration fitting and validation remain subsequent work.
+
+Use raw output as the initial new-candidate baseline; record any own-data
+calibration as a separate variant. Compare the historical Workbench raw output
+on the same rows, and retain its calibrated result as historical evidence only.
+The 0.6284 raw OOF score and 0.4349 calibrated official score use different
+populations and pipelines. Their difference does not measure calibration's
+contribution, and transferring another model's local-to-official gap cannot
+establish a roughly 0.3 calibration benefit. A matched raw-versus-calibrated
+evaluation on the same scoring set is needed.
+
+**Leaderboard-constant eligibility: unresolved as of 2026-10-30.** The question
+raised in [PR #12](https://github.com/Somerra/somerra-openadmet-cyp/pull/12#discussion_r4406685923)
+has no recorded organizer clarification. Historical portal acceptance is not a
+ruling on eligibility. Future submissions using those borrowed constants are on
+hold pending eligibility clarification; they are not the default for new
+candidates. This does not withdraw or alter the October 28 receipt. Keep that
+calibrated pipeline reproducible privately, and do not contact organizers without
+user authorization. See the [historical result](briford-run-20261028.md#calibration-eligibility-status).
 
 ## Next Mol-JEPA comparison
 
 Use these bundles and inherited folds, with auxiliary outputs and masked losses,
 to compare Mol-JEPA against matched Chemprop controls. Start with the existing
 CYP2D6 specialist bundle: it already supplies a concrete specialist reference and
-six tasks. Keep the default task and fold-combination weights initially. Then
+six tasks. Use the new training-fold count rule and default fold-combination
+weights initially, and score raw predictions first. Then
 compare architecture and task weighting separately before extending specialists
 to other CYPs or changing the final model combination.
 
@@ -186,9 +265,12 @@ It is currently specific to the four Chemprop configurations, not a generic
 specialist/Mol-JEPA runner. Future model adapters must share the saved data, folds,
 and evaluator rather than creating their own evaluation protocol.
 
-The bare `autoresearch.py run` command still routes to the older frozen molecular
-task. This documentation changes the research default, not CLI dispatch or old
-task contracts. Existing studies remain reproducible under their recorded protocol.
+Use `autoresearch.py molecular plan|run|reproduce|status|prepare` to explicitly
+select the older frozen molecular task. Bare `plan` and `run` remain backward
+compatible but print a warning to stderr identifying the historical 60/20/20
+protocol and directing users here. The warning does not redirect a saved task or
+change its recipe. The Workbench `briford` path does not emit this warning.
+Existing studies remain reproducible under their recorded protocol.
 
 Before comparing a new run, retain its data/fold hashes, task/record weights,
 training recipe, implementation revision, per-fold checkpoints and curves, OOF
