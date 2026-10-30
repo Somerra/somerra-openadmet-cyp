@@ -3,8 +3,8 @@
 Adopted on 2026-10-29, until the user changes direction. Future regression
 submission candidates use the preserved Workbench scaffold assignments. The main
 experimental variables are model architecture, task-loss weights, and the weights
-used to combine models. Calibration learned from our own development data is a
-separate, declared experiment axis. Prefer developing CYP-specific models with auxiliary
+used to combine models. As of 2026-10-30, all post-hoc calibration is deferred
+until the user changes direction. Prefer developing CYP-specific models with auxiliary
 prediction tasks over relying exclusively on one model for all four endpoints.
 
 This default follows our [October 28 reproduction](briford-run-20261028.md), which
@@ -24,7 +24,7 @@ not adopt its leaderboard-derived calibration constants for new submissions; see
 | Training-only fitted target scalers; masked missing labels | Weights combining completed model configurations |
 | Scoring on official direct-inhibition labels, with the shared evaluator | Regularization and training policy, as separately declared changes |
 | Official blind identities and prediction-only submission policy | Auxiliary-task selection within a declared, fixed bundle |
-| Raw predictions and declared calibration provenance | Calibration using only our own OOF predictions and training-label moments |
+| Raw predictions in pIC50 units, without post-hoc calibration | Calibration is deferred, including own-data calibration |
 
 Changing a data source or regenerating folds is a separate protocol change, not
 an architecture improvement. Record any training-policy change explicitly; a new
@@ -203,8 +203,25 @@ development set, not independently validated gains.
 
 ## Calibration experiments and eligibility
 
-Calibration is an explicit experiment axis, evaluated with the base predictions
-and model-combination weights fixed. For new candidates, compare raw predictions
+**Current direction (2026-10-30): work without calibration.** Evaluate and prepare
+new candidates using raw predictions after the declared fold/model averaging.
+Do not shift their mean, rescale their spread, apply the historical pIC50 floor,
+or fit an own-data calibrator. Training-target normalization and conversion back
+to pIC50 units are part of the model and remain necessary. Keep historical
+calibrated predictions and receipts intact; their scores describe that historical
+pipeline, not the new uncalibrated one.
+
+The existing `autoresearch.py briford predict` command still reproduces the
+historical calibrated pipeline. Its `activity_submission.csv` is therefore not
+a candidate under this direction; `raw.csv` preserves the uncalibrated output.
+New candidate preparation must use a separate destination, verify raw prediction
+identity and schema, and record `calibration: none`. Never overwrite the historical
+submission or infer upload authorization from its manifest. This policy update
+does not change the historical exporter or launch training or a submission.
+
+The following calibration design is retained as deferred research guidance, not
+an active experiment. If the user reopens calibration, hold base predictions
+and model-combination weights fixed and compare raw predictions
 against an endpoint-specific calibration fitted only from our own OOF predictions
 and observed official training labels (including moments calculated from those
 labels). Declare the transform family, fitting objective, regularization, fitting
@@ -220,10 +237,10 @@ scoring fold's labels, and its own checkpoint was selected on that fold. A clean
 held-out calibration comparison requires the complete base-model/selection/
 calibration pipeline to exclude the scoring data. Do not call a cheap re-fit over
 the existing OOF table an independent estimate. No such estimator is implemented
-by this PR; calibration fitting and validation remain subsequent work.
+by this protocol; calibration fitting and validation remain deferred work.
 
-Use raw output as the initial new-candidate baseline; record any own-data
-calibration as a separate variant. Compare the historical Workbench raw output
+Use raw output for current candidates. If calibration is reopened, record any
+own-data calibration as a separate variant. Compare the historical Workbench raw output
 on the same rows, and retain its calibrated result as historical evidence only.
 The 0.6284 raw OOF score and 0.4349 calibrated official score use different
 populations and pipelines. Their difference does not measure calibration's

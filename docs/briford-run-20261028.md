@@ -64,8 +64,9 @@ preserved, but future submissions using those constants are on hold pending
 eligibility clarification. No organizer contact is authorized by this document.
 
 The [default protocol](workbench-protocol.md#calibration-experiments-and-eligibility)
-starts new comparisons from raw predictions and permits calibration learned only
-from our own OOF predictions and official training labels as a separate experiment.
+uses raw predictions for new comparisons and submission candidates. The user's
+2026-10-30 direction defers all calibration, including calibration learned from
+our own OOF predictions and official training labels, until they change direction.
 The raw OOF score of 0.6284 and calibrated official score of 0.4349 are on different
 populations; subtracting them does not estimate calibration's contribution. No
 matched official raw-versus-calibrated ablation was performed for this run.
