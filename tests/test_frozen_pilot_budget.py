@@ -85,7 +85,10 @@ def test_reservation_atomically_enforces_original_pilot_cap(tmp_path, monkeypatc
 
 
 @pytest.mark.parametrize("exit_code", [0, 1])
-def test_supervisor_charges_both_ledgers_after_child_exit(tmp_path, monkeypatch, exit_code):
+@pytest.mark.parametrize("operation", ["frozen-pilot", "frozen-probe"])
+def test_supervisor_charges_both_ledgers_after_child_exit(
+    tmp_path, monkeypatch, exit_code, operation
+):
     pytest.importorskip("torch")
     from somerra_openadmet import representation_budget as supervisor
     from somerra_openadmet.campaign_budget import CampaignLedger
@@ -134,9 +137,9 @@ def test_supervisor_charges_both_ledgers_after_child_exit(tmp_path, monkeypatch,
     monkeypatch.setattr(supervisor.subprocess, "Popen", Worker)
     if exit_code:
         with pytest.raises(RuntimeError, match="worker failed"):
-            supervisor.maybe_supervise("frozen-pilot", config)
+            supervisor.maybe_supervise(operation, config)
     else:
-        assert supervisor.maybe_supervise("frozen-pilot", config)["complete"]
+        assert supervisor.maybe_supervise(operation, config)["complete"]
     primary = json.loads(campaign.read_text())["reservations"][str(output)]
     legacy = json.loads(historical.read_text())[str(output)]
     assert primary["status"] == "exited" and primary["used_hours"] >= 0

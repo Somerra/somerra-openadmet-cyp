@@ -49,7 +49,13 @@ def maybe_supervise(operation, config_path):
     ledger = CampaignLedger(ledger_path(config))
     output.parent.mkdir(parents=True, exist_ok=True)
     pilot_allocation = None
-    if operation in {"frozen-pilot", "atom-pilot-cache", "conformer-cache", "conformer-fit"}:
+    if operation in {
+        "frozen-pilot",
+        "atom-pilot-cache",
+        "conformer-cache",
+        "conformer-fit",
+        "frozen-probe",
+    }:
         from .frozen_pilot_budget import PilotReservation
 
         pilot_allocation = PilotReservation(config)
@@ -109,6 +115,7 @@ def main():
     from .atom_jepa import cache_representations as atom_cache
     from .conformer_sensitivity import cache_stage, fit_stage
     from .frozen_benchmark import screen as frozen_screen
+    from .frozen_probe import screen as probe_screen
     from .representation_training import (
         predict_representations,
         profile_representations,
@@ -123,6 +130,7 @@ def main():
         "predict": predict_representations,
         "profile": profile_representations,
         "frozen-pilot": frozen_screen,
+        "frozen-probe": probe_screen,
         "atom-pilot-cache": atom_cache,
         "conformer-cache": cache_stage,
         "conformer-fit": fit_stage,

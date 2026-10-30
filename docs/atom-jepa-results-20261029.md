@@ -10,7 +10,8 @@ ranking of representation quality. Scores near 1 are weak relative to the
 metric's constant-mean reference. The denominator uses the **evaluation-set mean**
 for each endpoint, not a fitted training-mean predictor. A same-split training-mean
 control has not yet been scored. The scores alone do not establish overfitting;
-head regularization and checkpoint selection remain unresolved experimental issues.
+head regularization and checkpoint selection were unresolved in this historical
+pilot. The subsequent [v2 probe](frozen-probe-v2.md) implements and evaluates them.
 
 ## Original pilot
 
@@ -92,11 +93,10 @@ ranking or promoting a model. Encoders also differ in
 pretraining data and modalities; the pilot does not isolate a causal effect of
 pretraining architecture or establish absence of pretraining data overlap.
 
-## Outstanding head validation
+## Subsequent head validation
 
 The v1 recipe and completed artifacts remain unchanged for reproducibility.
-Before drawing representation conclusions, a separately versioned frozen-head
-experiment should:
+The [completed v2 experiment](frozen-probe-v2.md) addressed the review request to:
 
 - Use one persisted inner holdout from outer-training molecules for all models,
   respecting the existing cluster groups. Fit feature and target scalers on inner
@@ -112,10 +112,11 @@ experiment should:
   previously reported approximately 0.74 tree result is context, not a matched
   control until its split and protocol are reproduced here.
 
-This rerun is **outstanding**. The review response adds no GPU experiments and
-does not silently replace the historical protocol. Any execution must reserve
-from the remaining original four-hour allocation and the shared campaign budget.
-Encoder fine-tuning remains deferred.
+The v2 rerun completed twelve regularized, inner-selected MLPs and four sets of
+same-cache controls, using one prediction per molecule throughout. It consumed
+0.062196 additional GPU-hours under both ledgers, bringing cumulative pilot use
+to 0.441994 / 4 hours. Its results and limitations are reported separately so
+these historical tables retain their original meaning. Fine-tuning remains deferred.
 
 ## Cost and retained evidence
 
