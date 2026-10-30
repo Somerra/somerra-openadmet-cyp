@@ -9,6 +9,22 @@ Inhibition Blind Challenge:
 
 The structure track is intentionally out of scope for this first phase.
 
+## Current regression workflow
+
+Use the [Workbench scaffold-fold protocol](docs/workbench-protocol.md) as the
+default for future regression submission candidates. Reuse each data bundle's
+saved five folds; train on four and select a checkpoint on the fifth. Develop
+CYP-specific models with auxiliary tasks, focusing comparisons on architecture,
+task-loss weights, and model-combination weights. OOF scores are development
+evidence; only the challenge supplies official blind-test scores. Calibration
+learned from our own data is a separate experiment axis; the historical borrowed
+leaderboard constants are not cleared for future submissions.
+
+The implemented reference runs through `autoresearch.py briford`; generic model
+adapters are next work. Use `autoresearch.py molecular run` for the historical
+molecular task described below. Bare `plan`/`run` retain compatibility but warn
+that they invoke the historical 60/20/20 protocol.
+
 ## What is here
 
 - a revision-pinned Hugging Face dataset downloader with SHA-256 manifests;
@@ -25,7 +41,9 @@ The structure track is intentionally out of scope for this first phase.
 The standalone `openadmet-molecular-split generate|audit` command builds and audits
 structure-matched 60/20/20 splits. See [molecular similarity and split matching](docs/molecular-similarity-splits.md)
 for the objective, acceptance gate, private artifacts, and evaluation limitations.
-The primary regression task adopts reviewed assignments explicitly and freezes them for subsequent trials.
+The historical molecular regression task adopts reviewed assignments explicitly
+and freezes them for its trials. Future Workbench comparisons use the default
+protocol above instead; existing molecular-task artifacts remain unchanged.
 
 Training commands do not upload submissions. The separate, explicitly executed
 Workbench submission watcher supports authorized prediction-only uploads; see the
@@ -112,9 +130,9 @@ conda run -n somerra-openadmet-cyp openadmet-cyp score activity path/to/labeled_
 Baseline commands default to eight model-training threads. Use `--n-jobs` to change the
 budget; the selected value is written into `run_manifest.json`.
 
-## Autoresearch is the primary entrypoint
+## Autoresearch: preserved molecular task
 
-`autoresearch.py` now runs one GPU candidate on the frozen molecular regression
+The bare `autoresearch.py` commands run one GPU candidate on the frozen molecular regression
 task. It reuses the saved incumbent, selects a checkpoint on validation, compares
 that checkpoint on internal test with a paired scaffold bootstrap, and records a
 keep/discard/crash decision. Reproduction uses the same training and evaluation

@@ -53,6 +53,23 @@ therefore measures the complete trained ensemble **plus calibration**; this run
 does not establish how much either contributes independently. There is no final
 refit on all training rows.
 
+## Calibration eligibility status
+
+As of 2026-10-30, the question in
+[PR #12](https://github.com/Somerra/somerra-openadmet-cyp/pull/12#discussion_r4406685923)
+about reusing another participant's leaderboard-derived calibration constants is
+unresolved; no organizer clarification is recorded. Portal acceptance does not
+resolve that question. The accepted submission and this historical result remain
+preserved, but future submissions using those constants are on hold pending
+eligibility clarification. No organizer contact is authorized by this document.
+
+The [default protocol](workbench-protocol.md#calibration-experiments-and-eligibility)
+starts new comparisons from raw predictions and permits calibration learned only
+from our own OOF predictions and official training labels as a separate experiment.
+The raw OOF score of 0.6284 and calibrated official score of 0.4349 are on different
+populations; subtracting them does not estimate calibration's contribution. No
+matched official raw-versus-calibrated ablation was performed for this run.
+
 ## Training and internal evaluation
 
 All fits completed with verified checkpoint reloads and finite OOF/blind predictions.
