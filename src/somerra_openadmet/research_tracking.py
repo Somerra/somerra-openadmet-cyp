@@ -48,7 +48,11 @@ class Tracker:
                 name=run_id,
                 group=group,
                 job_type="smoke" if smoke else config.get("workflow", "research"),
-                tags=[cyp, "development-fold", "smoke" if smoke else "candidate"],
+                tags=(
+                    [cyp, "internal-test", "report-only"]
+                    if config.get("workflow") == "internal-test"
+                    else [cyp, "development-fold", "smoke" if smoke else "candidate"]
+                ),
                 config=config,
                 dir=str(self.output),
                 mode=mode,

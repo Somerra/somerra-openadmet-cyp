@@ -3,13 +3,14 @@
 ## Active research entrypoint: CYP recipes
 
 For current CYP strategy discovery, read [research/CYP_PROGRAM.md](research/CYP_PROGRAM.md).
-Use `autoresearch.py recipes prepare|trial|status|note`, with one editable recipe
+Use `autoresearch.py recipes prepare|trial|test|status|note`, with one editable recipe
 and independent history per CYP. The agent chooses hypotheses, architecture,
 auxiliary tasks, and loss; the runner executes and records trials against fixed
 internal validation ST-RAE. Campaign launches remain disabled (setup only).
 
-Research currently trains on four preserved Workbench folds and validates on
-fold 0. It has no separate internal test partition. Submission construction is a
+Research trains on saved Workbench folds 1, 3, and 4, selects models on validation fold 0,
+and reserves fold 2 for internal test. The separate `test` command freezes the
+validation incumbent and closes that CYP search before reporting test metrics. Submission construction is a
 separate `submissions.py plan|fit|build|status` workflow that replays four explicitly
 selected recipes across the five saved folds. Neither path uploads predictions.
 

@@ -215,3 +215,109 @@ def test_wandb_initialization_falls_back_without_bypassing_privacy(tmp_path, mon
     assert (
         json.loads((tmp_path / "tracking-error.json").read_text())["effective_mode"] == "disabled"
     )
+
+
+@pytest.fixture
+def fivefold_frames():
+    official = pd.DataFrame(
+        {
+            "Molecule_Name": [f"m{i}" for i in range(10)],
+            "SMILES": ["C" * (i + 1) for i in range(10)],
+            "parent": ["C" * (i + 1) for i in range(10)],
+        }
+    )
+    for ep in ACTIVITY_ENDPOINTS:
+        official[ep] = np.arange(10, dtype=float)
+        official[ep + "_conf_low"] = official[ep] - 0.1
+        official[ep + "_conf_high"] = official[ep] + 0.1
+    pool = official.copy()
+    for task in AUXILIARY:
+        pool[task] = np.arange(10, dtype=float)
+    wb = pd.DataFrame({"molecule_name": official.Molecule_Name, "fold": np.repeat(range(5), 2)})
+    blind = pd.DataFrame({"Molecule_Name": ["blind"], "SMILES": ["N"], "parent": ["N"]})
+    return official, pool, wb, blind
+
+
+def test_three_training_folds_exclude_both_heldouts_and_external_aliases(fivefold_frames):
+    from somerra_openadmet.cyp_research import evaluation_rows
+
+    official, pool, wb, blind = fivefold_frames
+    # An official training-fold alias and external aliases must all be excluded.
+    official.loc[4, "parent"] = official.loc[2, "parent"]
+    pool.loc[4, "parent"] = official.loc[2, "parent"]
+    pool = pd.concat(
+        [
+            pool,
+            pool.iloc[[0]].assign(Molecule_Name="aux-val"),
+            pool.iloc[[2]].assign(Molecule_Name="aux-test"),
+            pool.iloc[[2]].assign(Molecule_Name="aux-blind", parent="N"),
+        ]
+    )
+    train, val, assignments = split_data(official, pool, wb, blind, 0, 1)
+    test = evaluation_rows(official, pool, assignments, "test")
+    assert set(train.Molecule_Name) == {f"m{i}" for i in range(5, 10)}
+    assert list(val.Molecule_Name) == ["m0", "m1"]
+    assert list(test.Molecule_Name) == ["m2", "m3"]
+    assert assignments.set_index("Molecule_Name").loc["m4", "partition"] == "excluded_test_alias"
+    assert set(assignments.loc[assignments.partition == "train", "workbench_fold"]) == {2, 3, 4}
+    assert not set(train.parent) & (set(test.parent) | set(val.parent) | set(blind.parent))
+
+
+@pytest.mark.parametrize("test_fold", [0, 5, -1, True, 1.5])
+def test_invalid_test_fold_rejected(fivefold_frames, test_fold):
+    with pytest.raises(ValueError, match="distinct saved folds"):
+        split_data(*fivefold_frames, 0, test_fold)
+
+
+def test_validation_test_parent_overlap_rejected(fivefold_frames):
+    official, pool, wb, blind = fivefold_frames
+    official.loc[2, "parent"] = official.loc[0, "parent"]
+    pool.loc[2, "parent"] = official.loc[0, "parent"]
+    with pytest.raises(ValueError, match="parents overlap"):
+        split_data(official, pool, wb, blind, 0, 1)
+
+
+def test_prepare_records_three_way_split_and_refuses_inplace_revision(fivefold_frames, tmp_path):
+    from somerra_openadmet.cyp_research import prepare, read, verify, write
+    from somerra_openadmet.download import sha256_file
+
+    official, pool, wb, blind = fivefold_frames
+    source, workbench = tmp_path / "source", tmp_path / "wb"
+    source.mkdir()
+    workbench.mkdir()
+    for name, frame in {"official": official, "pool": pool, "test": blind}.items():
+        frame.to_csv(source / f"{name}.csv", index=False)
+    wb.to_csv(workbench / "mt_aux8.csv", index=False)
+    write(
+        source / "manifest.json",
+        {
+            "tasks": [*ACTIVITY_ENDPOINTS, *AUXILIARY],
+            "file_sha256": {p.name: sha256_file(p) for p in source.glob("*.csv")},
+        },
+    )
+    write(
+        workbench / "manifest.json",
+        {"file_sha256": {"mt_aux8.csv": sha256_file(workbench / "mt_aux8.csv")}},
+    )
+    config = {
+        "source_dir": str(source),
+        "workbench_data": str(workbench),
+        "output_dir": str(tmp_path / "research"),
+        "fold": 0,
+        "test_fold": 1,
+        "seed": 42,
+        "wandb": {"mode": "disabled"},
+        "campaigns": {c: {"budget_gpu_hours": 0, "trial_seconds": 1800} for c in CYPS},
+    }
+    root = prepare(config)
+    manifest = read(root / "manifest.json")
+    assert manifest["fold_roles"] == {"train": [2, 3, 4], "validation": 0, "test": 1}
+    assert manifest["rows"] == {"train": 6, "validation": 2, "internal-test": 2}
+    assert manifest["protocol"] == "cyp-recipes-v3"
+    assert prepare(config) == root
+    with pytest.raises(ValueError, match="fresh output"):
+        prepare({**config, "test_fold": 2})
+    with (root / "internal-test.csv").open("a") as handle:
+        handle.write("changed")
+    with pytest.raises(ValueError, match="Prepared data changed"):
+        verify(root)

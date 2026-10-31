@@ -157,6 +157,7 @@ def checked_fit(root, plan, path, cyp, fold):
     manifest = verify(job["root"])
     if (
         manifest["config"]["fold"] != fold
+        or manifest["config"].get("test_fold") is not None
         or manifest["config"]["seed"] != 42 + fold
         or manifest["source_sha256"] != plan["source_sha256"]
         or job["recipe_sha256"] != plan["recipes"][cyp]["files"]["recipe.py"]
@@ -225,6 +226,7 @@ def fit(root, mode=None):
                 fold=fold,
                 seed=42 + fold,
                 workflow="submission-fit",
+                test_fold=None,
             )
             config["campaigns"] = {
                 c: {

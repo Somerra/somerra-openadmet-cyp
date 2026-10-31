@@ -481,3 +481,126 @@ def test_retry_allocation_keeps_plan_and_prior_charges(data_roots, tmp_path, mon
     assert trial["status"] == "failed"
     assert read(registry_path)["trials"][:2] == before["trials"]
     assert read(root / "plan.json")["budget_gpu_hours"] == 0
+
+
+def add_internal_test(root):
+    manifest = read(root / "manifest.json")
+    manifest["config"]["test_fold"] = 1
+    frame = pd.read_csv(root / "train.csv")
+    frame.iloc[:2].to_csv(root / "internal-test.csv", index=False)
+    frame.iloc[2:].to_csv(root / "train.csv", index=False)
+    for name in ["train.csv", "internal-test.csv"]:
+        manifest["files"][name] = sha256_file(root / name)
+    write(root / "manifest.json", manifest)
+
+
+def test_training_never_reads_internal_test_or_logs_test_metrics(data_roots, monkeypatch):
+    pytest.importorskip("torch")
+    pytest.importorskip("chemprop")
+    from somerra_openadmet import cyp_research_worker as worker
+
+    root = data_roots[0]
+    add_internal_test(root)
+    job = tensor_trial(root)
+    original = pd.read_csv
+
+    def read_csv(path, *args, **kwargs):
+        assert Path(path).name != "internal-test.csv", "Training accessed test labels"
+        return original(path, *args, **kwargs)
+
+    monkeypatch.setattr(worker.pd, "read_csv", read_csv)
+    worker.train(job)
+    output = Path(job["output"])
+    assert "test/" not in (output / "events.jsonl").read_text()
+    result = read(output / "result.json")
+    assert "test_metrics" not in result
+    assert read(output / "strategy.json")["train_rows"] == 6
+
+
+def test_internal_test_freezes_validation_selection_and_cannot_drive_search(
+    data_roots, monkeypatch
+):
+    from somerra_openadmet import cyp_test
+    from somerra_openadmet.cyp_research import accept_result
+
+    root = data_roots[0]
+    add_internal_test(root)
+    trial = artifact(root, "CYP1A2")
+    job, result = read(trial / "job.json"), read(trial / "result.json")
+    campaign = root / "campaigns" / "CYP1A2"
+    record = {**job, "status": "complete", "reserved_seconds": 180, "used_seconds": 1}
+    registry = {"trials": [record], "best": {}}
+    accept_result(registry, record, result)
+    write(campaign / "registry.json", registry)
+    calls = []
+
+    def predict(path, frame, device="auto"):
+        assert set(frame.columns) == {"Molecule_Name", "SMILES", "parent"}
+        assert (campaign / "test-selection.json").exists()
+        calls.append(list(frame.Molecule_Name))
+        # Perfect validation replay, deliberately bad test result.
+        return np.array([float(name[1:]) for name in frame.Molecule_Name]) + (
+            100 if len(calls) == 2 else 0
+        )
+
+    monkeypatch.setattr(cyp_test, "predict_trial", predict)
+    before = (campaign / "registry.json").read_bytes()
+    monkeypatch.setattr(
+        cyp_test, "predict_trial", lambda path, frame, device: np.full(len(frame), 999)
+    )
+    with pytest.raises(ValueError, match="checkpoint replay differs"):
+        cyp_test.evaluate_test(trial, device="cpu", mode="disabled")
+    assert (campaign / "test-selection.json").exists()
+    assert not (campaign / "internal-test" / "report.json").exists()
+    monkeypatch.setattr(cyp_test, "predict_trial", predict)
+    report = cyp_test.evaluate_test(trial, device="cpu", mode="disabled")
+    assert report["metrics"]["ST-RAE"] > 1
+    assert report["selection_eligible"] is False
+    assert (campaign / "registry.json").read_bytes() == before
+    assert calls == [["m0", "m1"], ["m2", "m3"]]
+    assert cyp_test.evaluate_test(trial, device="cpu", mode="disabled") == report
+    assert len(calls) == 2
+    with pytest.raises(ValueError, match="closed by internal-test"):
+        run_trial(root, "CYP1A2", trial / "recipe.py", "must not tune on test", smoke=True)
+    assert status(root)["campaigns"]["CYP1A2"]["closed_for_test"] is True
+    assert status(root)["campaigns"]["CYP2D6"]["closed_for_test"] is False
+    # Also refuse to replace the frozen model if someone changes the registry.
+    result["metrics"]["ST-RAE"] = -1
+    write(trial / "result.json", result)
+    with pytest.raises(ValueError, match="selection is frozen"):
+        cyp_test.evaluate_test(trial, device="cpu", mode="disabled")
+
+
+def test_internal_test_rejects_smoke_and_nonincumbents(data_roots):
+    from somerra_openadmet.cyp_test import evaluate_test
+
+    root = data_roots[0]
+    add_internal_test(root)
+    trial = artifact(root, "CYP1A2")
+    with pytest.raises(ValueError, match="validation incumbent"):
+        evaluate_test(trial, device="cpu", mode="disabled")
+    job = read(trial / "job.json")
+    job["smoke"] = True
+    write(trial / "job.json", job)
+    with pytest.raises(ValueError, match="smoke"):
+        evaluate_test(trial, device="cpu", mode="disabled")
+
+
+def test_submission_fit_clears_research_test_fold(data_roots, tmp_path, monkeypatch):
+    root = data_roots[0]
+    add_internal_test(root)
+    selections = {c: artifact(root, c) for c in CYPS}
+    build_root = tmp_path / "build"
+    cyp_submission.freeze(selections, build_root, budget_gpu_hours=1)
+
+    class Prepared(Exception):
+        pass
+
+    def prepare(config):
+        assert config["test_fold"] is None
+        assert config["workflow"] == "submission-fit"
+        raise Prepared
+
+    monkeypatch.setattr(cyp_submission, "prepare", prepare)
+    with pytest.raises(Prepared):
+        cyp_submission.fit(build_root)

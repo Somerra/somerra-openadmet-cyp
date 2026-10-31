@@ -1,4 +1,4 @@
-"""Single Workbench fold, four independent objectives, immutable research evaluation.
+"""Preserved Workbench train/validation/test folds and four independent objectives.
 
 python -m somerra_openadmet.cyp_research --help
 """
@@ -40,7 +40,7 @@ RUNTIME_FILES = [
     "research_tracking.py",
     "data_sources/common.py",
 ]
-DEFAULT_ROOT = Path("runs/cyp-recipes-fold0")
+DEFAULT_ROOT = Path("runs/cyp-recipes-val0-test2")
 
 
 def read(path):
@@ -69,7 +69,22 @@ def tasks_for(cyp):
     return [ACTIVITY_ENDPOINTS[CYPS.index(cyp)], *AUXILIARY]
 
 
-def split_data(official, pool, workbench, blind, fold):
+def evaluation_rows(official, pool, assignments, partition):
+    rows = (
+        pool.set_index("Molecule_Name")
+        .loc[assignments.loc[assignments.partition == partition, "Molecule_Name"]]
+        .reset_index()
+        .copy()
+    )
+    indexed = official.set_index("Molecule_Name")
+    bounds = [ep + s for ep in ACTIVITY_ENDPOINTS for s in ["_conf_low", "_conf_high"]]
+    for col in ["SMILES", *bounds]:
+        rows[col] = indexed.loc[rows.Molecule_Name, col].to_numpy()
+    rows["sample_weight"] = 1.0
+    return rows
+
+
+def split_data(official, pool, workbench, blind, fold, test_fold=None):
     """Inherit molecular membership from mt_aux8; never reuse expanded-table fold IDs."""
     for frame, key in [
         (official, "Molecule_Name"),
@@ -82,6 +97,13 @@ def split_data(official, pool, workbench, blind, fold):
         raise ValueError("Official/Workbench ID mismatch")
     if fold not in set(workbench.fold):
         raise ValueError("Unknown Workbench fold")
+    if test_fold is not None and (
+        type(test_fold) is not int
+        or test_fold == fold
+        or set(workbench.fold) != set(range(5))
+        or test_fold not in range(5)
+    ):
+        raise ValueError("Test and validation must be distinct saved folds among all five folds")
     aligned = official.set_index("Molecule_Name").loc[workbench.molecule_name].reset_index()
     aligned["workbench_fold"] = workbench.fold.to_numpy()
     indexed = pool.set_index("Molecule_Name")
@@ -99,31 +121,37 @@ def split_data(official, pool, workbench, blind, fold):
     if any(f.parent.isna().any() for f in [official, pool, blind]):
         raise ValueError("Missing molecular parent")
     held = set(aligned.loc[aligned.workbench_fold == fold, "parent"])
+    tested = set(aligned.loc[aligned.workbench_fold == test_fold, "parent"])
     blinded = set(blind.parent)
-    if held & blinded:
-        raise ValueError("Validation overlaps blinded parents")
+    if held & tested or (held | tested) & blinded:
+        raise ValueError("Validation/test/blinded parents overlap")
     aligned["partition"] = np.where(
         aligned.workbench_fold == fold,
         "validation",
         np.where(
             aligned.parent.isin(held),
             "excluded_validation_alias",
-            np.where(aligned.parent.isin(blinded), "excluded_blind", "train"),
+            np.where(
+                aligned.workbench_fold == test_fold,
+                "test",
+                np.where(
+                    aligned.parent.isin(tested),
+                    "excluded_test_alias",
+                    np.where(aligned.parent.isin(blinded), "excluded_blind", "train"),
+                ),
+            ),
         ),
     )
-    validation = indexed.loc[aligned.loc[aligned.partition == "validation", "Molecule_Name"]]
-    validation = validation.reset_index().copy()
+    validation = evaluation_rows(official, pool, aligned, "validation")
     official_index = official.set_index("Molecule_Name")
     bounds = [ep + s for ep in ACTIVITY_ENDPOINTS for s in ["_conf_low", "_conf_high"]]
-    for col in ["SMILES", *bounds]:
-        validation[col] = official_index.loc[validation.Molecule_Name, col].to_numpy()
-    train = pool.loc[~pool.parent.isin(held | blinded)].copy()
+    train = pool.loc[~pool.parent.isin(held | tested | blinded)].copy()
     train["SMILES"] = train.Molecule_Name.map(official_index.SMILES).fillna(train.parent)
     for col in bounds:
         train[col] = train.Molecule_Name.map(official_index[col])
     train["sample_weight"] = 1.0
     validation["sample_weight"] = 1.0
-    if set(train.parent) & (set(validation.parent) | blinded):
+    if set(train.parent) & (held | tested | blinded):
         raise ValueError("Parent leakage")
     return train, validation, aligned
 
@@ -167,7 +195,17 @@ def prepare(config):
     # Independently standardize blind SMILES as well as trusting the frozen parent column.
     blind = pd.concat([blind, pd.DataFrame({"parent": blind.SMILES.map(parent_smiles)})])
     train, val, assignments = split_data(
-        official, pool, pd.read_csv(workbench / "mt_aux8.csv"), blind, config["fold"]
+        official,
+        pool,
+        pd.read_csv(workbench / "mt_aux8.csv"),
+        blind,
+        config["fold"],
+        config.get("test_fold"),
+    )
+    test = (
+        evaluation_rows(official, pool, assignments, "test")
+        if config.get("test_fold") is not None
+        else None
     )
     for cyp in CYPS:
         values = train[tasks_for(cyp)].to_numpy(float)
@@ -177,24 +215,36 @@ def prepare(config):
             raise ValueError(f"Empty or constant training head: {cyp}")
         ep = tasks_for(cyp)[0]
         regression_metrics(val, np.full(len(val), np.nanmean(train[ep])), ep)
+        if test is not None:
+            observed = test[ep].notna()
+            columns = [ep, ep + "_conf_low", ep + "_conf_high"]
+            if not observed.any() or not np.isfinite(test.loc[observed, columns]).all().all():
+                raise ValueError(f"Invalid internal-test labels or credible intervals: {cyp}")
     root.mkdir(parents=True)
-    for name, frame in [("train", train), ("validation", val), ("assignments", assignments)]:
+    frames = {"train": train, "validation": val, "assignments": assignments}
+    if test is not None:
+        frames["internal-test"] = test
+    for name, frame in frames.items():
         frame.to_csv(root / f"{name}.csv", index=False)
     manifest = {
-        "protocol": "cyp-recipes-v2",
+        "protocol": "cyp-recipes-v3" if test is not None else "cyp-recipes-v2",
         "config": config,
         "campaign_id": uuid.uuid4().hex[:12],
         "source_sha256": hashes,
         "fixed_source_sha256": fixed_hashes(),
-        "files": {
-            n: sha256_file(root / n) for n in ["train.csv", "validation.csv", "assignments.csv"]
+        "files": {f"{n}.csv": sha256_file(root / f"{n}.csv") for n in frames},
+        "rows": {n: len(f) for n, f in frames.items() if n != "assignments"},
+        "fold_roles": {
+            "validation": config["fold"],
+            "test": config.get("test_fold"),
+            "train": [f for f in range(5) if f not in (config["fold"], config.get("test_fold"))],
         },
-        "rows": {"train": len(train), "validation": len(val)},
         "validation_counts": val[list(ACTIVITY_ENDPOINTS)].notna().sum().to_dict(),
         "partition_counts": assignments.partition.value_counts().to_dict(),
         "tasks": {c: tasks_for(c) for c in CYPS},
         "validation_role": "adaptively reused development fold; not an unbiased test",
-        "external_overlap": "parent-separated; external scaffolds may overlap validation",
+        "test_role": "report only after validation selection; never used for model selection",
+        "external_overlap": "parent-separated; external scaffolds may overlap held-out folds",
         "open_source_code": False,
         "model_report_link": "",
         "submission_authorized": False,
@@ -273,6 +323,8 @@ def run_trial(
     manifest = verify(root)
     campaign = root / "campaigns" / cyp
     with lock(campaign):
+        if (campaign / "test-selection.json").exists():
+            raise ValueError("CYP research closed by internal-test selection; no further trials")
         config, registry = manifest["config"], read(campaign / "registry.json")
         campaign_config = read(campaign / "campaign.json")
         if any(campaign_config[k] != v for k, v in config["campaigns"][cyp].items()):
@@ -332,7 +384,9 @@ def run_trial(
                 "data_sha256": manifest["files"],
                 "evaluation_sha256": manifest["fixed_source_sha256"],
                 "selection_metric": "ST-RAE",
+                "selection_partition": "validation",
                 "direction": "minimize",
+                "fold_roles": manifest.get("fold_roles"),
                 "validation_role": manifest["validation_role"],
                 "smoke": smoke,
             },
@@ -414,7 +468,12 @@ def status(root):
             for t in registry["trials"]
             if not t["smoke"]
         )
-        campaigns[cyp] = {**config, "trials": len(registry["trials"]), "committed_seconds": used}
+        campaigns[cyp] = {
+            **config,
+            "trials": len(registry["trials"]),
+            "committed_seconds": used,
+            "closed_for_test": (path / "test-selection.json").exists(),
+        }
     return {**leaderboard(combined), "campaigns": campaigns}
 
 
@@ -432,6 +491,10 @@ def main(argv=None):
     p.add_argument("--wandb-mode", choices=["online", "offline", "disabled"])
     p = sub.add_parser("status")
     p.add_argument("--root", type=Path, default=DEFAULT_ROOT)
+    p = sub.add_parser("test", help="Freeze the validation incumbent and report internal test once")
+    p.add_argument("--trial", type=Path, required=True)
+    p.add_argument("--device", choices=["auto", "cpu", "cuda"], default="auto")
+    p.add_argument("--wandb-mode", choices=["online", "offline", "disabled"])
     p = sub.add_parser("note", help="Retain the agent's conclusion and next direction")
     p.add_argument("--trial", type=Path, required=True)
     p.add_argument("--conclusion", required=True)
@@ -441,6 +504,10 @@ def main(argv=None):
         print(prepare(read(args.config)))
     elif args.command == "status":
         print(json.dumps(status(args.root), indent=2))
+    elif args.command == "test":
+        from .cyp_test import evaluate_test
+
+        print(json.dumps(evaluate_test(args.trial, args.device, args.wandb_mode), indent=2))
     elif args.command == "note":
         # Append rather than overwrite the research history.
         with (args.trial / "notes.jsonl").open("a") as handle:

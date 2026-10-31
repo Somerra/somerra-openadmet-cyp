@@ -14,7 +14,7 @@ hypotheses or call another LLM service.
 
 CYP1A2, CYP2C9, CYP2D6, and CYP3A4 each have an editable recipe at
 `research/recipes/<CYP>/recipe.py` and an independent history, incumbent, W&B group,
-lock, and budget under `runs/cyp-recipes-fold0/campaigns/<CYP>/`. The four starting
+lock, and budget under `runs/cyp-recipes-val0-test2/campaigns/<CYP>/`. The four starting
 recipes share a Chemprop baseline; they are expected to diverge. The common
 `research/cyp_recipe.py` is a starting template, not a shared mutable dependency.
 
@@ -36,10 +36,14 @@ smoke/replay checks before full trials.
 
 ## Fixed comparison contract
 
-Use the saved Workbench `mt_aux8` assignments, fold 0 for live development
-validation. Inherit assignments before filtering heads or training rows. Exclude
-validation and official blind parents from every training source, including
-auxiliary observations. Fit target scalers only on the selected training rows.
+Use the saved Workbench `mt_aux8` assignments: **train on folds 1, 3, 4**;
+**validate on fold 0**; **test on fold 2**. Inherit assignments before filtering
+heads or training rows. Exclude validation, internal-test and official blind
+parents from every training source, including auxiliary observations. Fold 2 was chosen because its parents are disjoint from
+validation fold 0; saved folds 1 and 4 each share a parent with fold 0. Fail
+preparation if either held-out cohort overlaps the other or the official blind
+parents; never silently drop held-out rows to repair that overlap. Fit target
+scalers only on the selected training rows.
 Do not remove difficult validation rows. The other three scored CYPs are not
 auxiliary heads in a specialist recipe; source-specific assays remain distinct.
 
@@ -49,9 +53,7 @@ challenge performance means a lower error. The aggregate MA-ST-RAE is the equal
 mean of the four incumbents and is absent until all four exist. Neither a change
 in loss scale nor an improvement on another CYP can win this CYP's campaign.
 
-This research split uses four folds for training and fold 0 for validation; there
-is no separate internal test partition. Validation is repeatedly used for strategy
-and checkpoint selection: these are
+Validation is repeatedly used for strategy and checkpoint selection: these are
 **development results, not an independent held-out estimate**. Treat tiny gains
 as uncertain; the agent may choose stability checks or matched controls rather
 than repeatedly chasing small improvements. A graceful time-cap stop finalizes the
@@ -152,7 +154,8 @@ spending or rerun an unchanged baseline without a reason.
    and an explicit later submission selection can choose a simpler alternative.
    Keep promising alternatives; the best single-fold score need not be
    the recipe eventually selected for submission.
-5. Continue choosing and running experiments while authorized budget remains,
+5. Continue choosing and running experiments while authorized budget remains and
+   this CYP has not been frozen for internal-test reporting,
    without asking for permission between trials. Stop when interrupted, blocked,
    or out of allocation. Do not reset spending by silently
    creating a new campaign or changing its frozen budget. Full trials remain
@@ -175,7 +178,10 @@ workflows are also available through `molecular`, `briford`, and `legacy`.
 The shell launcher selects `runs/neural-env` and the task-local W&B installation.
 
 `configs/cyp-autoresearch.json` declares a **zero budget for each CYP**. Preparation
-freezes the data, evaluator, and allocations in a new root. CPU smoke tests use
+freezes the data, evaluator, and allocations in a new root. This revision uses
+`runs/cyp-recipes-val0-test2`; never relabel an old fold-0-only campaign or edit its
+manifest in place. The manifest records fold roles and hashes `internal-test.csv`
+as well as train/validation data. Training only loads train and validation tables. CPU smoke tests use
 three epochs and tiny cohorts, cannot be selected, and do not consume a scientific
 campaign allocation. Full fits require CUDA. The private W&B destination is
 `jhtao-none/cyp-autoresearch`; offline and disabled modes retain local evidence.
@@ -189,6 +195,36 @@ validation predictions, `result.json`, and append-only `notes.jsonl` when the ag
 records its interpretation. Results link the strategy and recipe hashes. W&B
 records strategy metadata, loss curves, all five challenge metrics, and selected
 checkpoint summaries. Undefined correlations are null locally and omitted remotely.
+
+## Internal-test report after model selection
+
+Use validation ST-RAE for both checkpoint and strategy selection. Once the CYP
+search is finished, explicitly select its recorded validation incumbent for test:
+
+```bash
+bash scripts/run_cyp_research.sh test --trial /absolute/path/to/selected-full-trial
+```
+
+This freezes `test-selection.json` before reading test labels, closes that CYP
+campaign to further trials (including smoke checks), verifies checkpoint replay
+on validation, and evaluates the saved model once on the entire internal-test
+fold. Recipe adapters receive molecular inputs without held-out labels or bounds.
+No retraining, scaling fit, checkpoint selection or calibration occurs on test.
+Smoke/failed/non-incumbent trials are rejected. A failed evaluation may retry the
+same frozen selection; a completed command returns its existing report.
+
+The campaign's `internal-test/` directory retains predictions, a report, and test
+runtime snapshots. Private W&B receives a separate report-only run with all five
+`test/*` challenge metrics; the research registry and validation leaderboard stay
+unchanged. Test metrics are never used to choose recipes, task weights, losses,
+ensembles or postprocessing. Do not start a fresh campaign to tune against exposed
+test results. Any later reuse of that feedback must be reported as development.
+
+This is a holdout for this new research protocol, not the official competition
+test. Earlier experiments may have trained on or evaluated these molecules;
+disclose that history and do not claim a never-observed or unbiased estimate.
+The report measures the selected three-fold-trained model. Submission refitting
+uses the five-fold construction protocol and has separate development OOF scores.
 
 ## Alignment with Karpathy's autoresearch
 
@@ -221,9 +257,9 @@ different compute conditions as a controlled architecture comparison. Changing
 the timing or checkpoint-selection protocol is a declared experimental revision.
 
 Four independent objectives, private W&B diagnostics and a separate frozen-recipe
-submission builder are challenge-specific additions. Research uses internal data
-and validation only; upstream alignment does not supply an independent test
-estimate or authorize access to official competition test labels.
+submission builder are challenge-specific additions. Research uses available internal data; our additional test fold is reserved for
+post-selection reporting. Upstream alignment does not authorize access to official
+competition test labels or erase historical use of the internal holdout.
 
 ## Separate submission path
 
@@ -262,7 +298,8 @@ bash scripts/run_cyp_submission.sh allocate --root runs/chosen-cyp-build \
 This command only appends a plan-bound allocation record; it does not launch.
 Do not run it without an authorized budget increase. `status` reports allocation
 adjustments and the existing per-fit registries retain all charged attempts.
-`fit` replays the four frozen recipes on all five **preserved mt_aux8 folds**,
+`fit` clears the research-only test role and replays the four frozen recipes on
+all five **preserved mt_aux8 folds**, training on four and validating on one,
 using seed 42+fold, train-only target scalers, and primary-ST-RAE checkpoint
 selection. It performs no strategy search. This is a declared specialist build,
 not an exact reproduction of the historical four-configuration Workbench ensemble.

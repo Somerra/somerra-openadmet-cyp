@@ -318,6 +318,8 @@ def train(job):
             **settings,
             "cyp": job["cyp"],
             "fold": manifest["config"]["fold"],
+            "test_fold": manifest["config"].get("test_fold"),
+            "fold_roles": manifest.get("fold_roles"),
             "seed": seed,
             "smoke": job["smoke"],
             "tasks": tasks,
