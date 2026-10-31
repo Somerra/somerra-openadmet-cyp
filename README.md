@@ -16,10 +16,11 @@ default for future regression submission candidates. Reuse each data bundle's
 saved five folds; train on four and select a checkpoint on the fifth. Develop
 CYP-specific models with auxiliary tasks, focusing comparisons on architecture,
 task-loss weights, and model-combination weights. OOF scores are development
-evidence; only the challenge supplies official blind-test scores. As of 2026-10-30,
-use raw model/ensemble predictions without post-hoc calibration. Calibration
-experiments are deferred until the user changes direction; historical calibrated
-results remain preserved.
+evidence; only the challenge supplies official blind-test scores. Retain raw
+predictions as the baseline; calibration learned from our own OOF predictions and
+official training labels is a separate, declared experiment axis. Historical
+calibrated results remain preserved, but future submissions using borrowed
+leaderboard-derived constants remain on hold pending eligibility clarification.
 
 The implemented reference runs through `autoresearch.py briford`; generic model
 adapters are next work. The [matched frozen-representation comparison](docs/workbench-representations.md)

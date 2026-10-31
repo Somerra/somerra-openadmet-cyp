@@ -6,12 +6,12 @@ Follow [the Workbench protocol](docs/workbench-protocol.md) for new regression
 submission candidates until the user changes direction. Preserve each bundle's
 five scaffold folds, train on four, and select checkpoints on the fifth. Focus
 on model architecture, CYP-specific models with auxiliary tasks, task-loss
-weights, and model-combination weights. As of 2026-10-30, defer all calibration
-experiments until the user changes direction. Use training-fold label counts for
-new count-derived task weights and raw model/ensemble predictions for evaluation
-and submission candidates, without post-hoc shifts, rescaling, or flooring.
-Training-target normalization and its inverse remain unchanged. OOF is development evaluation, not an
-untouched test; report OOF-tuned results separately and mark independent estimates
+weights, model-combination weights, and declared own-data calibration experiments.
+Use training-fold label counts for new count-derived task weights and retain raw
+model/ensemble predictions as the baseline. Fit any own-data calibration only
+from our own OOF predictions and official training labels; report it separately.
+Training-target normalization and its inverse remain unchanged. OOF is development
+evaluation, not an untouched test; report OOF-tuned results separately and mark independent estimates
 unavailable unless actually measured. Keep model families on the same data and
 evaluation tools. Borrowed leaderboard calibration constants remain on hold for
 future submissions pending eligibility clarification; preserve historical results.

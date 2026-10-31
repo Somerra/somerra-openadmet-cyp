@@ -3,9 +3,10 @@
 Adopted on 2026-10-29, until the user changes direction. Future regression
 submission candidates use the preserved Workbench scaffold assignments. The main
 experimental variables are model architecture, task-loss weights, and the weights
-used to combine models. As of 2026-10-30, all post-hoc calibration is deferred
-until the user changes direction. Prefer developing CYP-specific models with auxiliary
-prediction tasks over relying exclusively on one model for all four endpoints.
+used to combine models. Calibration learned from our own OOF predictions and
+official training labels is a separate, declared experiment axis. Prefer developing
+CYP-specific models with auxiliary prediction tasks over relying exclusively on
+one model for all four endpoints.
 
 This default follows our [October 28 reproduction](briford-run-20261028.md), which
 scored 0.4349 official MA-ST-RAE. That result motivates the choice; it does not
@@ -24,7 +25,7 @@ not adopt its leaderboard-derived calibration constants for new submissions; see
 | Training-only fitted target scalers; masked missing labels | Weights combining completed model configurations |
 | Scoring on official direct-inhibition labels, with the shared evaluator | Regularization and training policy, as separately declared changes |
 | Official blind identities and prediction-only submission policy | Auxiliary-task selection within a declared, fixed bundle |
-| Raw predictions in pIC50 units, without post-hoc calibration | Calibration is deferred, including own-data calibration |
+| Raw predictions in pIC50 units retained as the baseline | Declared calibration learned only from our own OOF predictions and official training labels |
 
 Changing a data source or regenerating folds is a separate protocol change, not
 an architecture improvement. Record any training-policy change explicitly; a new
@@ -209,26 +210,26 @@ development set, not independently validated gains.
 
 ## Calibration experiments and eligibility
 
-**Current direction (2026-10-30): work without calibration.** Evaluate and prepare
-new candidates using raw predictions after the declared fold/model averaging.
-Do not shift their mean, rescale their spread, apply the historical pIC50 floor,
-or fit an own-data calibrator. Training-target normalization and conversion back
-to pIC50 units are part of the model and remain necessary. Keep historical
-calibrated predictions and receipts intact; their scores describe that historical
-pipeline, not the new uncalibrated one.
+**Current direction (2026-10-31): own-data calibration is a declared experiment
+axis.** Retain raw predictions after the declared fold/model averaging as the
+baseline, and evaluate any own-data calibration as a separate variant. This does
+not change the completed frozen-representation study: its settings and reported
+results remain uncalibrated. Training-target normalization and conversion back to
+pIC50 units are part of the model and remain necessary. Keep historical calibrated
+predictions and receipts intact; their scores describe their recorded pipelines.
 
 The existing `autoresearch.py briford predict` command still reproduces the
-historical calibrated pipeline. Its `activity_submission.csv` is therefore not
-a candidate under this direction; `raw.csv` preserves the uncalibrated output.
-New candidate preparation must use a separate destination, verify raw prediction
-identity and schema, and record `calibration: none`. Never overwrite the historical
-submission or infer upload authorization from its manifest. This policy update
+historical calibrated pipeline using borrowed leaderboard-derived constants. Its
+`activity_submission.csv` remains on hold for future submission pending eligibility
+clarification; `raw.csv` preserves the uncalibrated output. New candidate preparation
+must use a separate destination, verify prediction identity and schema, and record
+`calibration: none` or the declared own-data transform and its provenance. Never
+overwrite the historical submission or infer upload authorization from its manifest. This policy update
 does not change the historical exporter or launch training or a submission.
 
-The following calibration design is retained as deferred research guidance, not
-an active experiment. If the user reopens calibration, hold base predictions
-and model-combination weights fixed and compare raw predictions
-against an endpoint-specific calibration fitted only from our own OOF predictions
+For an own-data calibration experiment, hold base predictions and model-combination
+weights fixed and compare raw predictions against an endpoint-specific calibration
+fitted only from our own OOF predictions
 and observed official training labels (including moments calculated from those
 labels). Declare the transform family, fitting objective, regularization, fitting
 rows, parameters, and any clipping rule before scoring it. Do not use borrowed
@@ -243,18 +244,18 @@ scoring fold's labels, and its own checkpoint was selected on that fold. A clean
 held-out calibration comparison requires the complete base-model/selection/
 calibration pipeline to exclude the scoring data. Do not call a cheap re-fit over
 the existing OOF table an independent estimate. No such estimator is implemented
-by this protocol; calibration fitting and validation remain deferred work.
+by this protocol; implementing and validating a calibrator remains separate work.
 
-Use raw output for current candidates. If calibration is reopened, record any
-own-data calibration as a separate variant. Compare the historical Workbench raw output
-on the same rows, and retain its calibrated result as historical evidence only.
+Record any own-data calibration as a separate variant alongside raw output.
+Compare the historical Workbench raw output on the same rows, and retain its
+calibrated result as historical evidence only.
 The 0.6284 raw OOF score and 0.4349 calibrated official score use different
 populations and pipelines. Their difference does not measure calibration's
 contribution, and transferring another model's local-to-official gap cannot
 establish a roughly 0.3 calibration benefit. A matched raw-versus-calibrated
 evaluation on the same scoring set is needed.
 
-**Leaderboard-constant eligibility: unresolved as of 2026-10-30.** The question
+**Leaderboard-constant eligibility: unresolved as of 2026-10-31.** The question
 raised in [PR #12](https://github.com/Somerra/somerra-openadmet-cyp/pull/12#discussion_r4406685923)
 has no recorded organizer clarification. Historical portal acceptance is not a
 ruling on eligibility. Future submissions using those borrowed constants are on

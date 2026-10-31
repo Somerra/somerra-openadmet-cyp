@@ -32,12 +32,8 @@ multiple auxiliary outputs. Keep data preparation and evaluation shared across
 model families. Preserve historical artifacts and contracts. This direction does
 not authorize an upload or change the prediction-only policy above.
 
-As of 2026-10-30, work without calibration until the user changes direction.
-Use raw model/ensemble predictions in pIC50 units for new experiments and submission
-candidates: no post-hoc recentering, rescaling, or calibration floor, including
-calibration learned from our own data. Training-target normalization and its inverse
-remain part of the model; fold/model averaging remains allowed. Preserve historical
-calibrated artifacts and scores. The eligibility question about Workbench's borrowed
+Calibration learned from our own OOF predictions and official training labels is
+a declared experiment axis. The eligibility question about Workbench's borrowed
 leaderboard-derived calibration constants remains unresolved (PR #12). Preserve
 the historical calibrated run, but hold future submissions using those constants
 pending eligibility clarification. Portal acceptance is not evidence of clearance.
