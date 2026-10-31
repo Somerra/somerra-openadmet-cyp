@@ -25,6 +25,14 @@ adapters are next work. Use `autoresearch.py molecular run` for the historical
 molecular task described below. Bare `plan`/`run` retain compatibility but warn
 that they invoke the historical 60/20/20 protocol.
 
+## Workbench classification
+
+The [two-head TDI adaptation](docs/workbench-classification.md) keeps the Workbench
+encoder and training schedule, uses masked binary cross-entropy, and averages five
+scaffold-fold models before applying endpoint-specific MCC thresholds. Its first
+750-row prediction-only submission was accepted on October 30. Local OOF scores
+include checkpoint and threshold selection and are development estimates.
+
 ## What is here
 
 - a revision-pinned Hugging Face dataset downloader with SHA-256 manifests;
