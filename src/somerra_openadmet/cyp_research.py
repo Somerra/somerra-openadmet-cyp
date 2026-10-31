@@ -21,6 +21,7 @@ import pandas as pd
 
 from .constants import ACTIVITY_ENDPOINTS
 from .cyp_evaluation import regression_metrics
+from .data_sources.common import read_json, write_json
 from .download import sha256_file
 
 CYPS = [ep.split("_")[0] for ep in ACTIVITY_ENDPOINTS]
@@ -33,18 +34,23 @@ AUXILIARY = (
 )
 # Freeze the evaluation contract; training code is recorded per trial, not a search constraint.
 FIXED_FILES = ["cyp_evaluation.py", "metrics.py", "constants.py"]
-RUNTIME_FILES = ["cyp_research_worker.py", "cyp_research.py", "research_tracking.py"]
+RUNTIME_FILES = [
+    "cyp_research_worker.py",
+    "cyp_research.py",
+    "research_tracking.py",
+    "data_sources/common.py",
+]
 DEFAULT_ROOT = Path("runs/cyp-recipes-fold0")
 
 
 def read(path):
-    return json.loads(Path(path).read_text())
+    return read_json(Path(path))
 
 
 def write(path, value):
     path = Path(path)
     tmp = path.with_suffix(path.suffix + ".tmp")
-    tmp.write_text(json.dumps(value, indent=2, sort_keys=True, allow_nan=False) + "\n")
+    write_json(tmp, value)
     tmp.replace(path)
 
 
@@ -250,7 +256,19 @@ def accept_result(registry, trial, result):
     return True
 
 
-def run_trial(root, cyp, recipe, hypothesis, smoke=False, mode=None):
+def run_trial(
+    root,
+    cyp,
+    recipe,
+    hypothesis,
+    smoke=False,
+    mode=None,
+    *,
+    additional_budget_hours=0,
+    expected_assets=None,
+):
+    if not np.isfinite(additional_budget_hours) or additional_budget_hours < 0:
+        raise ValueError("Invalid additional budget")
     root = Path(root).resolve()
     manifest = verify(root)
     campaign = root / "campaigns" / cyp
@@ -265,9 +283,11 @@ def run_trial(root, cyp, recipe, hypothesis, smoke=False, mode=None):
             for t in registry["trials"]
             if not t["smoke"]
         )
-        remaining = campaign_config["budget_gpu_hours"] * 3600 - committed
+        remaining = (
+            campaign_config["budget_gpu_hours"] + additional_budget_hours
+        ) * 3600 - committed
         seconds = 180 if smoke else min(campaign_config["trial_seconds"], remaining)
-        if not smoke and seconds <= 0:
+        if not smoke and seconds <= 15:
             raise ValueError("Research budget exhausted or launch disabled (budget_gpu_hours=0)")
         trial_id = f"{cyp.lower()}-{'smoke-' if smoke else ''}{uuid.uuid4().hex[:10]}"
         output = campaign / "trials" / trial_id
@@ -275,7 +295,9 @@ def run_trial(root, cyp, recipe, hypothesis, smoke=False, mode=None):
         shutil.copyfile(recipe, output / "recipe.py")
         (output / "runtime").mkdir()
         for name in [*RUNTIME_FILES, *FIXED_FILES]:
-            shutil.copyfile(Path(__file__).parent / name, output / "runtime" / name)
+            snapshot = output / "runtime" / name
+            snapshot.parent.mkdir(parents=True, exist_ok=True)
+            shutil.copyfile(Path(__file__).parent / name, snapshot)
         trial = {
             "trial_id": trial_id,
             "cyp": cyp,
@@ -292,6 +314,8 @@ def run_trial(root, cyp, recipe, hypothesis, smoke=False, mode=None):
         job = {
             **trial,
             "workflow": config.get("workflow", "research"),
+            "expected_assets_sha256": expected_assets,
+            "additional_budget_hours": additional_budget_hours,
             "root": str(root),
             "campaign_id": campaign_config["campaign_id"],
             "wandb_mode": mode or config["wandb"]["mode"],

@@ -2,7 +2,7 @@
 
 STRATEGY = {
     "name": "CYP2C9 Workbench graph baseline",
-    "model": "Chemprop D-MPNN, separate focal and auxiliary heads",
+    "model": "Chemprop D-MPNN with one shared RegressionFFN and distinct task outputs",
     "loss": "masked weighted MAE on training-standardized labels / observed label count",
     "data": "available training parents, all 22 auxiliary tasks",
 }

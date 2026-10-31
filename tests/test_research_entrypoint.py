@@ -232,3 +232,20 @@ def test_primary_reference_does_not_import_train(monkeypatch):
     monkeypatch.setitem(sys.modules, "train", None)
     monkeypatch.setattr(reference, "main", lambda argv: argv)
     assert entry.main(["reference", "--source-dir", "pinned"]) == ["--source-dir", "pinned"]
+
+
+@pytest.mark.parametrize(
+    "args", [[], ["--help"], ["status", "--task", "saved"], ["prepare", "--task", "saved"]]
+)
+def test_bare_commands_remain_on_the_historical_task(monkeypatch, args):
+    from somerra_openadmet import cyp_research, regression_task
+
+    spec = importlib.util.spec_from_file_location(
+        "entry", Path(__file__).parents[1] / "autoresearch.py"
+    )
+    entry = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(entry)
+    monkeypatch.setattr(regression_task, "main", lambda argv: ("historical", argv))
+    monkeypatch.setattr(cyp_research, "main", lambda argv: ("recipes", argv))
+    assert entry.main(args) == ("historical", args)
+    assert entry.main(["recipes", "status"]) == ("recipes", ["status"])

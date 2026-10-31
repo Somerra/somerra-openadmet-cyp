@@ -52,8 +52,11 @@ in loss scale nor an improvement on another CYP can win this CYP's campaign.
 Validation is repeatedly used for strategy and checkpoint selection: these are
 **development results, not an independent held-out estimate**. Treat tiny gains
 as uncertain; the agent may choose stability checks or matched controls rather
-than repeatedly chasing small improvements. Failed, interrupted, and smoke trials
-cannot become incumbents. Historical artifacts remain unchanged.
+than repeatedly chasing small improvements. A graceful time-cap stop finalizes the
+best fully validated checkpoint, records `stop_reason=time_cap` and any partial
+optimizer steps, and can be selected. A cap reached before any validated epoch,
+a hard process timeout, a failure, or a smoke run cannot become an incumbent.
+Historical artifacts remain unchanged.
 
 ## Editable recipe interface
 
@@ -97,6 +100,15 @@ interpreting curves. `diagnostic_mae/*` remains a separate, standardized MAE
 breakdown, not a claimed decomposition of an arbitrary custom loss. Compare loss
 curves within the same recipe; use ST-RAE to compare different objectives.
 
+Training metrics use the predictions collected before each training update, so
+there is no extra training-set inference pass. They reflect a changing model in
+training mode, not a final-epoch evaluation. MAE, R² and rank metrics use all
+observed primary training labels. Training ST-RAE uses only rows with recorded
+intervals; `train/ST-RAE_n` and `train/missing_intervals` expose that cohort. It is
+null when the interval baseline is undefined. Validation retains the strict full
+cohort and interval checks used for selection. Loss-context bounds and scales are
+cached once and indexed in the same row order as recipe batches.
+
 ## Agent experiment loop
 
 1. Inspect this CYP's history, incumbent strategy, train/validation curves,
@@ -128,8 +140,9 @@ bash scripts/run_cyp_research.sh note --trial /absolute/path/to/trial \
 ```
 
 The same commands are available through `python autoresearch.py recipes ...`;
-bare `prepare`, `trial`, and `status` also use CYP recipes. Historical workflows
-remain explicit subcommands, including `molecular`, `briford`, and `legacy`.
+only the explicit `recipes` prefix selects CYP recipes through that entrypoint.
+Bare commands, empty argv and `--help` retain their historical behavior. Historical
+workflows are also available through `molecular`, `briford`, and `legacy`.
 The shell launcher selects `runs/neural-env` and the task-local W&B installation.
 
 `configs/cyp-autoresearch.json` declares a **zero budget for each CYP**. Preparation
@@ -137,6 +150,9 @@ freezes the data, evaluator, and allocations in a new root. CPU smoke tests use
 three epochs and tiny cohorts, cannot be selected, and do not consume a scientific
 campaign allocation. Full fits require CUDA. The private W&B destination is
 `jhtao-none/cyp-autoresearch`; offline and disabled modes retain local evidence.
+If W&B privacy cannot be verified, no online run is initialized. Privacy, auth,
+or connection failures fall back to the local event journal and retain a
+`tracking-error.json` diagnostic; they do not discard scientific work.
 
 Each trial retains `strategy.json`, `recipe.py`, `runtime/`, `job.json`,
 `training-rows.csv`, `settings.json`, `scaler.json`, `events.jsonl`, checkpoints,
@@ -153,6 +169,8 @@ activated environment.
 `plan` requires **four explicit completed, non-smoke trial selections**; it does
 not follow a moving incumbent. It freezes copies of their recipes, strategy
 records and results, plus source/evaluator/runtime hashes and build policy.
+Declared pretrained assets are verified against the selected strategy before
+launch and each fit must retain the exact selected asset hash mapping.
 It does not train. The default build budget is zero.
 
 ```bash
@@ -167,6 +185,19 @@ bash scripts/run_cyp_submission.sh status --root runs/chosen-cyp-build
 When separately authorized, `plan --budget-gpu-hours N` allocates N/20
 hours per CYP/fold fit, including retries; `--fit-seconds` caps individual attempts.
 Process startup/shutdown can add a small amount of wall-clock overhead.
+Failures and interrupted reservations remain charged. If that allocation is
+exhausted, an explicitly authorized retry can add compute without changing the
+frozen recipe or erasing charges:
+
+```bash
+bash scripts/run_cyp_submission.sh allocate --root runs/chosen-cyp-build \
+  --cyp CYP1A2 --fold 0 --additional-gpu-hours 0.5 \
+  --reason "Explicitly authorized retry allocation"
+```
+
+This command only appends a plan-bound allocation record; it does not launch.
+Do not run it without an authorized budget increase. `status` reports allocation
+adjustments and the existing per-fit registries retain all charged attempts.
 `fit` replays the four frozen recipes on all five **preserved mt_aux8 folds**,
 using seed 42+fold, train-only target scalers, and primary-ST-RAE checkpoint
 selection. It performs no strategy search. This is a declared specialist build,
@@ -177,6 +208,12 @@ constructs complete checkpoint-selected OOF evidence, and equally averages the
 five fold models for each endpoint on the official blind identities. It validates
 a finite 750-row prediction CSV and saves a private build report. The initial
 build uses raw predictions without calibration. OOF scores are development only.
+Replay defaults to the device type and float32 policy recorded by each fit.
+CUDA fits therefore require CUDA for the default build; there is no silent CPU
+fallback. `build --device cpu` explicitly requests a cross-device parity check,
+with the same strict prediction and score tolerances. A mismatch stops the build;
+it is not accepted by widening tolerances. GPU replay remains to be exercised on
+a CUDA host.
 
 This path never uploads: `open_source_code=false`, `model_report_link=""`, and
 `submitted=false`. Challenge submission remains a distinct, explicitly authorized

@@ -169,11 +169,7 @@ def test_campaign_telemetry_includes_macro_without_combining_selection(tmp_path,
     assert set(own["best"]) == {CYPS[0]}
 
 
-def test_custom_tensor_model_and_mse_loss_are_recorded_and_replayable(data_roots):
-    torch = pytest.importorskip("torch")
-    from somerra_openadmet.cyp_research_worker import train
-
-    root = data_roots[0]
+def tensor_trial(root):
     output = artifact(root, "CYP1A2")
     (output / "recipe.py").write_text("""
 import numpy as np
@@ -210,6 +206,17 @@ def compute_loss(prediction, target, weights, context):
         recipe_sha256=sha256_file(output / "recipe.py"),
     )
     write(output / "job.json", job)
+    return job
+
+
+def test_custom_tensor_model_and_mse_loss_are_recorded_and_replayable(data_roots):
+    torch = pytest.importorskip("torch")
+    pytest.importorskip("chemprop")
+    from somerra_openadmet.cyp_research_worker import train
+
+    root = data_roots[0]
+    job = tensor_trial(root)
+    output = Path(job["output"])
     train(job)
     result, strategy = read(output / "result.json"), read(output / "strategy.json")
     assert result["status"] == "complete"
@@ -261,7 +268,7 @@ def test_complete_build_has_five_fold_mean_complete_oof_and_private_metadata(
     state["fits"] = {k: str(v) for k, v in fits.items()}
     write(root / "build-state.json", state)
 
-    def predict(path, frame):
+    def predict(path, frame, device="auto"):
         job = read(Path(path) / "job.json")
         ep = tasks_for(job["cyp"])[0]
         if ep in frame:
@@ -284,3 +291,193 @@ def test_complete_build_has_five_fold_mean_complete_oof_and_private_metadata(
     (fits["CYP1A2/fold2"] / "best.pt").write_bytes(b"changed")
     with pytest.raises(ValueError, match="Changed trial artifact"):
         cyp_submission.build(root)
+
+
+def test_build_pins_assets_before_launch_and_rejects_replaced_fit_assets(
+    data_roots, tmp_path, monkeypatch
+):
+    asset = tmp_path / "pretrained.pt"
+    asset.write_bytes(b"original weights")
+    originals = {str(asset): sha256_file(asset)}
+    selections = {c: artifact(data_roots[0], c) for c in CYPS}
+
+    def set_assets(path, assets):
+        strategy = read(path / "strategy.json")
+        strategy["assets_sha256"] = assets
+        write(path / "strategy.json", strategy)
+        result = read(path / "result.json")
+        result["strategy_sha256"] = sha256_file(path / "strategy.json")
+        write(path / "result.json", result)
+
+    for path in selections.values():
+        set_assets(path, originals)
+    root = tmp_path / "build"
+    plan = cyp_submission.freeze(selections, root, budget_gpu_hours=1)
+    monkeypatch.setattr(cyp_submission, "prepare", lambda *args: pytest.fail("launched with drift"))
+    asset.write_bytes(b"changed weights")
+    with pytest.raises(ValueError, match="Frozen recipe asset changed"):
+        cyp_submission.fit(root)
+    asset.write_bytes(b"original weights")
+    cyp_submission.verify_plan(root)
+    # A fit can be internally consistent but use a different asset than its selection.
+    replacement = tmp_path / "replacement.pt"
+    replacement.write_bytes(b"alternative")
+    fitted = artifact(data_roots[1], "CYP1A2")
+    set_assets(fitted, {str(replacement): sha256_file(replacement)})
+    with pytest.raises(ValueError, match="Fit assets differ"):
+        cyp_submission.checked_fit(root, plan, fitted, "CYP1A2", 1)
+
+
+@pytest.mark.parametrize("expire_after", [1, 3])
+def test_time_cap_finalizes_only_a_previously_validated_checkpoint(
+    data_roots, monkeypatch, expire_after
+):
+    pytest.importorskip("torch")
+    pytest.importorskip("chemprop")
+    from somerra_openadmet import cyp_research_worker as worker
+
+    job = tensor_trial(data_roots[0])
+    output = Path(job["output"])
+    clock, calls = [0.0], [0]
+    monkeypatch.setattr(worker, "time", SimpleNamespace(monotonic=lambda: clock[0]))
+    original = worker.objective
+
+    def objective(*args):
+        if args[-1]["phase"] == "train":
+            calls[0] += 1
+            if calls[0] == expire_after:
+                clock[0] = 200.0
+        return original(*args)
+
+    monkeypatch.setattr(worker, "objective", objective)
+    if expire_after == 1:
+        with pytest.raises(TimeoutError, match="before any validated checkpoint"):
+            worker.train(job)
+    else:
+        worker.train(job)
+        result = read(output / "result.json")
+        assert result["status"] == "complete"
+        assert result["stop_reason"] == "time_cap"
+        assert result["epochs"] == result["best_epoch"] == 1
+        assert result["optimizer_steps"] == 3
+        assert result["partial_epoch_steps"] == 1
+        assert result["reload_max_abs"] < 1e-4
+
+
+def test_training_metrics_allow_missing_intervals_and_do_not_run_train_inference(
+    data_roots, monkeypatch
+):
+    pytest.importorskip("torch")
+    pytest.importorskip("chemprop")
+    from somerra_openadmet import cyp_research_worker as worker
+
+    root = data_roots[0]
+    train_frame = pd.read_csv(root / "train.csv")
+    for suffix in ["_conf_low", "_conf_high"]:
+        train_frame[ACTIVITY_ENDPOINTS[0] + suffix] = np.nan
+    train_frame.to_csv(root / "train.csv", index=False)
+    manifest = read(root / "manifest.json")
+    manifest["files"]["train.csv"] = sha256_file(root / "train.csv")
+    write(root / "manifest.json", manifest)
+    job = tensor_trial(root)
+    sizes = []
+    original = worker.RecipeData.predict
+
+    def predict(self, model, ds, device):
+        sizes.append(len(ds))
+        return original(self, model, ds, device)
+
+    monkeypatch.setattr(worker.RecipeData, "predict", predict)
+    worker.train(job)
+    output = Path(job["output"])
+    event = read(output / "progress.json")
+    result = read(output / "result.json")
+    assert event["train/ST-RAE"] is None
+    assert event["train/missing_intervals"] == event["train/n"] == 8
+    assert event["train/MAE"] is not None
+    assert event["val/ST-RAE"] is not None
+    assert sizes == [2] * (result["epochs"] + 1)  # Validation each epoch, then selected replay.
+
+
+def test_cached_loss_context_keeps_shuffled_bounds_aligned(data_roots):
+    torch = pytest.importorskip("torch")
+    pytest.importorskip("chemprop")
+    from somerra_openadmet.cyp_research_worker import LossContext
+
+    frame = pd.read_csv(data_roots[0] / "train.csv")
+    ep = ACTIVITY_ENDPOINTS[0]
+    context = LossContext(frame, [ep], [4.0], [2.0], torch.device("cpu"), {}, "train")
+    one = context.batch(1, np.array([4, 0, 2]))
+    two = context.batch(2, np.array([7, 1]))
+    assert one["mean"].data_ptr() == two["mean"].data_ptr()
+    assert one["primary_low"].tolist() == pytest.approx(frame.iloc[[4, 0, 2]][ep + "_conf_low"])
+    assert two["primary_high"].tolist() == pytest.approx(frame.iloc[[7, 1]][ep + "_conf_high"])
+
+
+def test_worker_rejects_asset_drift_from_selected_recipe(data_roots):
+    pytest.importorskip("torch")
+    pytest.importorskip("chemprop")
+    from somerra_openadmet.cyp_research_worker import train
+
+    job = tensor_trial(data_roots[0])
+    job["expected_assets_sha256"] = {"required-checkpoint": "missing"}
+    with pytest.raises(ValueError, match="assets differ from frozen"):
+        train(job)
+
+
+def test_inference_defaults_to_recorded_device_without_silent_fallback(monkeypatch):
+    torch = pytest.importorskip("torch")
+    monkeypatch.setattr(torch.cuda, "is_available", lambda: False)
+    assert cyp_submission.inference_device({"inference_device": "cpu"}).type == "cpu"
+    with pytest.raises(RuntimeError, match="Recorded inference requires CUDA"):
+        cyp_submission.inference_device({"inference_device": "cuda"})
+    assert cyp_submission.inference_device({"inference_device": "cuda"}, "cpu").type == "cpu"
+    monkeypatch.setattr(torch.cuda, "is_available", lambda: True)
+    assert cyp_submission.inference_device({"inference_device": "cuda"}).type == "cuda"
+
+
+def test_retry_allocation_keeps_plan_and_prior_charges(data_roots, tmp_path, monkeypatch):
+    from somerra_openadmet import cyp_research
+
+    selections = {c: artifact(data_roots[0], c) for c in CYPS}
+    root = tmp_path / "build"
+    cyp_submission.freeze(selections, root)
+    plan_hash = sha256_file(root / "plan.json")
+    record = cyp_submission.allocate(root, "CYP1A2", 0, 1 / 60, "Authorized retry after failure")
+    assert sha256_file(root / "plan.json") == plan_hash
+    assert record["additional_gpu_hours"] == 1 / 60
+    registry_path = data_roots[0] / "campaigns" / "CYP1A2" / "registry.json"
+    write(
+        registry_path,
+        {
+            "best": {},
+            "trials": [
+                {"smoke": False, "reserved_seconds": 30, "used_seconds": 20, "status": "failed"},
+                {"smoke": False, "reserved_seconds": 20, "status": "interrupted"},
+            ],
+        },
+    )
+    before = read(registry_path)
+    with pytest.raises(ValueError, match="budget exhausted"):
+        run_trial(data_roots[0], "CYP1A2", selections["CYP1A2"] / "recipe.py", "retry")
+
+    class Worker:
+        def __init__(self, args, **kwargs):
+            job = read(Path(args[-1]))
+            assert job["reserved_seconds"] == pytest.approx(20)  # 60 new - 40 prior.
+            write(Path(job["output"]) / "result.json", {"status": "failed", "error": "fixture"})
+
+        def wait(self, **kwargs):
+            return 1
+
+    monkeypatch.setattr(cyp_research.subprocess, "Popen", Worker)
+    trial = run_trial(
+        data_roots[0],
+        "CYP1A2",
+        selections["CYP1A2"] / "recipe.py",
+        "retry",
+        additional_budget_hours=record["additional_gpu_hours"],
+    )
+    assert trial["status"] == "failed"
+    assert read(registry_path)["trials"][:2] == before["trials"]
+    assert read(root / "plan.json")["budget_gpu_hours"] == 0

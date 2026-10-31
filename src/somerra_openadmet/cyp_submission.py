@@ -6,6 +6,8 @@ import argparse
 import copy
 import json
 import shutil
+import time
+import uuid
 from pathlib import Path
 
 import numpy as np
@@ -133,6 +135,10 @@ def verify_plan(root):
         for name, digest in record["files"].items():
             if sha256_file(root / "recipes" / cyp / name) != digest:
                 raise ValueError("Frozen recipe record changed")
+    for cyp in CYPS:
+        for name, digest in frozen_assets(root, cyp).items():
+            if sha256_file(Path(name)) != digest:
+                raise ValueError(f"Frozen recipe asset changed: {name}")
     for name, digest in plan["source_sha256"].items():
         if sha256_file(Path(name)) != digest:
             raise ValueError(f"Source snapshot changed: {name}")
@@ -142,12 +148,75 @@ def verify_plan(root):
     return plan, state
 
 
+def frozen_assets(root, cyp):
+    return read(Path(root) / "recipes" / cyp / "strategy.json").get("assets_sha256", {})
+
+
+def checked_fit(root, plan, path, cyp, fold):
+    job, result = checked_trial(path, cyp)
+    manifest = verify(job["root"])
+    if (
+        manifest["config"]["fold"] != fold
+        or manifest["config"]["seed"] != 42 + fold
+        or manifest["source_sha256"] != plan["source_sha256"]
+        or job["recipe_sha256"] != plan["recipes"][cyp]["files"]["recipe.py"]
+    ):
+        raise ValueError("Fit does not match the frozen build plan")
+    if read(Path(path) / "strategy.json").get("assets_sha256", {}) != frozen_assets(root, cyp):
+        raise ValueError("Fit assets differ from the frozen strategy")
+    return job, result
+
+
+def budget_adjustments(root, plan_sha256):
+    path = Path(root) / "budget-adjustments.jsonl"
+    records = [json.loads(line) for line in path.read_text().splitlines()] if path.exists() else []
+    for row in records:
+        if (
+            row["plan_sha256"] != plan_sha256
+            or row["cyp"] not in CYPS
+            or row["fold"] not in range(5)
+            or not np.isfinite(row["additional_gpu_hours"])
+            or row["additional_gpu_hours"] <= 0
+        ):
+            raise ValueError("Invalid build budget adjustment")
+    return records
+
+
+def allocate(root, cyp, fold, additional_gpu_hours, reason):
+    """Record explicitly authorized retry compute without changing recipes or erasing charges."""
+    root = Path(root).resolve()
+    if (
+        cyp not in CYPS
+        or fold not in range(5)
+        or not reason.strip()
+        or not np.isfinite(additional_gpu_hours)
+        or additional_gpu_hours <= 0
+    ):
+        raise ValueError("Specify a CYP, fold, positive extra budget, and reason")
+    with lock(root):
+        _, state = verify_plan(root)
+        budget_adjustments(root, state["plan_sha256"])
+        record = {
+            "id": uuid.uuid4().hex,
+            "time": time.time(),
+            "plan_sha256": state["plan_sha256"],
+            "cyp": cyp,
+            "fold": fold,
+            "additional_gpu_hours": additional_gpu_hours,
+            "reason": reason,
+        }
+        with (root / "budget-adjustments.jsonl").open("a") as handle:
+            handle.write(json.dumps(record, allow_nan=False) + "\n")
+        return record
+
+
 def fit(root, mode=None):
     """Replay the frozen recipes across saved folds; never edit or search recipes here."""
     root = Path(root).resolve()
     with lock(root):
         plan, state = verify_plan(root)
-        if plan["budget_gpu_hours"] <= 0:
+        adjustments = budget_adjustments(root, state["plan_sha256"])
+        if plan["budget_gpu_hours"] <= 0 and not adjustments:
             raise ValueError("Build launch disabled (budget_gpu_hours=0)")
         for fold in plan["folds"]:
             config = copy.deepcopy(plan["data_config"])
@@ -168,7 +237,7 @@ def fit(root, mode=None):
             for cyp in CYPS:
                 key = f"{cyp}/fold{fold}"
                 if key in state["fits"]:
-                    checked_trial(state["fits"][key], cyp)
+                    checked_fit(root, plan, state["fits"][key], cyp, fold)
                     continue
                 # Recover a fit completed before the build-state write was interrupted.
                 registry = read(data_root / "campaigns" / cyp / "registry.json")
@@ -184,36 +253,60 @@ def fit(root, mode=None):
                         root / "recipes" / cyp / "recipe.py",
                         "Frozen recipe replay for submission; no strategy search",
                         mode=mode,
+                        additional_budget_hours=sum(
+                            r["additional_gpu_hours"]
+                            for r in adjustments
+                            if r["cyp"] == cyp and r["fold"] == fold
+                        ),
+                        expected_assets=frozen_assets(root, cyp),
                     )
                 )
                 if trial["status"] != "complete":
                     raise RuntimeError(f"Build fit failed: {key}; inspect {trial['output']}")
-                checked_trial(trial["output"], cyp)
+                checked_fit(root, plan, trial["output"], cyp, fold)
                 state["fits"][key] = trial["output"]
                 write(root / "build-state.json", state)
         return state
 
 
-def predict_trial(path, frame):
+def inference_device(result, requested="auto"):
+    import torch
+
+    recorded = result.get("inference_device", "cpu" if result.get("smoke") else "cuda")
+    selected = recorded if requested == "auto" else requested
+    if selected not in {"cpu", "cuda"}:
+        raise ValueError("Inference device must be auto, cpu, or cuda")
+    if selected == "cuda" and not torch.cuda.is_available():
+        raise RuntimeError(
+            "Recorded inference requires CUDA; use a CUDA host or explicitly "
+            "request --device cpu for a strict cross-device replay check"
+        )
+    return torch.device(selected)
+
+
+def predict_trial(path, frame, device="auto"):
     """Reconstruct model and preprocessing exclusively from a completed frozen fit."""
     import torch
 
     from .cyp_research_worker import RecipeData, load_recipe
 
     path = Path(path)
-    saved = torch.load(path / "best.pt", map_location="cpu", weights_only=True)
+    result = read(path / "result.json")
+    device = inference_device(result, device)
+    torch.set_float32_matmul_precision(result.get("matmul_precision", "highest"))
+    saved = torch.load(path / "best.pt", map_location=device, weights_only=True)
     recipe = load_recipe(path / "recipe.py")
-    model = recipe.build_model(len(saved["tasks"]), saved["settings"])
+    model = recipe.build_model(len(saved["tasks"]), saved["settings"]).to(device)
     model.load_state_dict(saved["model"])
     adapter = RecipeData(recipe, saved["settings"])
     ds = adapter.dataset(frame, np.full((len(frame), len(saved["tasks"])), np.nan))
-    values = adapter.predict(model, ds, torch.device("cpu"))
+    values = adapter.predict(model, ds, device)
     if values.shape != (len(frame), len(saved["tasks"])):
         raise ValueError("Prediction shape mismatch")
     return (values * np.asarray(saved["scale"]) + np.asarray(saved["mean"]))[:, 0]
 
 
-def build(root):
+def build(root, device="auto"):
     """Assemble five-fold OOF evidence and a locally validated 750-row CSV. No upload API."""
     root = Path(root).resolve()
     with lock(root):
@@ -231,17 +324,9 @@ def build(root):
             for fold in plan["folds"]:
                 key = f"{cyp}/fold{fold}"
                 trial = Path(state["fits"][key])
-                job, result = checked_trial(trial, cyp)
-                manifest = verify(job["root"])
-                if (
-                    manifest["config"]["fold"] != fold
-                    or manifest["config"]["seed"] != 42 + fold
-                    or manifest["source_sha256"] != plan["source_sha256"]
-                    or job["recipe_sha256"] != plan["recipes"][cyp]["files"]["recipe.py"]
-                ):
-                    raise ValueError("Fit does not match the frozen build plan")
+                job, result = checked_fit(root, plan, trial, cyp, fold)
                 val = pd.read_csv(Path(job["root"]) / "validation.csv")
-                values = predict_trial(trial, val)
+                values = predict_trial(trial, val, device=device)
                 saved = pd.read_csv(trial / "validation-predictions.csv")
                 if list(saved.Molecule_Name) != list(val.Molecule_Name) or not np.allclose(
                     values, saved[endpoint], atol=1e-4, rtol=0
@@ -257,12 +342,15 @@ def build(root):
                 ].copy()
                 rows["prediction"], rows["fold"] = values, fold
                 oof.append(rows)
-                blind.append(predict_trial(trial, test))
+                blind.append(predict_trial(trial, test, device=device))
                 provenance[key] = {
                     "trial": str(trial),
                     "checkpoint_sha256": result["checkpoint_sha256"],
                     "metrics": metrics,
                     "best_epoch": result["best_epoch"],
+                    "inference_device": (
+                        result.get("inference_device", "cuda") if device == "auto" else device
+                    ),
                 }
             joined = pd.concat(oof, ignore_index=True)
             official = pd.read_csv(Path(plan["data_config"]["source_dir"]) / "official.csv")
@@ -303,9 +391,17 @@ def main(argv=None):
     p.add_argument("--output", type=Path, required=True)
     p.add_argument("--budget-gpu-hours", type=float, default=0)
     p.add_argument("--fit-seconds", type=float, default=1800)
+    p = sub.add_parser("allocate", help="Record an explicitly authorized retry budget; no launch")
+    p.add_argument("--root", type=Path, required=True)
+    p.add_argument("--cyp", choices=CYPS, required=True)
+    p.add_argument("--fold", type=int, choices=range(5), required=True)
+    p.add_argument("--additional-gpu-hours", type=float, required=True)
+    p.add_argument("--reason", required=True)
     for command in ["fit", "build", "status"]:
         p = sub.add_parser(command)
         p.add_argument("--root", type=Path, required=True)
+        if command == "build":
+            p.add_argument("--device", choices=["auto", "cpu", "cuda"], default="auto")
         if command == "fit":
             p.add_argument("--wandb-mode", choices=["online", "offline", "disabled"])
     args = parser.parse_args(argv)
@@ -319,13 +415,19 @@ def main(argv=None):
             budget_gpu_hours=args.budget_gpu_hours,
             fit_seconds=args.fit_seconds,
         )
+    elif args.command == "allocate":
+        result = allocate(args.root, args.cyp, args.fold, args.additional_gpu_hours, args.reason)
     elif args.command == "fit":
         result = fit(args.root, args.wandb_mode)
     elif args.command == "build":
-        result = build(args.root)
+        result = build(args.root, args.device)
     else:
         plan, state = verify_plan(args.root)
-        result = {"plan": plan, "state": state}
+        result = {
+            "plan": plan,
+            "state": state,
+            "budget_adjustments": budget_adjustments(args.root, state["plan_sha256"]),
+        }
     print(json.dumps(result, indent=2))
 
 

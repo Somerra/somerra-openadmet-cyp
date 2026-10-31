@@ -13,9 +13,12 @@ import numpy as np
 import pandas as pd
 import torch
 from chemprop import data
+from scipy.stats import kendalltau, spearmanr
+from sklearn.metrics import mean_absolute_error, r2_score
 
 from .cyp_research import read, regression_metrics, tasks_for, verify, write
 from .download import sha256_file
+from .metrics import soft_threshold_rae
 from .research_tracking import Tracker
 
 
@@ -63,19 +66,6 @@ def batch(ds, indices, device):
     value = data.collate_batch([ds[int(i)] for i in indices])
     value.bmg.to(device)
     return value.bmg, value.Y.to(device)
-
-
-def predict(model, ds, device):
-    model.eval()
-    rows = []
-    with torch.inference_mode(), torch.autocast(device.type, enabled=False):
-        for indices in batch_indices(len(ds), 256):
-            graph, _ = batch(ds, indices, device)
-            rows.append(model(graph).float().cpu().numpy())
-    result = np.concatenate(rows)
-    if not np.isfinite(result).all():
-        raise ValueError("Nonfinite predictions")
-    return result
 
 
 def load_recipe(path):
@@ -141,20 +131,63 @@ def objective(recipe, prediction, target, weights, context):
     return loss
 
 
-def loss_context(frame, tasks, mean, scale, device, settings, epoch, phase):
+class LossContext:
+    """Cache row-aligned bounds and training scales once per dataset."""
+
+    def __init__(self, frame, tasks, mean, scale, device, settings, phase):
+        self.base = {
+            "settings": settings,
+            "phase": phase,
+            "tasks": tasks,
+            "mean": torch.tensor(mean, device=device, dtype=torch.float32),
+            "scale": torch.tensor(scale, device=device, dtype=torch.float32),
+        }
+        self.bounds = {
+            key: torch.tensor(
+                frame[tasks[0] + suffix].to_numpy(float), device=device, dtype=torch.float32
+            )
+            for key, suffix in [("primary_low", "_conf_low"), ("primary_high", "_conf_high")]
+        }
+
+    def batch(self, epoch, indices=None):
+        if indices is None:
+            bounds = self.bounds
+        else:
+            index = torch.as_tensor(indices, device=self.base["mean"].device, dtype=torch.long)
+            bounds = {key: values[index] for key, values in self.bounds.items()}
+        return {**self.base, **bounds, "epoch": epoch}
+
+
+def training_metrics(frame, prediction, endpoint):
+    """Point metrics use all labels; interval error uses only recorded intervals."""
+    y = frame[endpoint].to_numpy(float)
+    observed = np.isfinite(y)
+    y, pred = y[observed], np.asarray(prediction)[observed]
+    varied = len(y) > 1 and np.ptp(y) > 0
+    ranks_defined = varied and np.ptp(pred) > 0
+    low, high = [
+        frame[endpoint + suffix].to_numpy(float)[observed] for suffix in ["_conf_low", "_conf_high"]
+    ]
+    eligible = np.isfinite(low) & np.isfinite(high)
+    interval_score = None
+    if eligible.any():
+        try:
+            interval_score = soft_threshold_rae(
+                y[eligible], pred[eligible], low[eligible], high[eligible]
+            )
+        except ValueError as exc:
+            # A constant/interval-covered training baseline has no defined ST-RAE.
+            if str(exc) != "ST-RAE denominator is zero":
+                raise
     return {
-        "settings": settings,
-        "epoch": epoch,
-        "phase": phase,
-        "tasks": tasks,
-        "mean": torch.tensor(mean, device=device, dtype=torch.float32),
-        "scale": torch.tensor(scale, device=device, dtype=torch.float32),
-        "primary_low": torch.tensor(
-            frame[tasks[0] + "_conf_low"].to_numpy(float), device=device, dtype=torch.float32
-        ),
-        "primary_high": torch.tensor(
-            frame[tasks[0] + "_conf_high"].to_numpy(float), device=device, dtype=torch.float32
-        ),
+        "MAE": float(mean_absolute_error(y, pred)) if len(y) else None,
+        "R2": float(r2_score(y, pred)) if varied else None,
+        "Spearman_R": float(spearmanr(y, pred).statistic) if ranks_defined else None,
+        "Kendall_Tau": float(kendalltau(y, pred).statistic) if ranks_defined else None,
+        "ST-RAE": interval_score,
+        "ST-RAE_n": int(eligible.sum()),
+        "n": len(y),
+        "missing_intervals": int((~eligible).sum()),
     }
 
 
@@ -172,6 +205,7 @@ def validate_settings(settings):
 
 
 def train(job):
+    started = time.monotonic()
     root, output = Path(job["root"]), Path(job["output"])
     if sha256_file(root / "manifest.json") != job["manifest_sha256"]:
         raise ValueError("Campaign manifest changed")
@@ -191,6 +225,9 @@ def train(job):
     device = torch.device("cpu" if job["smoke"] else "cuda")
     torch.set_float32_matmul_precision("highest")
     recipe = load_recipe(output / "recipe.py")
+    assets = recipe_assets(recipe)
+    if job.get("expected_assets_sha256") is not None and assets != job["expected_assets_sha256"]:
+        raise ValueError("Recipe assets differ from frozen build strategy")
     settings = dict(recipe.SETTINGS)
     if job["smoke"]:
         settings.update(getattr(recipe, "SMOKE_SETTINGS", {}))
@@ -217,10 +254,10 @@ def train(job):
     train_z, val_z = [(v - mean) / scale for v in [train_values, val_values]]
     adapter = RecipeData(recipe, settings)
     train_ds, val_ds = adapter.dataset(train_frame, train_z), adapter.dataset(val_frame, val_z)
-    primary_train = train_frame.loc[train_frame[tasks[0]].notna()].copy()
-    primary_ds = adapter.dataset(
-        primary_train, (primary_train[tasks].to_numpy(float) - mean) / scale
-    )
+    contexts = {
+        "train": LossContext(train_frame, tasks, mean, scale, device, settings, "train"),
+        "validation": LossContext(val_frame, tasks, mean, scale, device, settings, "validation"),
+    }
     weights = np.array(
         [
             settings.get("task_weights", {}).get(
@@ -250,7 +287,10 @@ def train(job):
             "train_rows": len(train_frame),
             "train_label_counts": train_frame[tasks].notna().sum().to_dict(),
             "task_weights": weights.tolist(),
-            "assets_sha256": recipe_assets(recipe),
+            "assets_sha256": assets,
+            "train_metrics": (
+                "training-pass predictions before each update; ST-RAE requires intervals"
+            ),
             "packages": {p: version(p) for p in ["torch", "chemprop", "numpy", "pandas", "rdkit"]},
             "loss_reporting": (
                 "observed-label-weighted mean of batch objectives; validation is one full batch"
@@ -266,7 +306,6 @@ def train(job):
     scheduler = recipe.build_scheduler(optimizer, settings, steps_per_epoch)
     amp = torch.amp.GradScaler("cuda", enabled=device.type == "cuda")
     task_weights = torch.tensor(weights, device=device, dtype=torch.float32)
-    started = time.monotonic()
     deadline = started + job["reserved_seconds"] - 15
     rng = np.random.default_rng(seed)
     tracker = Tracker(
@@ -294,14 +333,18 @@ def train(job):
         smoke=job["smoke"],
     )
     best, stale, steps, best_epoch = float("inf"), 0, 0, None
+    completed_epochs, completed_steps = 0, 0
+    stop_reason = "max_epochs"
     try:
         for epoch in range(1, settings["max_epochs"] + 1):
             model.train()
             sums, counts = np.zeros(len(tasks)), np.zeros(len(tasks))
             total_loss, loss_count = 0.0, 0
+            train_predictions = np.empty(len(train_frame), dtype=float)
             for indices in batch_indices(len(train_ds), settings["batch_size"], rng):
                 if time.monotonic() > deadline:
-                    raise TimeoutError("Trial time cap reached")
+                    stop_reason = "time_cap"
+                    break
                 graph, targets = adapter.batch(train_ds, indices, device)
                 optimizer.zero_grad(set_to_none=True)
                 with torch.autocast(
@@ -311,17 +354,11 @@ def train(job):
                     if prediction.shape != targets.shape or not torch.isfinite(prediction).all():
                         raise ValueError("Wrong output shape or nonfinite training predictions")
                     _, errors, observed = loss_parts(prediction.float(), targets, task_weights)
-                    context = loss_context(
-                        train_frame.iloc[indices],
-                        tasks,
-                        mean,
-                        scale,
-                        device,
-                        settings,
-                        epoch,
-                        "train",
-                    )
+                    context = contexts["train"].batch(epoch, indices)
                     loss = objective(recipe, prediction.float(), targets, task_weights, context)
+                train_predictions[indices] = (
+                    prediction[:, 0].detach().float().cpu().numpy() * scale[0] + mean[0]
+                )
                 count = int(observed.sum())
                 total_loss += float(loss.detach()) * count
                 loss_count += count
@@ -333,11 +370,12 @@ def train(job):
                 sums += errors.cpu().numpy()
                 counts += observed.cpu().numpy()
                 steps += 1
+            if stop_reason == "time_cap":
+                break  # Do not score or checkpoint a partially trained epoch.
             val_pred_z = adapter.predict(model, val_ds, device)
             val_pred = val_pred_z * scale + mean
             val_metrics = regression_metrics(val_frame, val_pred[:, 0], tasks[0])
-            train_pred = adapter.predict(model, primary_ds, device) * scale + mean
-            train_metrics = regression_metrics(primary_train, train_pred[:, 0], tasks[0])
+            train_metrics = training_metrics(train_frame, train_predictions, tasks[0])
             observed = np.isfinite(val_z)
             val_errors = np.where(observed, np.abs(val_pred_z - val_z), 0).sum(0)
             val_count = observed.sum(0)
@@ -348,9 +386,7 @@ def train(job):
                     torch.as_tensor(val_pred_z, device=device),
                     torch.as_tensor(val_z, device=device, dtype=torch.float32),
                     task_weights,
-                    loss_context(
-                        val_frame, tasks, mean, scale, device, settings, epoch, "validation"
-                    ),
+                    contexts["validation"].batch(epoch),
                 )
             event = {
                 "epoch": epoch,
@@ -411,8 +447,12 @@ def train(job):
                 },
                 output / "last.pt",
             )
+            completed_epochs, completed_steps = epoch, steps
             if stale >= settings["patience"]:
+                stop_reason = "early_stopping"
                 break
+        if best_epoch is None:
+            raise TimeoutError("Time cap reached before any validated checkpoint")
         saved = torch.load(output / "best.pt", map_location=device, weights_only=True)
         replay = recipe.build_model(len(tasks), settings).to(device)
         replay.load_state_dict(saved["model"])
@@ -427,7 +467,12 @@ def train(job):
             "status": "complete",
             "metrics": saved["metrics"],
             "best_epoch": best_epoch,
-            "epochs": epoch,
+            "epochs": completed_epochs,
+            "stop_reason": stop_reason,
+            "partial_epoch_steps": steps - completed_steps,
+            "inference_device": device.type,
+            "inference_precision": "float32",
+            "matmul_precision": "highest",
             "optimizer_steps": steps,
             "reload_max_abs": error,
             "smoke": job["smoke"],
@@ -443,6 +488,7 @@ def train(job):
             {
                 "best_epoch": best_epoch,
                 "status": "complete",
+                "stop_reason": stop_reason,
                 **{f"selected/{k}": v for k, v in saved["metrics"].items() if v is not None},
             }
         )

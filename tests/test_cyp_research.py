@@ -176,3 +176,42 @@ def test_official_st_rae_parity():
     truth = pd.DataFrame({ep: y, ep + "_conf_low": lo, ep + "_conf_high": hi})
     expected = module.rae_soft_threshold_absolute_error(y, pred, y_true_upper=hi, y_true_lower=lo)
     assert regression_metrics(truth, pred, ep)["ST-RAE"] == pytest.approx(expected, abs=1e-12)
+
+
+@pytest.mark.parametrize("failure", ["privacy", "network", "init"])
+def test_wandb_initialization_falls_back_without_bypassing_privacy(tmp_path, monkeypatch, failure):
+    import sys
+    from types import SimpleNamespace
+
+    from somerra_openadmet import research_tracking
+
+    initialized = []
+
+    def privacy(*args):
+        if failure == "privacy":
+            raise ValueError("Public project")
+        if failure == "network":
+            raise ConnectionError("Cannot verify privacy")
+
+    def init(**kwargs):
+        initialized.append(True)
+        raise ConnectionError("Unavailable")
+
+    monkeypatch.setitem(sys.modules, "wandb", SimpleNamespace(init=init, Settings=lambda **kw: kw))
+    monkeypatch.setattr(research_tracking, "ensure_private_project", privacy)
+    tracker = Tracker(
+        tmp_path,
+        {"entity": "private", "project": "test"},
+        run_id="t",
+        group="g",
+        cyp="CYP1A2",
+        config={},
+        mode="online",
+    )
+    tracker.log({"epoch": 1, "val/ST-RAE": 0.5})
+    tracker.finish({"status": "complete"})
+    assert initialized == ([True] if failure == "init" else [])
+    assert json.loads((tmp_path / "events.jsonl").read_text())["val/ST-RAE"] == 0.5
+    assert (
+        json.loads((tmp_path / "tracking-error.json").read_text())["effective_mode"] == "disabled"
+    )

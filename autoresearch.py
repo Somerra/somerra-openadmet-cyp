@@ -1,6 +1,6 @@
 """Primary interface for autoresearch trials and saved-recipe reproduction.
 
-CYP recipes are the default; historical workflows remain explicit subcommands.
+Use the explicit recipes prefix for CYP research; historical commands remain compatible.
 """
 
 import sys
@@ -11,10 +11,10 @@ from somerra_openadmet.research import main as run_command
 
 def main(argv=None):
     argv = sys.argv[1:] if argv is None else argv
-    if not argv or argv[0] in {"recipes", "prepare", "trial", "status", "note", "--help", "-h"}:
+    if argv and argv[0] == "recipes":
         from somerra_openadmet.cyp_research import main as cyp_main
 
-        return cyp_main(argv[1:] if argv and argv[0] == "recipes" else argv)
+        return cyp_main(argv[1:])
     if argv and argv[0] == "briford":
         from somerra_openadmet.briford import main as briford_main
 

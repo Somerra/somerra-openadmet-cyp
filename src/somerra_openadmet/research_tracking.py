@@ -36,48 +36,70 @@ class Tracker:
         self.error = None
         if mode == "disabled":
             return
-        import wandb
+        try:
+            import wandb
 
-        if mode == "online":
-            ensure_private_project(wandb, tracking["entity"], tracking["project"])
-        self.run = wandb.init(
-            entity=tracking["entity"],
-            project=tracking["project"],
-            id=run_id,
-            name=run_id,
-            group=group,
-            job_type="smoke" if smoke else config.get("workflow", "research"),
-            tags=[cyp, "development-fold", "smoke" if smoke else "candidate"],
-            config=config,
-            dir=str(self.output),
-            mode=mode,
-            save_code=False,
-            resume="allow" if mode == "online" else None,
-            settings=wandb.Settings(
-                disable_code=True,
-                disable_git=True,
-                console="off",
-                x_disable_meta=True,
-                init_timeout=30,
-            ),
-        )
-        self.run.define_metric("epoch")
-        for prefix in ["train", "val", "loss", "diagnostic_mae", "optimizer", "runtime"]:
-            self.run.define_metric(f"{prefix}/*", step_metric="epoch")
-        self.run.define_metric("val/ST-RAE", summary="min")
-        (self.output / "tracking.json").write_text(
-            json.dumps(
-                {
-                    "id": self.run.id,
-                    "url": self.run.url,
-                    "mode": mode,
-                    "entity": tracking["entity"],
-                    "project": tracking["project"],
-                },
-                indent=2,
+            if mode == "online":
+                ensure_private_project(wandb, tracking["entity"], tracking["project"])
+            self.run = wandb.init(
+                entity=tracking["entity"],
+                project=tracking["project"],
+                id=run_id,
+                name=run_id,
+                group=group,
+                job_type="smoke" if smoke else config.get("workflow", "research"),
+                tags=[cyp, "development-fold", "smoke" if smoke else "candidate"],
+                config=config,
+                dir=str(self.output),
+                mode=mode,
+                save_code=False,
+                resume="allow" if mode == "online" else None,
+                settings=wandb.Settings(
+                    disable_code=True,
+                    disable_git=True,
+                    console="off",
+                    x_disable_meta=True,
+                    init_timeout=30,
+                ),
             )
-            + "\n"
-        )
+            self.run.define_metric("epoch")
+            for prefix in ["train", "val", "loss", "diagnostic_mae", "optimizer", "runtime"]:
+                self.run.define_metric(f"{prefix}/*", step_metric="epoch")
+            self.run.define_metric("val/ST-RAE", summary="min")
+            (self.output / "tracking.json").write_text(
+                json.dumps(
+                    {
+                        "id": self.run.id,
+                        "url": self.run.url,
+                        "mode": mode,
+                        "entity": tracking["entity"],
+                        "project": tracking["project"],
+                    },
+                    indent=2,
+                )
+                + "\n"
+            )
+        except Exception as exc:
+            # Never initialize an online run if privacy could not be verified.
+            # Tracking availability must not decide whether a scientific trial succeeds.
+            if self.run is not None:
+                try:
+                    self.run.finish(exit_code=1)
+                except Exception:
+                    pass
+            self.run = None
+            self.error = type(exc).__name__
+            (self.output / "tracking-error.json").write_text(
+                json.dumps(
+                    {
+                        "error_type": self.error,
+                        "phase": "initialization",
+                        "requested_mode": mode,
+                        "effective_mode": "disabled",
+                        "local_events_preserved": True,
+                    }
+                )
+            )
 
     def log(self, values):
         with self.path.open("a") as handle:
