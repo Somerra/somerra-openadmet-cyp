@@ -12,6 +12,10 @@ from rdkit.Chem.MolStandardize import rdMolStandardize
 from rdkit.ML.Cluster import Butina
 
 
+def read_json(path: Path):
+    return json.loads(path.read_text())
+
+
 def write_json(path: Path, value: object) -> None:
     path.write_text(json.dumps(value, indent=2, sort_keys=True, allow_nan=False) + "\n")
 

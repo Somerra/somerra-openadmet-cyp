@@ -257,6 +257,26 @@ and the cross-fitted ensemble candidate derived from it.
 [docs/roadmap.md](docs/roadmap.md) describes the planned path toward a competitive
 Somerra model.
 
+## CYP recipe research and submission builds
+
+The [CYP runbook](research/CYP_PROGRAM.md) separates agent-directed strategy discovery with
+three training folds, validation fold 0, and internal-test fold 2 from submission construction. Each CYP has its own recipe,
+history, budget, and incumbent. Recipes control model inputs, architecture,
+auxiliary tasks, loss, optimizer, and training policy. Private W&B records the
+strategy, actual train/validation losses, and all challenge regression metrics.
+Validation ST-RAE selects each CYP's checkpoint and strategy; lower is better.
+The separate research `test` command freezes that selection and closes the CYP
+search before reporting internal-test metrics. Test scores never rank recipes.
+
+Use `bash scripts/run_cyp_research.sh --help` or `python autoresearch.py recipes
+--help` for research. `python submissions.py --help` provides a separate path to
+freeze four selected recipes, replay them across the saved five folds, and build
+validated prediction-only files with private provenance. Neither path uploads.
+Research and build budgets default to zero; only setup and CPU smoke tests are
+enabled. Scores from validation and checkpoint-selected OOF remain development
+results. Internal-test reports describe the frozen selection under this new split;
+historical use of these molecules must still be disclosed.
+
 ## Data and licensing
 
 Challenge data are downloaded directly from
