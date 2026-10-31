@@ -1,0 +1,30 @@
+{
+  "source_dir": "runs/regression-hillclimb-20261026-data",
+  "workbench_data": "/mnt/data/somerra-openadmet-runs/briford-20261028/data",
+  "output_dir": "runs/cyp-recipes-fold0",
+  "fold": 0,
+  "seed": 42,
+  "wandb": {
+    "entity": "jhtao-none",
+    "project": "cyp-autoresearch",
+    "mode": "online"
+  },
+  "campaigns": {
+    "CYP1A2": {
+      "budget_gpu_hours": 0,
+      "trial_seconds": 1800
+    },
+    "CYP2C9": {
+      "budget_gpu_hours": 0,
+      "trial_seconds": 1800
+    },
+    "CYP2D6": {
+      "budget_gpu_hours": 0,
+      "trial_seconds": 1800
+    },
+    "CYP3A4": {
+      "budget_gpu_hours": 0,
+      "trial_seconds": 1800
+    }
+  }
+}

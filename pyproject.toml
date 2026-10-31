@@ -21,10 +21,13 @@ dependencies = [
 
 [project.optional-dependencies]
 reports = ["matplotlib>=3.9,<4"]
+tracking = ["wandb==0.24.2"]
 
 [project.scripts]
 openadmet-cyp = "somerra_openadmet.cli:main"
 openadmet-molecular-split = "somerra_openadmet.molecular_split_cli:main"
+openadmet-cyp-research = "somerra_openadmet.cyp_research:main"
+openadmet-cyp-build = "somerra_openadmet.cyp_submission:main"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/somerra_openadmet"]

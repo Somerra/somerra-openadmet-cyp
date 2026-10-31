@@ -258,6 +258,19 @@ Workbench experiment. No new fit or submission is launched by this documentation
 
 ## Entrypoint and evidence
 
+The CYP recipe workflow now uses `autoresearch.py recipes prepare|trial|status|note`
+for agent-directed single-fold strategy search. Each CYP has an independent recipe,
+budget and history; architecture, task selection, loss and training policy can
+change. The default development fold is the saved `mt_aux8` fold 0. This is a
+declared specialist view of the existing expanded pool with validation/blind
+parent exclusion, not a reproduction of a historical bundle's full model ensemble.
+
+`submissions.py plan|fit|build|status` is the separate construction path: freeze four
+explicit selected recipes, replay each across all five preserved `mt_aux8` folds,
+then average fold predictions per CYP. Checkpoint selection uses primary ST-RAE.
+The research and build allocations default to zero; no fit or upload is launched
+by setup. See the [recipe contract and runbook](../research/CYP_PROGRAM.md).
+
 `autoresearch.py` remains the research entrypoint. The existing implementation of
 the historical reference is `autoresearch.py briford prepare|run|status|predict`;
 see [execution commands](briford-reproduction.md#commands-and-execution).

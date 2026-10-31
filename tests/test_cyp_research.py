@@ -1,0 +1,178 @@
+import json
+from pathlib import Path
+
+import numpy as np
+import pandas as pd
+import pytest
+
+from somerra_openadmet.constants import ACTIVITY_ENDPOINTS
+from somerra_openadmet.cyp_research import (
+    AUXILIARY,
+    CYPS,
+    accept_result,
+    leaderboard,
+    regression_metrics,
+    split_data,
+    tasks_for,
+)
+from somerra_openadmet.research_tracking import Tracker, ensure_private_project
+
+
+def frames():
+    official = pd.DataFrame(
+        {
+            "Molecule_Name": ["v", "alias", "t", "blind"],
+            "parent": ["CC", "CC", "CCC", "CCCC"],
+            "SMILES": ["CC", "CC", "CCC", "CCCC"],
+        }
+    )
+    for ep in ACTIVITY_ENDPOINTS:
+        official[ep] = [1.0, 1.0, 3.0, 5.0]
+        official[ep + "_conf_low"] = official[ep] - 0.1
+        official[ep + "_conf_high"] = official[ep] + 0.1
+    pool = pd.concat(
+        [
+            official,
+            official.iloc[[0]].assign(Molecule_Name="external-alias"),
+            official.iloc[[0]].assign(Molecule_Name="external", parent="CCO"),
+        ]
+    )
+    wb = pd.DataFrame({"molecule_name": official.Molecule_Name, "fold": [0, 1, 1, 2]})
+    return official, pool, wb, pd.DataFrame({"parent": ["CCCC"]})
+
+
+def test_split_uses_workbench_and_excludes_aliases_from_every_source():
+    official, pool, wb, blind = frames()
+    pool["fold"] = 0  # Expanded bundle fold numbers have no authority here.
+    train, val, assignments = split_data(official, pool, wb, blind, 0)
+    assert set(train.Molecule_Name) == {"t", "external"}
+    assert list(val.Molecule_Name) == ["v"]
+    assert (
+        assignments.loc[assignments.Molecule_Name == "alias", "partition"].item()
+        == "excluded_validation_alias"
+    )
+    assert train.sample_weight.eq(1).all()
+    assert not set(train.parent) & set(val.parent)
+
+
+def test_split_rejects_identity_and_label_mismatch():
+    official, pool, wb, blind = frames()
+    pool.loc[pool.Molecule_Name == "t", ACTIVITY_ENDPOINTS[0]] = 999
+    with pytest.raises(ValueError, match="labels mismatch"):
+        split_data(official, pool, wb, blind, 0)
+
+
+def test_each_specialist_has_one_primary_and_all_22_auxiliaries():
+    assert len(AUXILIARY) == len(set(AUXILIARY)) == 22
+    for cyp in CYPS:
+        tasks = tasks_for(cyp)
+        assert len(tasks) == 23
+        assert tasks[0].startswith(cyp)
+        assert set(tasks) & set(ACTIVITY_ENDPOINTS) == {tasks[0]}
+
+
+def test_metrics_interval_semantics_and_constant_prediction():
+    ep = ACTIVITY_ENDPOINTS[0]
+    truth = pd.DataFrame(
+        {
+            ep: [1.0, 3.0, np.nan],
+            ep + "_conf_low": [0.5, 2.5, np.nan],
+            ep + "_conf_high": [1.5, 3.5, np.nan],
+        }
+    )
+    scores = regression_metrics(truth, [1.3, 2.9, 0], ep)
+    assert scores["ST-RAE"] == 0
+    assert scores["MAE"] == pytest.approx(0.2)
+    assert scores["Spearman_R"] == pytest.approx(1)
+    assert scores["Kendall_Tau"] == pytest.approx(1)
+    assert scores["n"] == 2
+    constant = regression_metrics(truth, [2, 2, 2], ep)
+    assert constant["ST-RAE"] == pytest.approx(1)
+    assert constant["R2"] == pytest.approx(0)
+    assert constant["Spearman_R"] is None
+    with pytest.raises(ValueError, match="Invalid primary predictions"):
+        regression_metrics(truth, [np.nan, 3, 0], ep)
+
+
+def test_promotion_separates_cyps_and_excludes_smoke_and_failed_trials():
+    registry = {"best": {}}
+    trial = {"cyp": "CYP1A2", "trial_id": "one", "output": "/tmp/one", "smoke": True}
+    result = {"status": "complete", "metrics": {"ST-RAE": 0.5}, "best_epoch": 4}
+    assert not accept_result(registry, trial, result)
+    trial["smoke"] = False
+    assert accept_result(registry, trial, result)
+    assert not accept_result(registry, trial, result)
+    assert leaderboard(registry)["MA-ST-RAE"] is None
+    for cyp in CYPS[1:]:
+        assert accept_result(registry, {**trial, "cyp": cyp}, result)
+    assert leaderboard(registry)["MA-ST-RAE"] == 0.5
+    assert not accept_result(registry, trial, {**result, "status": "failed"})
+
+
+def test_local_tracking_does_not_require_wandb(tmp_path):
+    tracker = Tracker(
+        tmp_path, {}, run_id="test", group="group", cyp="CYP1A2", config={}, mode="disabled"
+    )
+    tracker.log({"epoch": 1, "val/ST-RAE": 0.7, "val/Spearman_R": None})
+    assert json.loads((tmp_path / "events.jsonl").read_text())["val/ST-RAE"] == 0.7
+
+
+def test_private_project_required(monkeypatch):
+    pytest.importorskip("wandb")  # Initializes the SDK's vendored GraphQL imports.
+
+    class Client:
+        def execute(self, *args, **kwargs):
+            return {"project": {"access": "PUBLIC"}}
+
+    class API:
+        client = Client()
+
+    class Wandb:
+        def Api(self, **kwargs):
+            return API()
+
+    with pytest.raises(ValueError, match="must be private"):
+        ensure_private_project(Wandb(), "entity", "project")
+
+
+def test_masked_loss_scaling_and_batch_coverage():
+    torch = pytest.importorskip("torch")
+    pytest.importorskip("chemprop")
+    from somerra_openadmet.cyp_research_worker import batch_indices, loss_parts, normalize
+
+    prediction = torch.tensor([[1.0, 1.0], [1.0, 9.0]], requires_grad=True)
+    target = torch.tensor([[0.0, 0.0], [float("nan"), float("nan")]])
+    loss, _, count = loss_parts(prediction, target, torch.tensor([3.0, 0.3]))
+    loss.backward()
+    assert loss.item() == pytest.approx(1.65)
+    assert prediction.grad[0, 0] / prediction.grad[0, 1] == pytest.approx(10.0)
+    assert prediction.grad[1].eq(0).all()
+    assert count.tolist() == [1, 1]
+    for n in [3, 32, 33, 65]:
+        batches = batch_indices(n, 32)
+        assert len(np.concatenate(batches)) == n
+        assert all(len(b) > 1 for b in batches)
+    mean, scale = normalize(np.array([[1.0, 2.0], [3.0, 6.0], [np.nan, 4.0]]))
+    assert mean.tolist() == [2.0, 4.0]
+    assert scale[0] == 1.0
+    with pytest.raises(ValueError, match="constant"):
+        normalize(np.array([[1.0, 2.0], [1.0, 3.0]]))
+
+
+def test_official_st_rae_parity():
+    import importlib.util
+
+    path = Path("runs/competition-recheck-20261026/custom_scoring_functions.py")
+    if not path.exists():
+        pytest.skip("Private pinned evaluator not present")
+    spec = importlib.util.spec_from_file_location("official_metric", path)
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    ep = ACTIVITY_ENDPOINTS[0]
+    rng = np.random.default_rng(42)
+    y = rng.normal(4, 2, 100)
+    pred = y + rng.normal(size=100)
+    lo, hi = y - 0.2, y + 0.4
+    truth = pd.DataFrame({ep: y, ep + "_conf_low": lo, ep + "_conf_high": hi})
+    expected = module.rae_soft_threshold_absolute_error(y, pred, y_true_upper=hi, y_true_lower=lo)
+    assert regression_metrics(truth, pred, ep)["ST-RAE"] == pytest.approx(expected, abs=1e-12)
