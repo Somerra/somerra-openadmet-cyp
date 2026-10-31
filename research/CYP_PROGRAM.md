@@ -49,7 +49,9 @@ challenge performance means a lower error. The aggregate MA-ST-RAE is the equal
 mean of the four incumbents and is absent until all four exist. Neither a change
 in loss scale nor an improvement on another CYP can win this CYP's campaign.
 
-Validation is repeatedly used for strategy and checkpoint selection: these are
+This research split uses four folds for training and fold 0 for validation; there
+is no separate internal test partition. Validation is repeatedly used for strategy
+and checkpoint selection: these are
 **development results, not an independent held-out estimate**. Treat tiny gains
 as uncertain; the agent may choose stability checks or matched controls rather
 than repeatedly chasing small improvements. A graceful time-cap stop finalizes the
@@ -111,10 +113,27 @@ cached once and indexed in the same row order as recipe batches.
 
 ## Agent experiment loop
 
+Work in a dedicated `codex/` research branch or worktree. Preserve unrelated
+changes. Read this program, the selected CYP recipe, and the shared executor and
+evaluator before editing. The first authorized full trial for each CYP should
+run its starting recipe unchanged to establish a baseline. CPU smoke scores are
+not baselines. On resume, reuse the recorded baseline and history; do not restart
+spending or rerun an unchanged baseline without a reason.
+
 1. Inspect this CYP's history, incumbent strategy, train/validation curves,
    failures, and remaining budget. Choose a hypothesis and record why it might
    improve the primary score. The agent chooses the next CYP and experiment.
-2. Edit that CYP's recipe. Use a matched control when needed. Run a smoke test for
+2. Start from that CYP's incumbent recipe snapshot by default. Record the parent
+   trial ID in the hypothesis (or state that this is the baseline). After a failed
+   or non-improving experiment, restore only that CYP's working recipe from the
+   incumbent before trying a new idea. If no baseline has succeeded, fix or retry
+   the baseline first and record any required correction. An intentional branch from another saved
+   strategy is allowed; name that parent and explain why. The runner preserves
+   snapshots but does not restore working files automatically. Never reset the
+   whole repository or delete trial evidence to discard an experiment. If the
+   experiment also changed shared runtime code, retain or revert those specific
+   edits deliberately and record the effect on other CYP comparisons.
+   Edit that CYP's recipe. Use a matched control when needed. Run a smoke test for
    a new loss, representation, or executor before spending the campaign budget.
 3. Run one full trial only within the authorized allocation. Every attempt retains
    its recipe, runtime sources, hypothesis, strategy, settings, task/row choices,
@@ -123,9 +142,19 @@ cached once and indexed in the same row order as recipe batches.
 4. Inspect training/validation loss, ST-RAE, MAE, R², Spearman's rho, Kendall's tau,
    and task diagnostics. The runner selects by primary ST-RAE. Record the agent's
    conclusion and next direction with `note`, including failures and inconclusive
-   outcomes. Keep promising alternatives; the best single-fold score need not be
+   outcomes. In the note, mark a promoted full trial as `keep`, a completed
+   non-improving full trial as `discard`, and a failed/timeout attempt as `crash`;
+   record interruptions and smoke checks separately. These are interpretations
+   of the registry's status and promotion fields, not a second selection rule.
+   Inspect `worker.log` on failure, fix a clear bug or abandon the hypothesis,
+   and retain every attempt and its compute charge. Prefer simpler strategies
+   when evidence is comparable; the score incumbent remains strictly defined,
+   and an explicit later submission selection can choose a simpler alternative.
+   Keep promising alternatives; the best single-fold score need not be
    the recipe eventually selected for submission.
-5. Continue while authorized budget remains. Do not reset spending by silently
+5. Continue choosing and running experiments while authorized budget remains,
+   without asking for permission between trials. Stop when interrupted, blocked,
+   or out of allocation. Do not reset spending by silently
    creating a new campaign or changing its frozen budget. Full trials remain
    disabled in the checked-in configuration. This task authorizes setup only.
 
@@ -160,6 +189,41 @@ validation predictions, `result.json`, and append-only `notes.jsonl` when the ag
 records its interpretation. Results link the strategy and recipe hashes. W&B
 records strategy metadata, loss curves, all five challenge metrics, and selected
 checkpoint summaries. Undefined correlations are null locally and omitted remotely.
+
+## Alignment with Karpathy's autoresearch
+
+Reviewed against upstream [README](https://github.com/karpathy/autoresearch/blob/master/README.md)
+and [program](https://github.com/karpathy/autoresearch/blob/master/program.md) on
+2026-10-31 (Git blob IDs `953ea55d5599c45c1be7dad93ec03e47dfa7df9d` and
+`dea9bcc0174f1502d0ba64000b94b81ba605855b`, respectively). This is an adaptation
+of the agent-directed experiment loop, with these explicit correspondences:
+
+| Upstream role | CYP adaptation |
+| --- | --- |
+| Human-maintained `program.md` directs the agent | Root `program.md` routes here; the agent chooses experiments within the user's scope. |
+| Editable `train.py` | One self-contained recipe per CYP; architecture, representation, loss and optimization are editable. Shared runtime extensions require recorded provenance and smoke/replay checks. |
+| Fixed preparation and evaluation | Saved Workbench assignments, prepared data hashes and fixed evaluator hashes; lower internal-validation ST-RAE selects the incumbent. |
+| Baseline, experiment, keep/discard, repeat | Establish a full baseline per CYP, inspect every result, retain or restore the working recipe, and record the next hypothesis. |
+| Git commits plus `results.tsv` | Recipe/runtime snapshots and hashes, per-CYP `registry.json`, trial `result.json` and `notes.jsonl`; local records remain authoritative if W&B fails. No additional TSV is required. |
+| Run until interrupted | Continue within the authorized per-CYP allocation. The current zero allocations authorize setup only. |
+
+The compute protocol is deliberately different. Upstream measures 300 seconds
+of training excluding startup/compilation, then evaluates the final model.
+Our configured full-trial cap is 1,800 seconds, clipped to remaining allocation;
+worker preparation and epoch evaluations consume that cap, with 15 seconds
+reserved for finalization. Parent process timeouts include a small grace period,
+and actual process time is charged. Epoch limits and early stopping can finish
+a trial sooner; the best fully validated checkpoint supplies its score. Thus
+these are **capped-cost development trials, not equal-training-time experiments**.
+For matched comparisons, inspect the recorded cap, elapsed time, completed epochs,
+stop reason and hardware; flag a budget-clipped trial. Do not describe scores from
+different compute conditions as a controlled architecture comparison. Changing
+the timing or checkpoint-selection protocol is a declared experimental revision.
+
+Four independent objectives, private W&B diagnostics and a separate frozen-recipe
+submission builder are challenge-specific additions. Research uses internal data
+and validation only; upstream alignment does not supply an independent test
+estimate or authorize access to official competition test labels.
 
 ## Separate submission path
 
