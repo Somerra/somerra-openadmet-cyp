@@ -338,3 +338,10 @@ Submission is separate and requires an explicit instruction. Follow `AGENTS.md`:
 prediction CSV only, Open Code false, empty report link, no code/checkpoints or
 links, cooldown respected, receipt preserved. Historical one-time upload
 authorizations are not reusable.
+
+## Separate hit-expansion evaluation
+
+The [hit-expansion proxy](hit-expansion-evaluation.md) preserves the saved Workbench
+folds and has distinct training, checkpoint-validation, calibration, and strategy-
+scoring roles. Fresh fits are required. Its structural similarity audit shows it is
+a more distant-chemistry stress test, not a matched official-test surrogate.
