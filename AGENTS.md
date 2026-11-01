@@ -32,14 +32,26 @@ multiple auxiliary outputs. Keep data preparation and evaluation shared across
 model families. Preserve historical artifacts and contracts. This direction does
 not authorize an upload or change the prediction-only policy above.
 
-Calibration learned from our own OOF predictions and official training labels is
-a declared experiment axis. The eligibility question about Workbench's borrowed
-leaderboard-derived calibration constants remains unresolved (PR #12). Preserve
-the historical calibrated run, but hold future submissions using those constants
-pending eligibility clarification. Portal acceptance is not evidence of clearance.
-Do not contact organizers without user authorization. Report checkpoint-selected
-OOF and OOF-tuned postprocessing as development results; do not claim an independent
-held-out estimate where none exists.
+Calibration policy updated by explicit user direction on 2026-11-01:
+“Use the historical Workbench constants; change the standing hold.” The prior
+project hold on those constants is lifted. Prepare the next regression candidate
+with the historical Workbench formula, including borrowed population moments,
+OOF correlation multipliers, the CYP2D6 mean 3.57 / SD 0.90 override, and floor 1.0.
+Retain raw predictions and exact transform/input provenance as separate artifacts.
+This is leaderboard-informed calibration, not calibration learned solely from our
+training labels; user authorization does not establish organizer-specific clearance.
+Own-data calibration remains a separate experiment axis. Report checkpoint-selected
+OOF and OOF-tuned results as development evidence, not independent held-out estimates.
+Do not contact organizers without authorization. This policy change authorizes
+preparation, not a new upload; retain prediction-only metadata and portal cooldown.
+
+The user also authorized a separate hit-expansion-style evaluation. Preserve all
+saved Workbench folds and historical contracts; do not replace them. Seed-hit
+selection uses only training seed-pool labels. Candidate analog selection uses
+structures, not held-out assay labels. Exclude evaluation/blind parents from all
+training sources; keep validation/checkpoint selection, calibration fitting and
+strategy-scoring roles distinct. Report sparse assay coverage and prior adaptive
+exposure, and require fresh fits for the new split.
 
 ## Third-party reference predictions
 

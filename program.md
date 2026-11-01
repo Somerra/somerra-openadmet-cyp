@@ -24,12 +24,17 @@ submission candidates until the user changes direction. Preserve each bundle's
 five scaffold folds, train on four, and select checkpoints on the fifth. Focus
 on model architecture, CYP-specific models with auxiliary tasks, task-loss
 weights, model-combination weights, and declared own-data calibration experiments.
-Use training-fold label counts for new count-derived task weights and raw
-predictions as the initial baseline. OOF is development evaluation, not an
-untouched test; report OOF-tuned results separately and mark independent estimates
+Use training-fold label counts for new count-derived task weights and retain raw
+model/ensemble predictions as the baseline. Fit any own-data calibration only
+from our own OOF predictions and official training labels; report it separately.
+Training-target normalization and its inverse remain unchanged. OOF is development
+evaluation, not an untouched test; report OOF-tuned results separately and mark independent estimates
 unavailable unless actually measured. Keep model families on the same data and
-evaluation tools. Borrowed leaderboard calibration constants remain on hold for
-future submissions pending eligibility clarification; preserve historical results.
+evaluation tools. By user direction on 2026-11-01, use historical Workbench
+calibration for the next candidate, including the CYP2D6 mean 3.57 / SD 0.90
+override and floor 1.0. Retain raw output and exact transform provenance. The
+project hold is lifted; organizer clearance and a new upload are not implied.
+Preserve historical results.
 
 `autoresearch.py briford prepare|run|status|predict` implements the historical
 Chemprop reference. CYP specialist recipes are described above; a ready-made
@@ -39,6 +44,13 @@ for the preserved molecular task below. Bare commands retain compatibility, but
 Workbench folds. Historical CPU commands use `legacy`; the older fixed-series
 GPU comparison uses `hillclimb`. Do not mutate existing task contracts to switch
 protocols, and do not reuse the completed reproduction's submission authorization.
+
+For the completed three-encoder comparison on Workbench's eight-task bundle, use
+`python -m somerra_openadmet.workbench_probe plan|run|status --config CONFIG`. Its
+[protocol and results](docs/workbench-representations.md) preserve the saved folds,
+shared auxiliary supervision, and raw predictions. It is a frozen-head comparison,
+not the active CYP recipes workflow, generic encoder fine-tuning, or an automatic
+submission workflow.
 
 ## Historical molecular task (preserved contract)
 

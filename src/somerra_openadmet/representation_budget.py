@@ -122,6 +122,7 @@ def main():
         screen_representations,
     )
     from .representations import atomic_json, cache_representations
+    from .workbench_probe import screen as workbench_screen
 
     operation, config_path = sys.argv[1:]
     handlers = {
@@ -131,6 +132,7 @@ def main():
         "profile": profile_representations,
         "frozen-pilot": frozen_screen,
         "frozen-probe": probe_screen,
+        "workbench-probe": workbench_screen,
         "atom-pilot-cache": atom_cache,
         "conformer-cache": cache_stage,
         "conformer-fit": fit_stage,

@@ -3,15 +3,16 @@
 Adopted on 2026-10-29, until the user changes direction. Future regression
 submission candidates use the preserved Workbench scaffold assignments. The main
 experimental variables are model architecture, task-loss weights, and the weights
-used to combine models. Calibration learned from our own development data is a
-separate, declared experiment axis. Prefer developing CYP-specific models with auxiliary
-prediction tasks over relying exclusively on one model for all four endpoints.
+used to combine models. Calibration learned from our own OOF predictions and
+official training labels is a separate, declared experiment axis. Prefer developing
+CYP-specific models with auxiliary prediction tasks over relying exclusively on
+one model for all four endpoints.
 
 This default follows our [October 28 reproduction](briford-run-20261028.md), which
 scored 0.4349 official MA-ST-RAE. That result motivates the choice; it does not
 isolate a causal benefit from the split strategy. The historical Workbench recipe
-is the reference here, not the changing upstream default. Adopting its folds does
-not adopt its leaderboard-derived calibration constants for new submissions; see
+is the reference here, not the changing upstream default. The user separately authorized historical Workbench calibration for the next
+candidate on 2026-11-01; see
 [calibration experiments and eligibility](#calibration-experiments-and-eligibility).
 
 ## What is fixed, and what can change
@@ -24,7 +25,7 @@ not adopt its leaderboard-derived calibration constants for new submissions; see
 | Training-only fitted target scalers; masked missing labels | Weights combining completed model configurations |
 | Scoring on official direct-inhibition labels, with the shared evaluator | Regularization and training policy, as separately declared changes |
 | Official blind identities and prediction-only submission policy | Auxiliary-task selection within a declared, fixed bundle |
-| Raw predictions and declared calibration provenance | Calibration using only our own OOF predictions and training-label moments |
+| Raw predictions in pIC50 units retained as the baseline | Own-data calibration as a separate axis; historical Workbench calibration for the next candidate |
 
 Changing a data source or regenerating folds is a separate protocol change, not
 an architecture improvement. Record any training-policy change explicitly; a new
@@ -75,6 +76,12 @@ preparation. The union18 task definition comes from revision
 This balances row counts approximately, not labels or molecular similarity to the
 official blind set. Row order, bundle membership, and RDKit behavior can affect
 the result. A seed alone is not sufficient to preserve the split.
+
+The default RDKit scaffold SMILES retains stereochemical distinctions. Preflight
+of the [matched representation study](workbench-representations.md) found two
+connectivities spanning folds in `mt_aux8` (four rows). Exact saved-scaffold
+disjointness does not guarantee stereo-insensitive parent disjointness. The study
+records these inherited exceptions and keeps the original assignments for parity.
 
 **Reuse saved assignments, not just the splitter.** The reference artifacts are:
 
@@ -204,9 +211,32 @@ development set, not independently validated gains.
 
 ## Calibration experiments and eligibility
 
-Calibration is an explicit experiment axis, evaluated with the base predictions
-and model-combination weights fixed. For new candidates, compare raw predictions
-against an endpoint-specific calibration fitted only from our own OOF predictions
+**Current direction (2026-11-01): prepare the next regression candidate with
+historical Workbench calibration.** The user explicitly lifted the project hold
+on borrowed constants. Apply the transform separately per CYP after fold/model
+averaging: `max(1, target_mean + (p - mean(p)) * target_sd / sample_sd(p))`.
+Use historical population moments and the model's OOF Pearson correlation times
+1.32 / 1.23 / 1.66 / 1.07 for CYP1A2 / CYP2C9 / CYP2D6 / CYP3A4, respectively.
+Retain the CYP2D6 target mean 3.57 / SD 0.90 override. Do not silently clamp invalid
+correlation extrapolations. Cohort prediction moments use unlabeled predictions;
+this is a transductive, leaderboard-informed transform, not training-only calibration.
+
+Retain raw predictions after the declared averaging, exact input/transform hashes,
+and calibrated output separately. Use a new destination; never overwrite prior
+artifacts or infer upload authorization from a manifest. The historical
+`autoresearch.py briford predict` exporter already implements this formula.
+This direction authorizes preparation, not a new submission or training campaign.
+Prediction-only metadata, cooldowns, and receipt preservation remain mandatory.
+
+The completed frozen-representation study remains uncalibrated. Its raw comparison
+answers which frozen representation worked under the shared training recipe; do
+not relabel its results or require retroactive calibration to complete that study.
+Training-target normalization and conversion back to pIC50 remain necessary.
+Own-data calibration is a separate experiment axis, not a mandatory promotion step.
+
+For an own-data calibration experiment, hold base predictions and model-combination
+weights fixed and compare raw predictions against an endpoint-specific calibration
+fitted only from our own OOF predictions
 and observed official training labels (including moments calculated from those
 labels). Declare the transform family, fitting objective, regularization, fitting
 rows, parameters, and any clipping rule before scoring it. Do not use borrowed
@@ -221,25 +251,24 @@ scoring fold's labels, and its own checkpoint was selected on that fold. A clean
 held-out calibration comparison requires the complete base-model/selection/
 calibration pipeline to exclude the scoring data. Do not call a cheap re-fit over
 the existing OOF table an independent estimate. No such estimator is implemented
-by this PR; calibration fitting and validation remain subsequent work.
+by this protocol; implementing and validating a calibrator remains separate work.
 
-Use raw output as the initial new-candidate baseline; record any own-data
-calibration as a separate variant. Compare the historical Workbench raw output
-on the same rows, and retain its calibrated result as historical evidence only.
+Record any own-data calibration as a separate variant alongside raw output.
+Compare raw and declared calibrated variants on the same rows. Preserve historical
+results with their original model, population, and transform provenance.
 The 0.6284 raw OOF score and 0.4349 calibrated official score use different
 populations and pipelines. Their difference does not measure calibration's
 contribution, and transferring another model's local-to-official gap cannot
 establish a roughly 0.3 calibration benefit. A matched raw-versus-calibrated
 evaluation on the same scoring set is needed.
 
-**Leaderboard-constant eligibility: unresolved as of 2026-10-30.** The question
-raised in [PR #12](https://github.com/Somerra/somerra-openadmet-cyp/pull/12#discussion_r4406685923)
-has no recorded organizer clarification. Historical portal acceptance is not a
-ruling on eligibility. Future submissions using those borrowed constants are on
-hold pending eligibility clarification; they are not the default for new
-candidates. This does not withdraw or alter the October 28 receipt. Keep that
-calibrated pipeline reproducible privately, and do not contact organizers without
-user authorization. See the [historical result](briford-run-20261028.md#calibration-eligibility-status).
+**Eligibility and authorization are distinct.** The question raised in
+[PR #12](https://github.com/Somerra/somerra-openadmet-cyp/pull/12#discussion_r4406685923)
+has no recorded organizer clarification. The user's 2026-11-01 direction lifts
+our project hold; neither that direction nor historical portal acceptance proves
+organizer-specific clearance. Keep this limitation and borrowed provenance explicit.
+No organizer contact or new upload is authorized by this protocol. The separate
+hold on third-party Scigantic reference-prediction reuse is unchanged.
 
 ## Next Mol-JEPA comparison
 

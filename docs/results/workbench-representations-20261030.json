@@ -1,0 +1,1248 @@
+{
+  "accounting": {
+    "campaign_ledger": "/mnt/openclaw-home/somerra-openadmet-cyp/runs/campaign-budget-20261026/ledger.json",
+    "charged_hours": 0.020163629772917677,
+    "reserved_hours": 0.75,
+    "returncode": 0,
+    "scope": "full child lifetime; reservation settled after worker exit"
+  },
+  "artifacts_sha256": {
+    "atom_jepa-oof.csv": "73b98d590ed19cd9513cbed728ad60eb70acd8ff3be58c6dc7814421938ab730",
+    "audit.py": "b4dc3e47641103e4116552245c4062c1139a69614d2843d8b7465844b7bbdb79",
+    "chemeleon-oof.csv": "7e2e01a646d6d4096a42afe1e7c8b58514f2e25998525fe3620d2059d5a1c229",
+    "design.json": "90d79d3f86ec66f254c77f6b6d92492aecad8e77bd7a9c3dda73e8fceb59edbb",
+    "mol_jepa-oof.csv": "cbca6a4cebd3d360b12d537c12b5718b5111b8050991c13516d4184d079a7d9c",
+    "results.json": "428791a71629b685f2b57176340f500b59fe1a652eae13064b3f1974ea43cb4b",
+    "run_manifest.json": "2db4bd6d377e7c6ef7680e67b10d817ec28a17e59a6072038d176ffa6aa080da",
+    "validation.json": "deedecfd01a4819564781419816aa589be59de023f0cdc2fe77d60f98581681b"
+  },
+  "calibration": "none",
+  "data": {
+    "historical_cross_fold_connectivities": [
+      {
+        "connectivity": "LOUPRKONTZGTKE",
+        "fold": 0,
+        "molecule_name": "OCNT-0494161",
+        "scaffold": "c1ccc2c(C[C@@H]3CC4CCN3CC4)ccnc2c1"
+      },
+      {
+        "connectivity": "LOUPRKONTZGTKE",
+        "fold": 1,
+        "molecule_name": "OCNT-1911794",
+        "scaffold": "c1ccc2c(C[C@H]3CC4CCN3CC4)ccnc2c1"
+      },
+      {
+        "connectivity": "MJIHNNLFOKEZEW",
+        "fold": 0,
+        "molecule_name": "OCNT-2328781",
+        "scaffold": "O=S(Cc1ccccn1)c1nc2ccccc2[nH]1"
+      },
+      {
+        "connectivity": "MJIHNNLFOKEZEW",
+        "fold": 4,
+        "molecule_name": "OCNT-2328911",
+        "scaffold": "O=[S@](Cc1ccccn1)c1nc2ccccc2[nH]1"
+      }
+    ],
+    "observed_labels": {
+      "cyp1a2_log2fc": 4375,
+      "cyp1a2_pic50_direct_inhibition": 1412,
+      "cyp2c9_log2fc": 4375,
+      "cyp2c9_pic50_direct_inhibition": 1285,
+      "cyp2d6_log2fc": 4375,
+      "cyp2d6_pic50_direct_inhibition": 1493,
+      "cyp3a4_log2fc": 4375,
+      "cyp3a4_pic50_direct_inhibition": 2335
+    },
+    "official_sha256": "95576058689db7537458cde2615f8d72a84748cea9d4a2d73fe3c287f7c1cf0c",
+    "pinned_artifacts": {
+      "contract.json": "a1ea53c81adfc72ca34fbdcb40465c2afd57dae82861c1b6f82d42215e672ae1",
+      "data/d6_isoform6.csv": "2512ba5961e5963a81533ac6e9238b087bbbbd104301d8bd8b52429826542358",
+      "data/d6_single1.csv": "4b608c5e92651a13a316b8dc12d974c1b56aed409250875137607b73d0160bac",
+      "data/manifest.json": "3302e77c714a8f41ece330f0e86b8d0e3ce1cc65bcf094d5052ebfca20a30a69",
+      "data/mt_aux8.csv": "3975e5781fc2a369eb9e4ca3f4fb72315e31574c155e047b29acd67c33e57594",
+      "data/preparation.json": "4f8b367e6d15cdc7b0ed387d88a2ac9554db820a7f7e027c6f0ea17dfc2548b7",
+      "data/union18.csv": "ff8a1f98d7454f2c11c4687fa1aad8a9f92b386d7b4fff997648c08e4d390f31"
+    },
+    "rows": 4905,
+    "tasks": [
+      "cyp3a4_pic50_direct_inhibition",
+      "cyp2c9_pic50_direct_inhibition",
+      "cyp2d6_pic50_direct_inhibition",
+      "cyp1a2_pic50_direct_inhibition",
+      "cyp3a4_log2fc",
+      "cyp2c9_log2fc",
+      "cyp2d6_log2fc",
+      "cyp1a2_log2fc"
+    ]
+  },
+  "fits": [
+    {
+      "checkpoint_sha256": "47df55af042b750c2622eaf84b6b4dd93decab5e29a2c171b1627db90e83788f",
+      "cpu_replay_max_abs": 1.430511474609375e-06,
+      "curve_sha256": "45fca48d2d3e569d917d87d7aed24958a08045d58a63cd47096d0651f8cf9ad3",
+      "encoder": "chemeleon",
+      "epochs_run": 44,
+      "fold": 0,
+      "metrics": {
+        "MA-ST-RAE": 0.8517100604161167,
+        "components": {
+          "CYP1A2_pIC50_direct_inhibition": {
+            "denominator": 109.97030657933334,
+            "labels": 255,
+            "numerator": 120.22654275975036
+          },
+          "CYP2C9_pIC50_direct_inhibition": {
+            "denominator": 75.1101649342424,
+            "labels": 264,
+            "numerator": 61.297387745285036
+          },
+          "CYP2D6_pIC50_direct_inhibition": {
+            "denominator": 119.7363685980796,
+            "labels": 289,
+            "numerator": 116.62343189985657
+          },
+          "CYP3A4_pIC50_direct_inhibition": {
+            "denominator": 252.82436694197895,
+            "labels": 476,
+            "numerator": 132.3472477530365
+          }
+        },
+        "endpoints": {
+          "CYP1A2_pIC50_direct_inhibition": 1.093263686348079,
+          "CYP2C9_pIC50_direct_inhibition": 0.8160997622485557,
+          "CYP2D6_pIC50_direct_inhibition": 0.9740017445436963,
+          "CYP3A4_pIC50_direct_inhibition": 0.5234750485241364
+        }
+      },
+      "oof_sha256": "a0e9469a6039bfd6400e02b0edcb83949e5f256aa9692071016f06936f8b7914",
+      "parameters": 1054216,
+      "seed": 42,
+      "selected_epoch": 4,
+      "task_weights": [
+        0.6698455810546875,
+        1.2196307182312012,
+        1.0342549085617065,
+        1.0762687921524048,
+        0.30000001192092896,
+        0.30000001192092896,
+        0.30000001192092896,
+        0.30000001192092896
+      ],
+      "training_label_counts": [
+        1859,
+        1021,
+        1204,
+        1157,
+        3497,
+        3497,
+        3497,
+        3497
+      ],
+      "validation_loss": 0.28182268142700195
+    },
+    {
+      "checkpoint_sha256": "7b46d9b6df4de41258bfb78344a512007a8522ab177ad49fad359b7f516b60d4",
+      "cpu_replay_max_abs": 1.430511474609375e-06,
+      "curve_sha256": "3c3f3b4b5608c7e161d4a087e771be0bc5e06a46c163f873ae6163bdae872f9c",
+      "encoder": "mol_jepa",
+      "epochs_run": 50,
+      "fold": 0,
+      "metrics": {
+        "MA-ST-RAE": 0.8036092992089339,
+        "components": {
+          "CYP1A2_pIC50_direct_inhibition": {
+            "denominator": 109.97030657933334,
+            "labels": 255,
+            "numerator": 105.05438524282836
+          },
+          "CYP2C9_pIC50_direct_inhibition": {
+            "denominator": 75.1101649342424,
+            "labels": 264,
+            "numerator": 55.46892065473938
+          },
+          "CYP2D6_pIC50_direct_inhibition": {
+            "denominator": 119.7363685980796,
+            "labels": 289,
+            "numerator": 121.10764077304077
+          },
+          "CYP3A4_pIC50_direct_inhibition": {
+            "denominator": 252.82436694197895,
+            "labels": 476,
+            "numerator": 128.73467345135498
+          }
+        },
+        "endpoints": {
+          "CYP1A2_pIC50_direct_inhibition": 0.9552977390950657,
+          "CYP2C9_pIC50_direct_inhibition": 0.7385008500953422,
+          "CYP2D6_pIC50_direct_inhibition": 1.0114524282890534,
+          "CYP3A4_pIC50_direct_inhibition": 0.5091861793562742
+        }
+      },
+      "oof_sha256": "f13cced15b4f486431769e59ea2dc672d393c446bc9ecf2b84ff9012849cdfb6",
+      "parameters": 267784,
+      "seed": 42,
+      "selected_epoch": 10,
+      "task_weights": [
+        0.6698455810546875,
+        1.2196307182312012,
+        1.0342549085617065,
+        1.0762687921524048,
+        0.30000001192092896,
+        0.30000001192092896,
+        0.30000001192092896,
+        0.30000001192092896
+      ],
+      "training_label_counts": [
+        1859,
+        1021,
+        1204,
+        1157,
+        3497,
+        3497,
+        3497,
+        3497
+      ],
+      "validation_loss": 0.2727440297603607
+    },
+    {
+      "checkpoint_sha256": "8eb92e07d477c4d6af1f9abd0cc0bd1ea384eb8d60fede98627dab267f6497f2",
+      "cpu_replay_max_abs": 1.9073486328125e-06,
+      "curve_sha256": "09235cff8f3826d098ba3f7034d92180cc0d7b6b655877eac6f7d60fa813894d",
+      "encoder": "atom_jepa",
+      "epochs_run": 65,
+      "fold": 0,
+      "metrics": {
+        "MA-ST-RAE": 0.7932337200316546,
+        "components": {
+          "CYP1A2_pIC50_direct_inhibition": {
+            "denominator": 109.97030657933334,
+            "labels": 255,
+            "numerator": 104.02248781297301
+          },
+          "CYP2C9_pIC50_direct_inhibition": {
+            "denominator": 75.1101649342424,
+            "labels": 264,
+            "numerator": 56.1778942338562
+          },
+          "CYP2D6_pIC50_direct_inhibition": {
+            "denominator": 119.7363685980796,
+            "labels": 289,
+            "numerator": 109.31874295881653
+          },
+          "CYP3A4_pIC50_direct_inhibition": {
+            "denominator": 252.82436694197895,
+            "labels": 476,
+            "numerator": 143.12015341786193
+          }
+        },
+        "endpoints": {
+          "CYP1A2_pIC50_direct_inhibition": 0.9459143204073044,
+          "CYP2C9_pIC50_direct_inhibition": 0.747939966355272,
+          "CYP2D6_pIC50_direct_inhibition": 0.9129953099360143,
+          "CYP3A4_pIC50_direct_inhibition": 0.5660852834280281
+        }
+      },
+      "oof_sha256": "2bd7945df6c0ee8cad36a813e457d1bae6f869ae4eb87662c2afd1926e9f8f21",
+      "parameters": 136712,
+      "seed": 42,
+      "selected_epoch": 25,
+      "task_weights": [
+        0.6698455810546875,
+        1.2196307182312012,
+        1.0342549085617065,
+        1.0762687921524048,
+        0.30000001192092896,
+        0.30000001192092896,
+        0.30000001192092896,
+        0.30000001192092896
+      ],
+      "training_label_counts": [
+        1859,
+        1021,
+        1204,
+        1157,
+        3497,
+        3497,
+        3497,
+        3497
+      ],
+      "validation_loss": 0.27646663784980774
+    },
+    {
+      "checkpoint_sha256": "2394362a2cdac361a1cbbcf80c42c7f399493293e2267be25372ec9f15e15585",
+      "cpu_replay_max_abs": 1.9073486328125e-06,
+      "curve_sha256": "40848dc966532b4d567cd6ee4b2432e833a8d655b263d59cef723deaf3c45f79",
+      "encoder": "chemeleon",
+      "epochs_run": 44,
+      "fold": 1,
+      "metrics": {
+        "MA-ST-RAE": 0.7545944804997183,
+        "components": {
+          "CYP1A2_pIC50_direct_inhibition": {
+            "denominator": 160.91735350642625,
+            "labels": 305,
+            "numerator": 141.27835422738647
+          },
+          "CYP2C9_pIC50_direct_inhibition": {
+            "denominator": 89.8521435836218,
+            "labels": 275,
+            "numerator": 60.14498966423035
+          },
+          "CYP2D6_pIC50_direct_inhibition": {
+            "denominator": 123.0199457169281,
+            "labels": 306,
+            "numerator": 118.85137004704285
+          },
+          "CYP3A4_pIC50_direct_inhibition": {
+            "denominator": 221.63819785149997,
+            "labels": 442,
+            "numerator": 111.91176381806946
+          }
+        },
+        "endpoints": {
+          "CYP1A2_pIC50_direct_inhibition": 0.8779559888905611,
+          "CYP2C9_pIC50_direct_inhibition": 0.6693773488915801,
+          "CYP2D6_pIC50_direct_inhibition": 0.9661146357560809,
+          "CYP3A4_pIC50_direct_inhibition": 0.5049299484606511
+        }
+      },
+      "oof_sha256": "001a865a3a6d365656eaab9026dd6629e4f3e1fde3fd3d11cb29cb7b3087f71e",
+      "parameters": 1054216,
+      "seed": 43,
+      "selected_epoch": 4,
+      "task_weights": [
+        0.6473475098609924,
+        1.2132959365844727,
+        1.0323747396469116,
+        1.1069817543029785,
+        0.30000001192092896,
+        0.30000001192092896,
+        0.30000001192092896,
+        0.30000001192092896
+      ],
+      "training_label_counts": [
+        1893,
+        1010,
+        1187,
+        1107,
+        3491,
+        3491,
+        3491,
+        3491
+      ],
+      "validation_loss": 0.2955637276172638
+    },
+    {
+      "checkpoint_sha256": "8b4c7b7e124cfe844c57267a9576a5234d1b3ec96bfdf02210d24e7bbec65841",
+      "cpu_replay_max_abs": 9.5367431640625e-07,
+      "curve_sha256": "627d1540d3df05797816b9b9bb916968a51f3cea28703589db10b35ba17965b3",
+      "encoder": "mol_jepa",
+      "epochs_run": 54,
+      "fold": 1,
+      "metrics": {
+        "MA-ST-RAE": 0.7690440103458143,
+        "components": {
+          "CYP1A2_pIC50_direct_inhibition": {
+            "denominator": 160.91735350642625,
+            "labels": 305,
+            "numerator": 140.1216638740387
+          },
+          "CYP2C9_pIC50_direct_inhibition": {
+            "denominator": 89.8521435836218,
+            "labels": 275,
+            "numerator": 64.72361248791503
+          },
+          "CYP2D6_pIC50_direct_inhibition": {
+            "denominator": 123.0199457169281,
+            "labels": 306,
+            "numerator": 118.87599704324342
+          },
+          "CYP3A4_pIC50_direct_inhibition": {
+            "denominator": 221.63819785149997,
+            "labels": 442,
+            "numerator": 114.97673912283325
+          }
+        },
+        "endpoints": {
+          "CYP1A2_pIC50_direct_inhibition": 0.8707678868733254,
+          "CYP2C9_pIC50_direct_inhibition": 0.7203346509777961,
+          "CYP2D6_pIC50_direct_inhibition": 0.9663148227749992,
+          "CYP3A4_pIC50_direct_inhibition": 0.5187586807571362
+        }
+      },
+      "oof_sha256": "2168e722cc61e88eeb608118249d5974ba50c266549cb07fb765d4508576c3bf",
+      "parameters": 267784,
+      "seed": 43,
+      "selected_epoch": 14,
+      "task_weights": [
+        0.6473475098609924,
+        1.2132959365844727,
+        1.0323747396469116,
+        1.1069817543029785,
+        0.30000001192092896,
+        0.30000001192092896,
+        0.30000001192092896,
+        0.30000001192092896
+      ],
+      "training_label_counts": [
+        1893,
+        1010,
+        1187,
+        1107,
+        3491,
+        3491,
+        3491,
+        3491
+      ],
+      "validation_loss": 0.2905140221118927
+    },
+    {
+      "checkpoint_sha256": "25c1f1b293643911bf2b8cab0f88fc3b9cb64934f2997c726c226a2a30c1f0a7",
+      "cpu_replay_max_abs": 1.1920928955078125e-06,
+      "curve_sha256": "6e6bd8f77fdd871a1ba41d1ab374dd52949987862bba6085e0400e21bcb9a0ca",
+      "encoder": "atom_jepa",
+      "epochs_run": 75,
+      "fold": 1,
+      "metrics": {
+        "MA-ST-RAE": 0.7732702066029722,
+        "components": {
+          "CYP1A2_pIC50_direct_inhibition": {
+            "denominator": 160.91735350642625,
+            "labels": 305,
+            "numerator": 134.1791129522095
+          },
+          "CYP2C9_pIC50_direct_inhibition": {
+            "denominator": 89.8521435836218,
+            "labels": 275,
+            "numerator": 65.46130925376892
+          },
+          "CYP2D6_pIC50_direct_inhibition": {
+            "denominator": 123.0199457169281,
+            "labels": 306,
+            "numerator": 117.96202697048952
+          },
+          "CYP3A4_pIC50_direct_inhibition": {
+            "denominator": 221.63819785149997,
+            "labels": 442,
+            "numerator": 126.73538217240906
+          }
+        },
+        "endpoints": {
+          "CYP1A2_pIC50_direct_inhibition": 0.8338386757451305,
+          "CYP2C9_pIC50_direct_inhibition": 0.7285447696954129,
+          "CYP2D6_pIC50_direct_inhibition": 0.9588853765382324,
+          "CYP3A4_pIC50_direct_inhibition": 0.571812004433113
+        }
+      },
+      "oof_sha256": "613c459e4cf84a68545f261fe6eff1bab0603bf49be2313f604a9957e8edd0fa",
+      "parameters": 136712,
+      "seed": 43,
+      "selected_epoch": 35,
+      "task_weights": [
+        0.6473475098609924,
+        1.2132959365844727,
+        1.0323747396469116,
+        1.1069817543029785,
+        0.30000001192092896,
+        0.30000001192092896,
+        0.30000001192092896,
+        0.30000001192092896
+      ],
+      "training_label_counts": [
+        1893,
+        1010,
+        1187,
+        1107,
+        3491,
+        3491,
+        3491,
+        3491
+      ],
+      "validation_loss": 0.2902246415615082
+    },
+    {
+      "checkpoint_sha256": "45c04e825687a5b68ce2e08b46d2f11e00906d22392696580f139b2d74bd3828",
+      "cpu_replay_max_abs": 3.814697265625e-06,
+      "curve_sha256": "c4ee7e5399358b817e1915dfeabd78092fc5abff169a2815d7dc694b172d30a5",
+      "encoder": "chemeleon",
+      "epochs_run": 45,
+      "fold": 2,
+      "metrics": {
+        "MA-ST-RAE": 0.8030282143135076,
+        "components": {
+          "CYP1A2_pIC50_direct_inhibition": {
+            "denominator": 144.33275960597265,
+            "labels": 293,
+            "numerator": 121.40657335540772
+          },
+          "CYP2C9_pIC50_direct_inhibition": {
+            "denominator": 74.68886111524097,
+            "labels": 249,
+            "numerator": 57.58046983554077
+          },
+          "CYP2D6_pIC50_direct_inhibition": {
+            "denominator": 126.12127499794914,
+            "labels": 295,
+            "numerator": 120.85084372192384
+          },
+          "CYP3A4_pIC50_direct_inhibition": {
+            "denominator": 257.8703015551523,
+            "labels": 486,
+            "numerator": 165.5027521837921
+          }
+        },
+        "endpoints": {
+          "CYP1A2_pIC50_direct_inhibition": 0.8411574315273036,
+          "CYP2C9_pIC50_direct_inhibition": 0.7709378477025797,
+          "CYP2D6_pIC50_direct_inhibition": 0.9582114018740215,
+          "CYP3A4_pIC50_direct_inhibition": 0.6418061761501256
+        }
+      },
+      "oof_sha256": "a97010aa1d2707cac9de4535b8ce279f2f9763fcc8d14fedfd917c08e548ebdc",
+      "parameters": 1054216,
+      "seed": 44,
+      "selected_epoch": 5,
+      "task_weights": [
+        0.66883784532547,
+        1.1937077045440674,
+        1.0322880744934082,
+        1.1051663160324097,
+        0.30000001192092896,
+        0.30000001192092896,
+        0.30000001192092896,
+        0.30000001192092896
+      ],
+      "training_label_counts": [
+        1849,
+        1036,
+        1198,
+        1119,
+        3512,
+        3512,
+        3512,
+        3512
+      ],
+      "validation_loss": 0.29751646518707275
+    },
+    {
+      "checkpoint_sha256": "ba5bc92da7f2c4307b4c7eb0f80ce35bd7e6f3a9c8fec1f460e140e531b1bca7",
+      "cpu_replay_max_abs": 9.5367431640625e-07,
+      "curve_sha256": "b02791e031b191a05a0ef92f6baef0439eb5ffc8270edc82246d188d60ad798f",
+      "encoder": "mol_jepa",
+      "epochs_run": 45,
+      "fold": 2,
+      "metrics": {
+        "MA-ST-RAE": 0.8047143368287446,
+        "components": {
+          "CYP1A2_pIC50_direct_inhibition": {
+            "denominator": 144.33275960597265,
+            "labels": 293,
+            "numerator": 122.25126266300964
+          },
+          "CYP2C9_pIC50_direct_inhibition": {
+            "denominator": 74.68886111524097,
+            "labels": 249,
+            "numerator": 58.30207254499817
+          },
+          "CYP2D6_pIC50_direct_inhibition": {
+            "denominator": 126.12127499794914,
+            "labels": 295,
+            "numerator": 126.1549990557251
+          },
+          "CYP3A4_pIC50_direct_inhibition": {
+            "denominator": 257.8703015551523,
+            "labels": 486,
+            "numerator": 152.39640997998046
+          }
+        },
+        "endpoints": {
+          "CYP1A2_pIC50_direct_inhibition": 0.8470098056515698,
+          "CYP2C9_pIC50_direct_inhibition": 0.7805992978664,
+          "CYP2D6_pIC50_direct_inhibition": 1.0002673938855795,
+          "CYP3A4_pIC50_direct_inhibition": 0.5909808499114292
+        }
+      },
+      "oof_sha256": "987b415dcc1398e2a982744373dbd47dd9f02e9f1ae302db62c12cff4310719e",
+      "parameters": 267784,
+      "seed": 44,
+      "selected_epoch": 5,
+      "task_weights": [
+        0.66883784532547,
+        1.1937077045440674,
+        1.0322880744934082,
+        1.1051663160324097,
+        0.30000001192092896,
+        0.30000001192092896,
+        0.30000001192092896,
+        0.30000001192092896
+      ],
+      "training_label_counts": [
+        1849,
+        1036,
+        1198,
+        1119,
+        3512,
+        3512,
+        3512,
+        3512
+      ],
+      "validation_loss": 0.2908218502998352
+    },
+    {
+      "checkpoint_sha256": "2301b507ee03887c4374d7c5bcd757a700c282530db12a90c887139abbc3557c",
+      "cpu_replay_max_abs": 9.5367431640625e-07,
+      "curve_sha256": "a59f8f383ae3b40fbf4a523e6f7471d84d307bf693bdc4664b3e192149d97c44",
+      "encoder": "atom_jepa",
+      "epochs_run": 51,
+      "fold": 2,
+      "metrics": {
+        "MA-ST-RAE": 0.8349795337408297,
+        "components": {
+          "CYP1A2_pIC50_direct_inhibition": {
+            "denominator": 144.33275960597265,
+            "labels": 293,
+            "numerator": 126.8391266112213
+          },
+          "CYP2C9_pIC50_direct_inhibition": {
+            "denominator": 74.68886111524097,
+            "labels": 249,
+            "numerator": 64.81382432707214
+          },
+          "CYP2D6_pIC50_direct_inhibition": {
+            "denominator": 126.12127499794914,
+            "labels": 295,
+            "numerator": 118.0344149766388
+          },
+          "CYP3A4_pIC50_direct_inhibition": {
+            "denominator": 257.8703015551523,
+            "labels": 486,
+            "numerator": 169.53863136749268
+          }
+        },
+        "endpoints": {
+          "CYP1A2_pIC50_direct_inhibition": 0.8787965182505424,
+          "CYP2C9_pIC50_direct_inhibition": 0.8677843437332353,
+          "CYP2D6_pIC50_direct_inhibition": 0.9358802864826585,
+          "CYP3A4_pIC50_direct_inhibition": 0.6574569864968821
+        }
+      },
+      "oof_sha256": "c5b569e6fc6828dee3fad45448cafbafcbce81f95f83568805effb5c15b15453",
+      "parameters": 136712,
+      "seed": 44,
+      "selected_epoch": 11,
+      "task_weights": [
+        0.66883784532547,
+        1.1937077045440674,
+        1.0322880744934082,
+        1.1051663160324097,
+        0.30000001192092896,
+        0.30000001192092896,
+        0.30000001192092896,
+        0.30000001192092896
+      ],
+      "training_label_counts": [
+        1849,
+        1036,
+        1198,
+        1119,
+        3512,
+        3512,
+        3512,
+        3512
+      ],
+      "validation_loss": 0.30638933181762695
+    },
+    {
+      "checkpoint_sha256": "5b5cace197220d103c8d1ee215ebc6b76fbaac2666503c52da53991b876fac2c",
+      "cpu_replay_max_abs": 9.5367431640625e-07,
+      "curve_sha256": "044892011c7c158421cf9fc0bac29080162641f2ebd9d0c09ca123785db08cd3",
+      "encoder": "chemeleon",
+      "epochs_run": 44,
+      "fold": 3,
+      "metrics": {
+        "MA-ST-RAE": 0.7872145351550364,
+        "components": {
+          "CYP1A2_pIC50_direct_inhibition": {
+            "denominator": 154.77531065411847,
+            "labels": 287,
+            "numerator": 128.07440559625243
+          },
+          "CYP2C9_pIC50_direct_inhibition": {
+            "denominator": 77.49066725751574,
+            "labels": 254,
+            "numerator": 56.67933942013549
+          },
+          "CYP2D6_pIC50_direct_inhibition": {
+            "denominator": 115.57572340975958,
+            "labels": 287,
+            "numerator": 121.47932471713258
+          },
+          "CYP3A4_pIC50_direct_inhibition": {
+            "denominator": 244.99911362540294,
+            "labels": 469,
+            "numerator": 132.019679261261
+          }
+        },
+        "endpoints": {
+          "CYP1A2_pIC50_direct_inhibition": 0.8274860186355211,
+          "CYP2C9_pIC50_direct_inhibition": 0.7314343962451584,
+          "CYP2D6_pIC50_direct_inhibition": 1.0510799425104398,
+          "CYP3A4_pIC50_direct_inhibition": 0.5388577832290264
+        }
+      },
+      "oof_sha256": "20ff993b01a3c121911ad1c2e33b2f76672d5e18cf1b3967ee30d929b086a8cf",
+      "parameters": 1054216,
+      "seed": 45,
+      "selected_epoch": 4,
+      "task_weights": [
+        0.6649131178855896,
+        1.2034218311309814,
+        1.0287959575653076,
+        1.1028691530227661,
+        0.30000001192092896,
+        0.30000001192092896,
+        0.30000001192092896,
+        0.30000001192092896
+      ],
+      "training_label_counts": [
+        1866,
+        1031,
+        1206,
+        1125,
+        3496,
+        3496,
+        3496,
+        3496
+      ],
+      "validation_loss": 0.29246294498443604
+    },
+    {
+      "checkpoint_sha256": "8e2d53189a086f7b41246c89b70126e82607763bd08a7d9430994cb41bb1f479",
+      "cpu_replay_max_abs": 9.5367431640625e-07,
+      "curve_sha256": "bd167b041d2b70ea59fe7da2e25b0a64fb421b6e9eccd12324393cca7225f2cf",
+      "encoder": "mol_jepa",
+      "epochs_run": 47,
+      "fold": 3,
+      "metrics": {
+        "MA-ST-RAE": 0.7651207945455565,
+        "components": {
+          "CYP1A2_pIC50_direct_inhibition": {
+            "denominator": 154.77531065411847,
+            "labels": 287,
+            "numerator": 124.81695253327942
+          },
+          "CYP2C9_pIC50_direct_inhibition": {
+            "denominator": 77.49066725751574,
+            "labels": 254,
+            "numerator": 58.21251817675781
+          },
+          "CYP2D6_pIC50_direct_inhibition": {
+            "denominator": 115.57572340975958,
+            "labels": 287,
+            "numerator": 114.4055758053894
+          },
+          "CYP3A4_pIC50_direct_inhibition": {
+            "denominator": 244.99911362540294,
+            "labels": 469,
+            "numerator": 125.67187258493041
+          }
+        },
+        "endpoints": {
+          "CYP1A2_pIC50_direct_inhibition": 0.8064396834725922,
+          "CYP2C9_pIC50_direct_inhibition": 0.7512197305426073,
+          "CYP2D6_pIC50_direct_inhibition": 0.989875489680289,
+          "CYP3A4_pIC50_direct_inhibition": 0.5129482744867369
+        }
+      },
+      "oof_sha256": "1adca6448e7702360d0fa92910f80ed4b298bdecb2b35c0cf0eaaf6d32786193",
+      "parameters": 267784,
+      "seed": 45,
+      "selected_epoch": 7,
+      "task_weights": [
+        0.6649131178855896,
+        1.2034218311309814,
+        1.0287959575653076,
+        1.1028691530227661,
+        0.30000001192092896,
+        0.30000001192092896,
+        0.30000001192092896,
+        0.30000001192092896
+      ],
+      "training_label_counts": [
+        1866,
+        1031,
+        1206,
+        1125,
+        3496,
+        3496,
+        3496,
+        3496
+      ],
+      "validation_loss": 0.28402382135391235
+    },
+    {
+      "checkpoint_sha256": "9429ce2d545585c4f09cda37bd96771fbe99f5682aa8771b8b9d2a94e2dc769a",
+      "cpu_replay_max_abs": 1.430511474609375e-06,
+      "curve_sha256": "f14580c938c1952c90cc8cfccc5837ddd185a9427d03769b8850e06a00feea8e",
+      "encoder": "atom_jepa",
+      "epochs_run": 63,
+      "fold": 3,
+      "metrics": {
+        "MA-ST-RAE": 0.8046924799148465,
+        "components": {
+          "CYP1A2_pIC50_direct_inhibition": {
+            "denominator": 154.77531065411847,
+            "labels": 287,
+            "numerator": 127.72760029283143
+          },
+          "CYP2C9_pIC50_direct_inhibition": {
+            "denominator": 77.49066725751574,
+            "labels": 254,
+            "numerator": 61.43508240312194
+          },
+          "CYP2D6_pIC50_direct_inhibition": {
+            "denominator": 115.57572340975958,
+            "labels": 287,
+            "numerator": 116.28977175343323
+          },
+          "CYP3A4_pIC50_direct_inhibition": {
+            "denominator": 244.99911362540294,
+            "labels": 469,
+            "numerator": 145.66182302397158
+          }
+        },
+        "endpoints": {
+          "CYP1A2_pIC50_direct_inhibition": 0.8252453169244063,
+          "CYP2C9_pIC50_direct_inhibition": 0.7928062123786064,
+          "CYP2D6_pIC50_direct_inhibition": 1.0061781862367591,
+          "CYP3A4_pIC50_direct_inhibition": 0.5945402041196141
+        }
+      },
+      "oof_sha256": "bc652c603022c13e9ea776198bc5401c9f5cfd7d3213fb3d5c2af676483530a1",
+      "parameters": 136712,
+      "seed": 45,
+      "selected_epoch": 23,
+      "task_weights": [
+        0.6649131178855896,
+        1.2034218311309814,
+        1.0287959575653076,
+        1.1028691530227661,
+        0.30000001192092896,
+        0.30000001192092896,
+        0.30000001192092896,
+        0.30000001192092896
+      ],
+      "training_label_counts": [
+        1866,
+        1031,
+        1206,
+        1125,
+        3496,
+        3496,
+        3496,
+        3496
+      ],
+      "validation_loss": 0.2936481237411499
+    },
+    {
+      "checkpoint_sha256": "0ff12f8dce67bb627b0d784c65dfd8fc2370fa7ae175a6c62788385bb41ddc28",
+      "cpu_replay_max_abs": 3.814697265625e-06,
+      "curve_sha256": "09e80fcd1addc4e7e5e39147c54b192e42c73726581ca880121d8e994b87a433",
+      "encoder": "chemeleon",
+      "epochs_run": 46,
+      "fold": 4,
+      "metrics": {
+        "MA-ST-RAE": 0.8168776728442262,
+        "components": {
+          "CYP1A2_pIC50_direct_inhibition": {
+            "denominator": 120.3503369348162,
+            "labels": 272,
+            "numerator": 116.55330334613038
+          },
+          "CYP2C9_pIC50_direct_inhibition": {
+            "denominator": 85.23175643226338,
+            "labels": 243,
+            "numerator": 59.770401321243284
+          },
+          "CYP2D6_pIC50_direct_inhibition": {
+            "denominator": 140.83167388237973,
+            "labels": 316,
+            "numerator": 140.71977259347534
+          },
+          "CYP3A4_pIC50_direct_inhibition": {
+            "denominator": 246.3384648981169,
+            "labels": 462,
+            "numerator": 147.45474513977052
+          }
+        },
+        "endpoints": {
+          "CYP1A2_pIC50_direct_inhibition": 0.9684501623726873,
+          "CYP2C9_pIC50_direct_inhibition": 0.701269149237173,
+          "CYP2D6_pIC50_direct_inhibition": 0.9992054252724579,
+          "CYP3A4_pIC50_direct_inhibition": 0.5985859544945866
+        }
+      },
+      "oof_sha256": "7ccc295acdcd12c0e7fe4bcd7788cd5e97ea207c68ea23936ac6ea68ec7ec0af",
+      "parameters": 1054216,
+      "seed": 46,
+      "selected_epoch": 6,
+      "task_weights": [
+        0.6631496548652649,
+        1.1920146942138672,
+        1.0552924871444702,
+        1.0895432233810425,
+        0.30000001192092896,
+        0.30000001192092896,
+        0.30000001192092896,
+        0.30000001192092896
+      ],
+      "training_label_counts": [
+        1873,
+        1042,
+        1177,
+        1140,
+        3504,
+        3504,
+        3504,
+        3504
+      ],
+      "validation_loss": 0.2998332977294922
+    },
+    {
+      "checkpoint_sha256": "68339d638026700ed267c140b96959835b9337e9f379f86686cb2955176a58af",
+      "cpu_replay_max_abs": 9.5367431640625e-07,
+      "curve_sha256": "f9848b6a57a117c9f399fa0008d0cba03c165087d3f82939e84281df4ec29cac",
+      "encoder": "mol_jepa",
+      "epochs_run": 58,
+      "fold": 4,
+      "metrics": {
+        "MA-ST-RAE": 0.768682157627771,
+        "components": {
+          "CYP1A2_pIC50_direct_inhibition": {
+            "denominator": 120.3503369348162,
+            "labels": 272,
+            "numerator": 115.96504758154296
+          },
+          "CYP2C9_pIC50_direct_inhibition": {
+            "denominator": 85.23175643226338,
+            "labels": 243,
+            "numerator": 56.15225118147278
+          },
+          "CYP2D6_pIC50_direct_inhibition": {
+            "denominator": 140.83167388237973,
+            "labels": 316,
+            "numerator": 129.68231772470094
+          },
+          "CYP3A4_pIC50_direct_inhibition": {
+            "denominator": 246.3384648981169,
+            "labels": 462,
+            "numerator": 130.93280285873414
+          }
+        },
+        "endpoints": {
+          "CYP1A2_pIC50_direct_inhibition": 0.9635623009875878,
+          "CYP2C9_pIC50_direct_inhibition": 0.6588184208792988,
+          "CYP2D6_pIC50_direct_inhibition": 0.9208320411856317,
+          "CYP3A4_pIC50_direct_inhibition": 0.531515867458566
+        }
+      },
+      "oof_sha256": "21c22a513b019ced239cfe283b5e892c3bdf34abd03851a4c8876cc2aed0e9f6",
+      "parameters": 267784,
+      "seed": 46,
+      "selected_epoch": 18,
+      "task_weights": [
+        0.6631496548652649,
+        1.1920146942138672,
+        1.0552924871444702,
+        1.0895432233810425,
+        0.30000001192092896,
+        0.30000001192092896,
+        0.30000001192092896,
+        0.30000001192092896
+      ],
+      "training_label_counts": [
+        1873,
+        1042,
+        1177,
+        1140,
+        3504,
+        3504,
+        3504,
+        3504
+      ],
+      "validation_loss": 0.2885753810405731
+    },
+    {
+      "checkpoint_sha256": "42b516774760ff6f96fd2c29b4e23d2dbbc065578cd9310bb99e824cd54881cd",
+      "cpu_replay_max_abs": 9.5367431640625e-07,
+      "curve_sha256": "ba8b97ccc10cd0aa5b43b7b3c1b900fb51e88358ef6a5cb3b70302c5991c1992",
+      "encoder": "atom_jepa",
+      "epochs_run": 88,
+      "fold": 4,
+      "metrics": {
+        "MA-ST-RAE": 0.7896654346432144,
+        "components": {
+          "CYP1A2_pIC50_direct_inhibition": {
+            "denominator": 120.3503369348162,
+            "labels": 272,
+            "numerator": 119.58991771905518
+          },
+          "CYP2C9_pIC50_direct_inhibition": {
+            "denominator": 85.23175643226338,
+            "labels": 243,
+            "numerator": 56.277152564407345
+          },
+          "CYP2D6_pIC50_direct_inhibition": {
+            "denominator": 140.83167388237973,
+            "labels": 316,
+            "numerator": 138.2279504296112
+          },
+          "CYP3A4_pIC50_direct_inhibition": {
+            "denominator": 246.3384648981169,
+            "labels": 462,
+            "numerator": 128.8804569082489
+          }
+        },
+        "endpoints": {
+          "CYP1A2_pIC50_direct_inhibition": 0.9936816195523169,
+          "CYP2C9_pIC50_direct_inhibition": 0.6602838533444132,
+          "CYP2D6_pIC50_direct_inhibition": 0.9815118049726292,
+          "CYP3A4_pIC50_direct_inhibition": 0.5231844607034981
+        }
+      },
+      "oof_sha256": "07721134b81cde8950fe1f22d1eaf403c3a45acc73f0d445616ff1fac59e1251",
+      "parameters": 136712,
+      "seed": 46,
+      "selected_epoch": 48,
+      "task_weights": [
+        0.6631496548652649,
+        1.1920146942138672,
+        1.0552924871444702,
+        1.0895432233810425,
+        0.30000001192092896,
+        0.30000001192092896,
+        0.30000001192092896,
+        0.30000001192092896
+      ],
+      "training_label_counts": [
+        1873,
+        1042,
+        1177,
+        1140,
+        3504,
+        3504,
+        3504,
+        3504
+      ],
+      "validation_loss": 0.29467830061912537
+    }
+  ],
+  "limitation": "Fixed frozen head, different embedding widths/parameter counts; checkpoint-selected development OOF. Bootstrap is conditional on these fitted models, without multiple-comparison correction.",
+  "metrics": {
+    "atom_jepa": {
+      "MA-ST-RAE": 0.7948896583521987,
+      "components": {
+        "CYP1A2_pIC50_direct_inhibition": {
+          "denominator": 694.0464937478519,
+          "labels": 1412,
+          "numerator": 612.3582453882905
+        },
+        "CYP2C9_pIC50_direct_inhibition": {
+          "denominator": 403.15059234205444,
+          "labels": 1285,
+          "numerator": 304.1652627822266
+        },
+        "CYP2D6_pIC50_direct_inhibition": {
+          "denominator": 625.365891461621,
+          "labels": 1493,
+          "numerator": 599.8329070889893
+        },
+        "CYP3A4_pIC50_direct_inhibition": {
+          "denominator": 1223.2994357089558,
+          "labels": 2335,
+          "numerator": 713.9364468899842
+        }
+      },
+      "endpoints": {
+        "CYP1A2_pIC50_direct_inhibition": 0.8823014753400097,
+        "CYP2C9_pIC50_direct_inhibition": 0.754470583846139,
+        "CYP2D6_pIC50_direct_inhibition": 0.9591711273012421,
+        "CYP3A4_pIC50_direct_inhibition": 0.5836154469214044
+      }
+    },
+    "chemeleon": {
+      "MA-ST-RAE": 0.797391947448207,
+      "components": {
+        "CYP1A2_pIC50_direct_inhibition": {
+          "denominator": 694.0464937478519,
+          "labels": 1412,
+          "numerator": 627.5391792849273
+        },
+        "CYP2C9_pIC50_direct_inhibition": {
+          "denominator": 403.15059234205444,
+          "labels": 1285,
+          "numerator": 295.472587986435
+        },
+        "CYP2D6_pIC50_direct_inhibition": {
+          "denominator": 625.365891461621,
+          "labels": 1493,
+          "numerator": 618.5247429794312
+        },
+        "CYP3A4_pIC50_direct_inhibition": {
+          "denominator": 1223.2994357089558,
+          "labels": 2335,
+          "numerator": 689.2361881559295
+        }
+      },
+      "endpoints": {
+        "CYP1A2_pIC50_direct_inhibition": 0.9041745544973724,
+        "CYP2C9_pIC50_direct_inhibition": 0.7329087283982961,
+        "CYP2D6_pIC50_direct_inhibition": 0.9890605666609023,
+        "CYP3A4_pIC50_direct_inhibition": 0.563423940236257
+      }
+    },
+    "mol_jepa": {
+      "MA-ST-RAE": 0.7780271917237538,
+      "components": {
+        "CYP1A2_pIC50_direct_inhibition": {
+          "denominator": 694.0464937478519,
+          "labels": 1412,
+          "numerator": 608.2093118946991
+        },
+        "CYP2C9_pIC50_direct_inhibition": {
+          "denominator": 403.15059234205444,
+          "labels": 1285,
+          "numerator": 292.8593750458832
+        },
+        "CYP2D6_pIC50_direct_inhibition": {
+          "denominator": 625.365891461621,
+          "labels": 1493,
+          "numerator": 610.2265304020996
+        },
+        "CYP3A4_pIC50_direct_inhibition": {
+          "denominator": 1223.2994357089558,
+          "labels": 2335,
+          "numerator": 652.7124979978332
+        }
+      },
+      "endpoints": {
+        "CYP1A2_pIC50_direct_inhibition": 0.8763235854854163,
+        "CYP2C9_pIC50_direct_inhibition": 0.7264267512160958,
+        "CYP2D6_pIC50_direct_inhibition": 0.9757911947769692,
+        "CYP3A4_pIC50_direct_inhibition": 0.5335672354165337
+      }
+    }
+  },
+  "official_score": null,
+  "protocol": "workbench-mt-aux8-frozen-v1",
+  "recipe": {
+    "auxiliary_weight": 0.3,
+    "batch_size": 256,
+    "calibration": "none",
+    "dropout": 0.2,
+    "feature_scaling": "training-fold population mean and SD, minimum SD 1e-6",
+    "hidden_dim": 512,
+    "learning_rate": 0.001,
+    "loss_denominator": "number of observed labels, not sum of weights",
+    "max_epochs": 400,
+    "optimizer": "Adam",
+    "patience": 40,
+    "precision": "float32",
+    "seed": "42 + fold; one fit per fold, no repeat seeds",
+    "selection": "minimum weighted standardized validation MAE across all eight tasks",
+    "target_scaling": "training-fold population mean and SD, minimum SD 1e-6",
+    "weight_decay": 0.0001
+  },
+  "run_id": "workbench-representations-20261030",
+  "source_commit": "75ac33e",
+  "submission_authorized": false,
+  "tests": {
+    "cuda_hidden": true,
+    "format": "passed",
+    "lint": "passed",
+    "passed": 267,
+    "skipped": 10
+  },
+  "validation": {
+    "all_scalers_training_only": true,
+    "all_selected_checkpoints_verified": true,
+    "all_task_weights_matched": true,
+    "audit_script_sha256": "b4dc3e47641103e4116552245c4062c1139a69614d2843d8b7465844b7bbdb79",
+    "bootstrap": {
+      "comparisons": {
+        "atom_jepa_minus_chemeleon": {
+          "paired_scaffold_95_percentile_interval": [
+            -0.02848293383344807,
+            0.02137636423863506
+          ],
+          "point_delta": -0.0025022890960082478
+        },
+        "mol_jepa_minus_atom_jepa": {
+          "paired_scaffold_95_percentile_interval": [
+            -0.038711659313748516,
+            0.004804029497834105
+          ],
+          "point_delta": -0.016862466628444928
+        },
+        "mol_jepa_minus_chemeleon": {
+          "paired_scaffold_95_percentile_interval": [
+            -0.04291271026435055,
+            0.0021709974119166055
+          ],
+          "point_delta": -0.019364755724453175
+        }
+      },
+      "limitation": "Conditions on fixed fitted OOF models; no retraining, adaptive-search or seed-variability correction. Historical stereo-insensitive parent overlap is retained.",
+      "resamples": 2000,
+      "seed": 42,
+      "unit": "saved Workbench scaffold string"
+    },
+    "checkpoint_replay_atol": 0.0001,
+    "common_epoch_batch_orders_matched": true,
+    "fits": 15,
+    "historical_context_limit": "Same rows/folds/tasks, but end-to-end model, different head, optimizer/recipe, and full-table rather than training-fold loss weights; not a controlled frozen-representation arm.",
+    "historical_mt_aux8_chemprop_context": {
+      "MA-ST-RAE": 0.6878873338378787,
+      "components": {
+        "CYP1A2_pIC50_direct_inhibition": {
+          "denominator": 694.0464937478519,
+          "labels": 1412,
+          "numerator": 553.1191657500001
+        },
+        "CYP2C9_pIC50_direct_inhibition": {
+          "denominator": 403.15059234205444,
+          "labels": 1285,
+          "numerator": 244.45539635
+        },
+        "CYP2D6_pIC50_direct_inhibition": {
+          "denominator": 625.365891461621,
+          "labels": 1493,
+          "numerator": 555.4980155000001
+        },
+        "CYP3A4_pIC50_direct_inhibition": {
+          "denominator": 1223.2994357089558,
+          "labels": 2335,
+          "numerator": 562.6709538
+        }
+      },
+      "endpoints": {
+        "CYP1A2_pIC50_direct_inhibition": 0.7969482891025873,
+        "CYP2C9_pIC50_direct_inhibition": 0.6063624883442835,
+        "CYP2D6_pIC50_direct_inhibition": 0.8882768041628814,
+        "CYP3A4_pIC50_direct_inhibition": 0.4599617537417627
+      }
+    },
+    "historical_oof_hashes_verified": {
+      "0": "1d2b1259e8edfc5dcf07158abd167be1a12d7c06302cf9d69da10639a7fcc0b7",
+      "1": "85cb6688ca26c858b51ecf538bdd6e4e62e8cfa70a380db9e2cfeff59e63635f",
+      "2": "27cb49e39d2f0cb554209a16bd6d162c3e4050435c27cd017ae94641794d2191",
+      "3": "c69257c816828493304286dd6a66bee98d402c2f4add668cc3097c11924fc2f5",
+      "4": "1075e4d348df0bc97b3d6edd16b61134eb18c0ab63a194ac622d670011d477fe"
+    },
+    "results_sha256": "428791a71629b685f2b57176340f500b59fe1a652eae13064b3f1974ea43cb4b",
+    "rows_per_encoder": 4905,
+    "scored_prediction_coverage": "exactly one OOF prediction per molecule per encoder",
+    "status": "verified"
+  }
+}

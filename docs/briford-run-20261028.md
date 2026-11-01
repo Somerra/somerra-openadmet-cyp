@@ -55,17 +55,15 @@ refit on all training rows.
 
 ## Calibration eligibility status
 
-As of 2026-10-30, the question in
-[PR #12](https://github.com/Somerra/somerra-openadmet-cyp/pull/12#discussion_r4406685923)
-about reusing another participant's leaderboard-derived calibration constants is
-unresolved; no organizer clarification is recorded. Portal acceptance does not
-resolve that question. The accepted submission and this historical result remain
-preserved, but future submissions using those constants are on hold pending
-eligibility clarification. No organizer contact is authorized by this document.
+The original 2026-10-30 policy held future reuse of borrowed calibration constants
+pending clarification of [PR #12](https://github.com/Somerra/somerra-openadmet-cyp/pull/12#discussion_r4406685923).
+On 2026-11-01 the user explicitly lifted that project hold and directed historical
+Workbench calibration for the next candidate. The [current protocol](workbench-protocol.md#calibration-experiments-and-eligibility)
+records the formula and provenance requirements. Own-data calibration remains a
+separate experiment axis. No organizer clarification is recorded; user authorization
+and portal acceptance do not establish clearance. No organizer contact or new upload
+is authorized here. Historical artifacts, measurements, and receipts are unchanged.
 
-The [default protocol](workbench-protocol.md#calibration-experiments-and-eligibility)
-starts new comparisons from raw predictions and permits calibration learned only
-from our own OOF predictions and official training labels as a separate experiment.
 The raw OOF score of 0.6284 and calibrated official score of 0.4349 are on different
 populations; subtracting them does not estimate calibration's contribution. No
 matched official raw-versus-calibrated ablation was performed for this run.

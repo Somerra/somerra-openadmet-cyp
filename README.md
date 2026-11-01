@@ -16,12 +16,22 @@ default for future regression submission candidates. Reuse each data bundle's
 saved five folds; train on four and select a checkpoint on the fifth. Develop
 CYP-specific models with auxiliary tasks, focusing comparisons on architecture,
 task-loss weights, and model-combination weights. OOF scores are development
-evidence; only the challenge supplies official blind-test scores. Calibration
-learned from our own data is a separate experiment axis; the historical borrowed
-leaderboard constants are not cleared for future submissions.
+evidence; only the challenge supplies official blind-test scores. Retain raw
+predictions as the baseline; calibration learned from our own OOF predictions and
+official training labels is a separate, declared experiment axis. By user direction on 2026-11-01, prepare the next candidate with historical
+Workbench calibration, retaining raw output and borrowed-constant provenance.
+The project hold is lifted; this does not establish organizer clearance or authorize
+a new upload. Historical results and receipts remain preserved.
 
-The implemented reference runs through `autoresearch.py briford`; generic model
-adapters are next work. Use `autoresearch.py molecular run` for the historical
+Current CYP research uses `autoresearch.py recipes`; see
+[research/CYP_PROGRAM.md](research/CYP_PROGRAM.md). The historical reference runs
+through `autoresearch.py briford`. The completed
+[matched frozen-representation comparison](docs/workbench-representations.md)
+preserves CheMeleon, Mol-JEPA, and Atom-JEPA results on the same Workbench eight-task
+bundle and five folds. Its standalone reproduction module is
+`python -m somerra_openadmet.workbench_probe plan|run|status`, not the active
+autoresearch workflow.
+Use `autoresearch.py molecular run` for the historical
 molecular task described below. Bare `plan`/`run` retain compatibility but warn
 that they invoke the historical 60/20/20 protocol.
 
