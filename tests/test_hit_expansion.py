@@ -204,11 +204,11 @@ def prepared(tmp_path, tables, monkeypatch):
         prior,
         {"input_sha256": {str(p): sha256_file(p) for p in source.glob("*.csv")}, "file_sha256": {}},
     )
-    original = he.make_assignments
+    original = he.make_bank
     monkeypatch.setattr(
         he,
-        "make_assignments",
-        lambda f, b, seed: original(f, b, seed, hits=2, neighbors=1, minimum_similarity=0),
+        "make_bank",
+        lambda f, b: original(f, b, minimum_potency=0, neighbors=1, minimum_similarity=0),
     )
     root = tmp_path / "benchmark"
     monkeypatch.chdir(tmp_path)
@@ -233,6 +233,8 @@ def test_prepare_audit_immutable_and_historical_hashes(prepared, tmp_path):
     result = he.audit(root, tmp_path / "audit")
     assert result["historical_hashes_verified"]
     assert result["unique_evaluation_parents"] > 0
+    assert result["evaluation_parents_used_for_training_in_other_repeats"] == 0
+    assert result["pooled_test"]["rows"] == result["unique_evaluation_parents"]
     assert all(r["blind_overlap"] == 0 for r in result["checks"].values())
     with pytest.raises(FileExistsError):
         he.prepare("unused", "unused", "unused", root)
@@ -266,15 +268,102 @@ def test_evaluate_provenance_and_no_partial_macro(prepared, tmp_path):
                 "test_used_for_fitting_or_selection": False,
                 "calibration": "none",
                 "scalers_and_task_weights_fit_on": "train",
+                "analog_bank_used_for_gradient_training": False,
+                "checkpoint_selection_scope": "this_rotation_validation_only",
                 "checkpoint_sha256": {"model.bin": sha256_file(checkpoint)},
             },
         )
     result = he.evaluate(root, predictions, records, tmp_path / "evaluation")
     assert len(result["repeats"]) == 5
     assert result["unique_test_parents"] <= result["test_row_appearances"]
+    assert result["unique_test_parents"] == result["test_row_appearances"]
+    assert result["primary_pooled_score"]["MA-ST-RAE"] == 0
+    assert result["family_bootstrap"]["n_resamples"] == 1000
     path = records / "repeat-42.json"
     record = json.loads(path.read_text())
     record["test_used_for_fitting_or_selection"] = True
     he.write_json(path, record)
     with pytest.raises(ValueError, match="test-isolation"):
         he.evaluate(root, predictions, records, tmp_path / "bad-evaluation")
+
+
+def test_bank_labels_and_input_order_cannot_change_membership(tables):
+    f, blind = tables
+
+    def build(table):
+        return he.make_bank(table, blind, minimum_potency=0, minimum_similarity=0, neighbors=1)
+
+    bank, seeds, links = build(f)
+    changed = f.copy()
+    candidate_ids = bank.loc[~bank.seed_pool, "Molecule_Name"]
+    changed.loc[changed.Molecule_Name.isin(candidate_ids), list(ACTIVITY_ENDPOINTS)] = np.nan
+    changed = changed.sample(frac=1, random_state=17)
+    for expected, actual in zip((bank, seeds, links), build(changed), strict=True):
+        pd.testing.assert_frame_equal(expected, actual)
+    assert bank.loc[bank.selected_seed, "expansion_fold"].eq(-1).all()
+    assert not seeds.selection_endpoint.str.startswith("CYP2D6").any()
+    assert links.groupby("series_id").expansion_fold.nunique().max() == 1
+
+
+def test_bank_qualifying_hits_and_shortfalls(tables):
+    f, blind = tables
+    bank, seeds, _ = he.make_bank(
+        f, blind, minimum_potency=4, minimum_similarity=0, neighbors=1, n_folds=2
+    )
+    assert seeds.seed_pIC50.ge(4).all()
+    for ep in he.SEED_TARGETS:
+        expected = f.loc[
+            f.Molecule_Name.isin(bank.loc[bank.seed_pool, "Molecule_Name"]) & (f[ep] >= 4)
+        ]
+        assert set(seeds.loc[seeds.selection_endpoint == ep, "seed_id"]) == set(
+            expected.Molecule_Name
+        )
+    with pytest.raises(ValueError, match="No qualifying"):
+        he.make_bank(f, blind, minimum_potency=100)
+    with pytest.raises(ValueError, match="analog families"):
+        he.make_bank(f, blind, minimum_potency=0, minimum_similarity=1)
+
+
+def test_bank_never_trains_and_each_row_scores_once(prepared):
+    root, _, _ = prepared
+    bank = pd.read_csv(root / "bank-assignments.csv")
+    held = set(bank.loc[bank.expansion_fold >= 0, "expansion_parent"])
+    test_ids, training_hashes = [], set()
+    validation_counts = {}
+    for seed in he.REPEATS:
+        folder = root / f"repeat-{seed}"
+        train, val, test = [
+            pd.read_csv(folder / f"{r}.csv") for r in ["train", "validation", "test"]
+        ]
+        assert not held & set(train.expansion_parent)
+        assert not set(val.series_id) & set(test.series_id)
+        test_ids.extend(test.Molecule_Name)
+        training_hashes.add(sha256_file(folder / "train.csv"))
+        for mid in val.Molecule_Name:
+            validation_counts[mid] = validation_counts.get(mid, 0) + 1
+    assert len(training_hashes) == 1
+    assert len(test_ids) == len(set(test_ids)) == len(held)
+    assert set(validation_counts.values()) == {4}
+    he.verify_bank_roles(root)
+
+
+def test_bank_semantic_check_rejects_training_contamination(prepared):
+    root, _, _ = prepared
+    folder = root / "repeat-42"
+    train, test = [pd.read_csv(folder / f"{r}.csv") for r in ["train", "test"]]
+    pd.concat([train, test.iloc[[0]]], ignore_index=True).to_csv(folder / "train.csv", index=False)
+    with pytest.raises(ValueError, match="entered training"):
+        he.verify_bank_roles(root)
+
+
+def test_family_bootstrap_is_deterministic_and_does_not_count_rows_as_families(tables):
+    truth, _ = tables
+    truth["series_id"] = [f"family-{i // 4}" for i in range(len(truth))]
+    pred = truth[["Molecule_Name", *ACTIVITY_ENDPOINTS]].copy()
+    a = he.family_bootstrap(truth, pred, n_resamples=100)
+    b = he.family_bootstrap(truth, pred, n_resamples=100)
+    assert a == b
+    assert a["families"] == len(truth) // 4
+    assert a["intervals"]["MA-ST-RAE"]["percentile_95"] == [0, 0]
+    with pytest.raises(ValueError, match="unique"):
+        he.score_predictions(pd.concat([truth, truth.iloc[[0]]]), pred)
