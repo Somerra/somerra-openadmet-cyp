@@ -11,8 +11,8 @@ one model for all four endpoints.
 This default follows our [October 28 reproduction](briford-run-20261028.md), which
 scored 0.4349 official MA-ST-RAE. That result motivates the choice; it does not
 isolate a causal benefit from the split strategy. The historical Workbench recipe
-is the reference here, not the changing upstream default. Adopting its folds does
-not adopt its leaderboard-derived calibration constants for new submissions; see
+is the reference here, not the changing upstream default. The user separately authorized historical Workbench calibration for the next
+candidate on 2026-11-01; see
 [calibration experiments and eligibility](#calibration-experiments-and-eligibility).
 
 ## What is fixed, and what can change
@@ -25,7 +25,7 @@ not adopt its leaderboard-derived calibration constants for new submissions; see
 | Training-only fitted target scalers; masked missing labels | Weights combining completed model configurations |
 | Scoring on official direct-inhibition labels, with the shared evaluator | Regularization and training policy, as separately declared changes |
 | Official blind identities and prediction-only submission policy | Auxiliary-task selection within a declared, fixed bundle |
-| Raw predictions in pIC50 units retained as the baseline | Declared calibration learned only from our own OOF predictions and official training labels |
+| Raw predictions in pIC50 units retained as the baseline | Own-data calibration as a separate axis; historical Workbench calibration for the next candidate |
 
 Changing a data source or regenerating folds is a separate protocol change, not
 an architecture improvement. Record any training-policy change explicitly; a new
@@ -211,22 +211,28 @@ development set, not independently validated gains.
 
 ## Calibration experiments and eligibility
 
-**Current direction (2026-10-31): own-data calibration is a declared experiment
-axis.** Retain raw predictions after the declared fold/model averaging as the
-baseline, and evaluate any own-data calibration as a separate variant. This does
-not change the completed frozen-representation study: its settings and reported
-results remain uncalibrated. Training-target normalization and conversion back to
-pIC50 units are part of the model and remain necessary. Keep historical calibrated
-predictions and receipts intact; their scores describe their recorded pipelines.
+**Current direction (2026-11-01): prepare the next regression candidate with
+historical Workbench calibration.** The user explicitly lifted the project hold
+on borrowed constants. Apply the transform separately per CYP after fold/model
+averaging: `max(1, target_mean + (p - mean(p)) * target_sd / sample_sd(p))`.
+Use historical population moments and the model's OOF Pearson correlation times
+1.32 / 1.23 / 1.66 / 1.07 for CYP1A2 / CYP2C9 / CYP2D6 / CYP3A4, respectively.
+Retain the CYP2D6 target mean 3.57 / SD 0.90 override. Do not silently clamp invalid
+correlation extrapolations. Cohort prediction moments use unlabeled predictions;
+this is a transductive, leaderboard-informed transform, not training-only calibration.
 
-The existing `autoresearch.py briford predict` command still reproduces the
-historical calibrated pipeline using borrowed leaderboard-derived constants. Its
-`activity_submission.csv` remains on hold for future submission pending eligibility
-clarification; `raw.csv` preserves the uncalibrated output. New candidate preparation
-must use a separate destination, verify prediction identity and schema, and record
-`calibration: none` or the declared own-data transform and its provenance. Never
-overwrite the historical submission or infer upload authorization from its manifest. This policy update
-does not change the historical exporter or launch training or a submission.
+Retain raw predictions after the declared averaging, exact input/transform hashes,
+and calibrated output separately. Use a new destination; never overwrite prior
+artifacts or infer upload authorization from a manifest. The historical
+`autoresearch.py briford predict` exporter already implements this formula.
+This direction authorizes preparation, not a new submission or training campaign.
+Prediction-only metadata, cooldowns, and receipt preservation remain mandatory.
+
+The completed frozen-representation study remains uncalibrated. Its raw comparison
+answers which frozen representation worked under the shared training recipe; do
+not relabel its results or require retroactive calibration to complete that study.
+Training-target normalization and conversion back to pIC50 remain necessary.
+Own-data calibration is a separate experiment axis, not a mandatory promotion step.
 
 For an own-data calibration experiment, hold base predictions and model-combination
 weights fixed and compare raw predictions against an endpoint-specific calibration
@@ -248,22 +254,21 @@ the existing OOF table an independent estimate. No such estimator is implemented
 by this protocol; implementing and validating a calibrator remains separate work.
 
 Record any own-data calibration as a separate variant alongside raw output.
-Compare the historical Workbench raw output on the same rows, and retain its
-calibrated result as historical evidence only.
+Compare raw and declared calibrated variants on the same rows. Preserve historical
+results with their original model, population, and transform provenance.
 The 0.6284 raw OOF score and 0.4349 calibrated official score use different
 populations and pipelines. Their difference does not measure calibration's
 contribution, and transferring another model's local-to-official gap cannot
 establish a roughly 0.3 calibration benefit. A matched raw-versus-calibrated
 evaluation on the same scoring set is needed.
 
-**Leaderboard-constant eligibility: unresolved as of 2026-10-31.** The question
-raised in [PR #12](https://github.com/Somerra/somerra-openadmet-cyp/pull/12#discussion_r4406685923)
-has no recorded organizer clarification. Historical portal acceptance is not a
-ruling on eligibility. Future submissions using those borrowed constants are on
-hold pending eligibility clarification; they are not the default for new
-candidates. This does not withdraw or alter the October 28 receipt. Keep that
-calibrated pipeline reproducible privately, and do not contact organizers without
-user authorization. See the [historical result](briford-run-20261028.md#calibration-eligibility-status).
+**Eligibility and authorization are distinct.** The question raised in
+[PR #12](https://github.com/Somerra/somerra-openadmet-cyp/pull/12#discussion_r4406685923)
+has no recorded organizer clarification. The user's 2026-11-01 direction lifts
+our project hold; neither that direction nor historical portal acceptance proves
+organizer-specific clearance. Keep this limitation and borrowed provenance explicit.
+No organizer contact or new upload is authorized by this protocol. The separate
+hold on third-party Scigantic reference-prediction reuse is unchanged.
 
 ## Next Mol-JEPA comparison
 

@@ -30,8 +30,11 @@ from our own OOF predictions and official training labels; report it separately.
 Training-target normalization and its inverse remain unchanged. OOF is development
 evaluation, not an untouched test; report OOF-tuned results separately and mark independent estimates
 unavailable unless actually measured. Keep model families on the same data and
-evaluation tools. Borrowed leaderboard calibration constants remain on hold for
-future submissions pending eligibility clarification; preserve historical results.
+evaluation tools. By user direction on 2026-11-01, use historical Workbench
+calibration for the next candidate, including the CYP2D6 mean 3.57 / SD 0.90
+override and floor 1.0. Retain raw output and exact transform provenance. The
+project hold is lifted; organizer clearance and a new upload are not implied.
+Preserve historical results.
 
 `autoresearch.py briford prepare|run|status|predict` implements the historical
 Chemprop reference. CYP specialist recipes are described above; a ready-made

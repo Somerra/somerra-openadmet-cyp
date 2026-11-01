@@ -18,9 +18,10 @@ CYP-specific models with auxiliary tasks, focusing comparisons on architecture,
 task-loss weights, and model-combination weights. OOF scores are development
 evidence; only the challenge supplies official blind-test scores. Retain raw
 predictions as the baseline; calibration learned from our own OOF predictions and
-official training labels is a separate, declared experiment axis. Historical
-calibrated results remain preserved, but future submissions using borrowed
-leaderboard-derived constants remain on hold pending eligibility clarification.
+official training labels is a separate, declared experiment axis. By user direction on 2026-11-01, prepare the next candidate with historical
+Workbench calibration, retaining raw output and borrowed-constant provenance.
+The project hold is lifted; this does not establish organizer clearance or authorize
+a new upload. Historical results and receipts remain preserved.
 
 Current CYP research uses `autoresearch.py recipes`; see
 [research/CYP_PROGRAM.md](research/CYP_PROGRAM.md). The historical reference runs
