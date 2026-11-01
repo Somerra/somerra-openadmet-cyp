@@ -269,6 +269,11 @@ Somerra model.
 
 ## CYP recipe research and submission builds
 
+The [first autoresearch campaign learnings](docs/autoresearch-learnings-20261101.md)
+record CYP-specific recipes, repeat variability, calibration findings, and operating
+policies. Results are specific to the saved research split; they do not establish
+universal CYP strategies or an independent estimate of official performance.
+
 The [CYP runbook](research/CYP_PROGRAM.md) separates agent-directed strategy discovery with
 three training folds, validation fold 0, and internal-test fold 2 from submission construction. Each CYP has its own recipe,
 history, budget, and incumbent. Recipes control model inputs, architecture,

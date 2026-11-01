@@ -1,0 +1,453 @@
+{
+  "as_of": "2026-11-01",
+  "scope": "Only campaign 57698048316a: saved Workbench mt_aux8 train 1,3,4; validation 0; adaptive strategy-scoring fold 2. No independent estimate or universal CYP recipe claim.",
+  "campaign_id": "57698048316a",
+  "protocol": "cyp-recipes-v3",
+  "fold_roles": {
+    "train": [
+      1,
+      3,
+      4
+    ],
+    "validation": 0,
+    "internal_test": 2
+  },
+  "split_sha256": {
+    "assignments.csv": "a04d961781f6511f5d7ecd44dbcff5600f55384983d2870554b22f381a47c48c",
+    "internal-test.csv": "bdf0e95e437f7894831c1aea50fb8203b7e4b978b6d7ebd4144b91f6a29ef436",
+    "train.csv": "475134e1a5071823cdadb94b20569fd494e92f7d814d66cf1385ac40c487e2c7",
+    "validation.csv": "43fbcb2f505a03fe58572e89850293e1469602ccc23bbac5f217e57a11053c57"
+  },
+  "source_sha256": {
+    "/mnt/data/somerra-openadmet-runs/briford-20261028/data/manifest.json": "3302e77c714a8f41ece330f0e86b8d0e3ce1cc65bcf094d5052ebfca20a30a69",
+    "/mnt/data/somerra-openadmet-runs/briford-20261028/data/mt_aux8.csv": "3975e5781fc2a369eb9e4ca3f4fb72315e31574c155e047b29acd67c33e57594",
+    "/mnt/openclaw-home/somerra-openadmet-cyp/runs/regression-hillclimb-20261026-data/manifest.json": "520ac3056a0df3046c730a9d409bb7f94b136dabb7e1bd48bc3e30e94ff0b910",
+    "/mnt/openclaw-home/somerra-openadmet-cyp/runs/regression-hillclimb-20261026-data/official.csv": "91dd7156241cc2e5ec7213876988e2b258f092062a6913997977a6d4e82cd18b",
+    "/mnt/openclaw-home/somerra-openadmet-cyp/runs/regression-hillclimb-20261026-data/pool.csv": "8b9eb29c99698c486622edb3088ed6375f1e8f18eb3f7b9e27d5a3d78f4cd130",
+    "/mnt/openclaw-home/somerra-openadmet-cyp/runs/regression-hillclimb-20261026-data/test.csv": "f4be36c297fc366be9374443a482e941792386cef932577f23fb3c86aeb3f11f"
+  },
+  "fixed_evaluator_sha256": {
+    "constants.py": "ed8c9d2fef4b007e511640826b8211b6bebde9461e8aa9dfe156a2e93c942d00",
+    "cyp_evaluation.py": "2d3ad759c86e1ef733877a71f065585188f3f4620b85b518f1e3b31fba4a730e",
+    "metrics.py": "30cb9a95a32d2b87bf761575bbf3e046e5bb7d750178b5e89321a5cae5d910c7"
+  },
+  "rows": {
+    "internal-test": 981,
+    "train": 30945,
+    "validation": 981
+  },
+  "objectives": {
+    "CYP1A2": {
+      "scored_trials": 43,
+      "first_scored_baseline": {
+        "metrics": {
+          "Kendall_Tau": 0.3369956519706392,
+          "MAE": 0.6611486889026055,
+          "R2": 0.24045496870086103,
+          "ST-RAE": 0.8809638711011906,
+          "Spearman_R": 0.48058987024610217,
+          "n": 293
+        },
+        "output": "/mnt/data/somerra-openadmet-runs/cyp-first-autoresearch-20261031/research/campaigns/CYP1A2/trials/cyp1a2-6a992cfa95",
+        "promoted": true,
+        "report_sha256": "29fbd09e8cbb3c0e8a55b53219fd2ff298342307519c7cb43f2d29393e58a43a",
+        "trial_id": "cyp1a2-6a992cfa95"
+      },
+      "selected": {
+        "trial_id": "cyp1a2-9e8378735b",
+        "recipe_sha256": "b760c6219db5788cff3acbf32d86f37da800fde924683089b4cb1f47537f9707",
+        "metrics": {
+          "Kendall_Tau": 0.4157744635092805,
+          "MAE": 0.6004749199190625,
+          "R2": 0.32461151473527416,
+          "ST-RAE": 0.7638981408262441,
+          "Spearman_R": 0.5794247663065414,
+          "n": 293
+        },
+        "settings": {
+          "auxiliary_weight": 0.3,
+          "batch_size": 256,
+          "depth": 5,
+          "dropout": 0.1,
+          "ffn_hidden_dim": 300,
+          "ffn_num_layers": 2,
+          "final_lr": 0.0001,
+          "hidden_dim": 700,
+          "init_lr": 0.0001,
+          "max_epochs": 400,
+          "max_lr": 0.001,
+          "optimizer": "adam",
+          "patience": 40,
+          "primary_weight": 3.0,
+          "warmup_epochs": 2,
+          "weight_decay": 0.0001
+        },
+        "best_epoch": 26,
+        "elapsed_seconds": 258.27784278799663,
+        "output": "/mnt/data/somerra-openadmet-runs/cyp-first-autoresearch-20261031/research/campaigns/CYP1A2/trials/cyp1a2-9e8378735b",
+        "description": {
+          "data": "available training parents, all 22 auxiliary tasks",
+          "loss": "Training confidence-interval distance for bounded focal labels; point MAE fallback; unchanged auxiliary MAE",
+          "model": "Chemprop D-MPNN with one shared RegressionFFN and distinct task outputs",
+          "name": "CYP1A2 interval-aware focal loss"
+        },
+        "hypothesis": "Parent cyp1a2-c7dfe3768c. Adamweight_decay0->1e-4only (coupledL2, notAdamW). Testregularizationgivenearlyvalidationselectionandcontinuedtrainlossdecline. Samegraph/head/dropout/loss/tasks/weights/batch/LR.; allocation authorization sha256=fb0ad4d6822ea66e064c37a0b7f64d94782f18e85e319492705f63c7f08de4f2"
+      },
+      "selected_recipe_repeats": [
+        {
+          "recipe_sha256": "b760c6219db5788cff3acbf32d86f37da800fde924683089b4cb1f47537f9707",
+          "trial_ids": [
+            "cyp1a2-9e8378735b",
+            "cyp1a2-f153785671"
+          ],
+          "scores": [
+            0.7638981408262441,
+            0.7780409442688244
+          ],
+          "n": 2,
+          "mean": 0.7709695425475342,
+          "median": 0.7709695425475342,
+          "min": 0.7638981408262441,
+          "max": 0.7780409442688244,
+          "selected_recipe": true
+        }
+      ],
+      "own_data_calibration_ST_RAE": {
+        "raw": 0.7127395948206892,
+        "workbench_own_data": 0.7467458435916629,
+        "fixed_affine_own_data": 0.7339142034210194
+      }
+    },
+    "CYP2C9": {
+      "scored_trials": 33,
+      "first_scored_baseline": {
+        "metrics": {
+          "Kendall_Tau": 0.4207151185386707,
+          "MAE": 0.4651587825768746,
+          "R2": 0.37118667542802464,
+          "ST-RAE": 0.6907679564912791,
+          "Spearman_R": 0.5926280606296153,
+          "n": 249
+        },
+        "output": "/mnt/data/somerra-openadmet-runs/cyp-first-autoresearch-20261031/research/campaigns/CYP2C9/trials/cyp2c9-a5414d613a",
+        "promoted": true,
+        "report_sha256": "37fa300702553b550a6b04d5f93c1fffa85e957c6419c9e1c3e6ed2fc7101a73",
+        "trial_id": "cyp2c9-a5414d613a"
+      },
+      "selected": {
+        "trial_id": "cyp2c9-289e7b1ef0",
+        "recipe_sha256": "c57ca7f1046a441f21c7317b2c96d394a8016cb4c49ca2a22b00aa6425530998",
+        "metrics": {
+          "Kendall_Tau": 0.46204171524808907,
+          "MAE": 0.44065548650727115,
+          "R2": 0.43310148083678024,
+          "ST-RAE": 0.6039268164926823,
+          "Spearman_R": 0.637224251846094,
+          "n": 249
+        },
+        "settings": {
+          "auxiliary_weight": 0.3,
+          "batch_size": 128,
+          "depth": 7,
+          "dropout": 0.1,
+          "ffn_hidden_dim": 300,
+          "ffn_num_layers": 2,
+          "final_lr": 0.0001,
+          "hidden_dim": 700,
+          "init_lr": 0.0001,
+          "max_epochs": 400,
+          "max_lr": 0.001,
+          "optimizer": "adam",
+          "patience": 40,
+          "primary_weight": 3.0,
+          "warmup_epochs": 2,
+          "weight_decay": 0.0
+        },
+        "best_epoch": 12,
+        "elapsed_seconds": 308.4259345219907,
+        "output": "/mnt/data/somerra-openadmet-runs/cyp-first-autoresearch-20261031/research/campaigns/CYP2C9/trials/cyp2c9-289e7b1ef0",
+        "description": {
+          "data": "available training parents, all 22 auxiliary tasks",
+          "loss": "masked weighted MAE on training-standardized labels / observed label count",
+          "model": "Chemprop D-MPNN with one shared RegressionFFN and distinct task outputs",
+          "name": "CYP2C9 Workbench graph baseline"
+        },
+        "hypothesis": "Priority exactrecipe repeat of cyp2c9-d3a9e83826. Identicalseed/settings/data/runtime; quantifyGPUtrainingandcheckpointselectionrepeatability. CYP1A2same-recipe .7805vs.8843motivatescheckingallleadersandpointMAEcontrol. Preservealloutcomes; do notclaimsinglebestobservedscoreisrobuststrategyestimate.; allocation authorization sha256=fb0ad4d6822ea66e064c37a0b7f64d94782f18e85e319492705f63c7f08de4f2"
+      },
+      "selected_recipe_repeats": [
+        {
+          "recipe_sha256": "c57ca7f1046a441f21c7317b2c96d394a8016cb4c49ca2a22b00aa6425530998",
+          "trial_ids": [
+            "cyp2c9-d3a9e83826",
+            "cyp2c9-289e7b1ef0",
+            "cyp2c9-d354095a11"
+          ],
+          "scores": [
+            0.6093995873475766,
+            0.6039268164926823,
+            0.6572230298216366
+          ],
+          "n": 3,
+          "mean": 0.6235164778872985,
+          "median": 0.6093995873475766,
+          "min": 0.6039268164926823,
+          "max": 0.6572230298216366,
+          "selected_recipe": true
+        }
+      ],
+      "own_data_calibration_ST_RAE": {
+        "raw": 0.5335950220036356,
+        "workbench_own_data": 0.5554649521200709,
+        "fixed_affine_own_data": 0.5527001882637173
+      }
+    },
+    "CYP2D6": {
+      "scored_trials": 38,
+      "first_scored_baseline": {
+        "metrics": {
+          "Kendall_Tau": 0.22956301164533613,
+          "MAE": 0.6276651791447622,
+          "R2": 0.09327941837335663,
+          "ST-RAE": 0.9458206266198551,
+          "Spearman_R": 0.3368183645423356,
+          "n": 295
+        },
+        "output": "/mnt/data/somerra-openadmet-runs/cyp-first-autoresearch-20261031/research/campaigns/CYP2D6/trials/cyp2d6-6d8260f4b3",
+        "promoted": true,
+        "report_sha256": "0fde52ec55c2f94a87901c4ea9825fe124a7cfe8de5f684fc5e3118e8f63ae90",
+        "trial_id": "cyp2d6-6d8260f4b3"
+      },
+      "selected": {
+        "trial_id": "cyp2d6-58e488d4af",
+        "recipe_sha256": "074718051888a8dd030bd7d6df4a9c3f841bf4ea7a34ea42dd6acb9f187ed0fd",
+        "metrics": {
+          "Kendall_Tau": 0.3002651908220916,
+          "MAE": 0.5843186748420871,
+          "R2": 0.15999837201099598,
+          "ST-RAE": 0.8482155244671645,
+          "Spearman_R": 0.4355815344919462,
+          "n": 295
+        },
+        "settings": {
+          "auxiliary_weight": 0.3,
+          "batch_size": 512,
+          "dropout": 0.1,
+          "final_lr": 0.0001,
+          "init_lr": 0.0001,
+          "max_epochs": 400,
+          "max_lr": 0.001,
+          "optimizer": "adam",
+          "patience": 40,
+          "primary_weight": 3.0,
+          "warmup_epochs": 2,
+          "weight_decay": 0.0
+        },
+        "best_epoch": 24,
+        "elapsed_seconds": 293.2632695539942,
+        "output": "/mnt/data/somerra-openadmet-runs/cyp-first-autoresearch-20261031/research/campaigns/CYP2D6/trials/cyp2d6-58e488d4af",
+        "description": {
+          "data": "shared Workbench rows; focal CYP plus 22 auxiliary tasks",
+          "loss": "masked weighted MAE on training-standardized labels",
+          "model": "pinned 2048-wide Chemprop bond MPNN with mean pooling and trainable 2048-300-300-23 MLP",
+          "name": "CYP2D6 pretrained ChEMeleon finetuning",
+          "representation": "full fine-tuning of pinned local general CheMeleon encoder"
+        },
+        "hypothesis": "Exactrepeat ofCheMeleon candidate cyp2d6-3b1e5c76cc, batch512/LR.001unchanged. Narrowgraphrepeat .9053 vs.8488 exposesvariance; compare strongestpretrainedstrategyrepeatability. Noindependentestimate; retainbothoutcomes.; allocation authorization sha256=fb0ad4d6822ea66e064c37a0b7f64d94782f18e85e319492705f63c7f08de4f2"
+      },
+      "selected_recipe_repeats": [
+        {
+          "recipe_sha256": "074718051888a8dd030bd7d6df4a9c3f841bf4ea7a34ea42dd6acb9f187ed0fd",
+          "trial_ids": [
+            "cyp2d6-3b1e5c76cc",
+            "cyp2d6-58e488d4af",
+            "cyp2d6-3dea093446"
+          ],
+          "scores": [
+            0.8607723030376613,
+            0.8482155244671645,
+            0.8684522091416582
+          ],
+          "n": 3,
+          "mean": 0.8591466788821613,
+          "median": 0.8607723030376613,
+          "min": 0.8482155244671645,
+          "max": 0.8684522091416582,
+          "selected_recipe": true
+        }
+      ],
+      "own_data_calibration_ST_RAE": {
+        "raw": 0.8302895618963373,
+        "workbench_own_data": 0.8392456224551853,
+        "fixed_affine_own_data": 0.8394782645902754
+      }
+    },
+    "CYP3A4": {
+      "scored_trials": 42,
+      "first_scored_baseline": {
+        "metrics": {
+          "Kendall_Tau": 0.5823002842475923,
+          "MAE": 0.5393294349640775,
+          "R2": 0.5810960483988288,
+          "ST-RAE": 0.4930590468191517,
+          "Spearman_R": 0.7772352254453907,
+          "n": 486
+        },
+        "output": "/mnt/data/somerra-openadmet-runs/cyp-first-autoresearch-20261031/research/campaigns/CYP3A4/trials/cyp3a4-b973cb9f13",
+        "promoted": true,
+        "report_sha256": "4a7d3fa819b5cd4d4e81bcce7ede1e9957cd2a858ebad665373db39fe724a5a0",
+        "trial_id": "cyp3a4-b973cb9f13"
+      },
+      "selected": {
+        "trial_id": "cyp3a4-7e1b79d8ec",
+        "recipe_sha256": "ee1116624986e3ac49a3f4dc580b9d813cf089d703c599418f1143a462c501f9",
+        "metrics": {
+          "Kendall_Tau": 0.6191251962156886,
+          "MAE": 0.48906725058611383,
+          "R2": 0.6387878904592175,
+          "ST-RAE": 0.43989600678656243,
+          "Spearman_R": 0.8093730358285773,
+          "n": 486
+        },
+        "settings": {
+          "auxiliary_weight": 0.3,
+          "batch_size": 1024,
+          "depth": 5,
+          "dropout": 0.1,
+          "ffn_hidden_dim": 300,
+          "ffn_num_layers": 2,
+          "final_lr": 0.0001,
+          "hidden_dim": 700,
+          "init_lr": 0.0001,
+          "max_epochs": 400,
+          "max_lr": 0.002,
+          "optimizer": "adam",
+          "patience": 40,
+          "primary_weight": 3.0,
+          "warmup_epochs": 2,
+          "weight_decay": 0.0
+        },
+        "best_epoch": 72,
+        "elapsed_seconds": 177.8184816550056,
+        "output": "/mnt/data/somerra-openadmet-runs/cyp-first-autoresearch-20261031/research/campaigns/CYP3A4/trials/cyp3a4-7e1b79d8ec",
+        "description": {
+          "data": "available training parents, all 22 auxiliary tasks",
+          "loss": "masked weighted MAE on training-standardized labels / observed label count",
+          "model": "Chemprop D-MPNN with one shared RegressionFFN and distinct task outputs",
+          "name": "CYP3A4 Workbench graph baseline"
+        },
+        "hypothesis": "Freeze batch1024 after completing same-CYP baseline atpeakLR.001; tune peakLR alone to.002. Initial/finalLR stay.0001, model/loss/data/warmup unchanged. Largerbatch reducedsteps and current.001 scoresworsen; testwhetherhigherpeak restores focallearning. Internaltestcompares completedfixedvalidationcheckpoints.; allocation authorization sha256=fb0ad4d6822ea66e064c37a0b7f64d94782f18e85e319492705f63c7f08de4f2"
+      },
+      "selected_recipe_repeats": [
+        {
+          "recipe_sha256": "ee1116624986e3ac49a3f4dc580b9d813cf089d703c599418f1143a462c501f9",
+          "trial_ids": [
+            "cyp3a4-7e1b79d8ec",
+            "cyp3a4-a4d6be3464",
+            "cyp3a4-ae1b95920f"
+          ],
+          "scores": [
+            0.43989600678656243,
+            0.4463110606114353,
+            0.44997236813164704
+          ],
+          "n": 3,
+          "mean": 0.44539314517654827,
+          "median": 0.4463110606114353,
+          "min": 0.43989600678656243,
+          "max": 0.44997236813164704,
+          "selected_recipe": true
+        }
+      ],
+      "own_data_calibration_ST_RAE": {
+        "raw": 0.3998284210618169,
+        "workbench_own_data": 0.41754429745688243,
+        "fixed_affine_own_data": 0.418861629225823
+      }
+    }
+  },
+  "scored_trial_count": 156,
+  "best_observed_adaptive_macro_ST_RAE": 0.6639841221431634,
+  "final_OOF_development_MA_ST_RAE": 0.6191131499456197,
+  "own_data_calibration_macro_ST_RAE": {
+    "raw": 0.6191131499456197,
+    "workbench_own_data": 0.6397501789059504,
+    "fixed_affine_own_data": 0.6362385713752088
+  },
+  "official_raw_observation": {
+    "submission": "Autoresearch (raw)",
+    "submitted": "2026-11-01 12:47 UTC",
+    "MA-ST-RAE": 0.7151,
+    "MA-MAE": 0.8974,
+    "MA-R2": 0.2154,
+    "MA-Spearman": 0.7405,
+    "MA-Kendall": 0.5642,
+    "historical_portal_rank": 132,
+    "evidence": "/mnt/data/somerra-openadmet-runs/cyp-first-autoresearch-20261031/submission-best-at-cutoff/portal-upload/portal-after-submission.json",
+    "rank_among_recorded_submissions": 6,
+    "rank_MA-ST-RAE": 6,
+    "rank_MA-MAE": 6.0,
+    "rank_MA-R2": 6.0,
+    "rank_MA-Spearman": 4.0,
+    "rank_MA-Kendall": 4.0
+  },
+  "raw_submission": {
+    "status": "accepted",
+    "submitted_utc": "2026-11-01T12:47:40.422094+00:00",
+    "sha256": "6d286b67a1a42360b571c5757f8b5fb491e1fbde0d8c692b94ea6ed1beb75fdd"
+  },
+  "historical_calibration_candidate": {
+    "status": "prepared_not_submitted",
+    "sha256": "ea06969322095ab37857ee90faacae10db52cea4929f60a16a58066f32ac06c2",
+    "parameters": {
+      "CYP1A2": {
+        "oof_pearson": 0.6002113052426279,
+        "adjusted_pearson": 0.7922789229202688,
+        "target_mean": 4.412,
+        "target_sd": 1.2304091672951774,
+        "raw_mean": 5.01730660832859,
+        "raw_sd": 0.6261600783957946,
+        "floor_count": 2
+      },
+      "CYP2C9": {
+        "oof_pearson": 0.7145762472844647,
+        "adjusted_pearson": 0.8789287841598915,
+        "target_mean": 4.83,
+        "target_sd": 0.9677005913600405,
+        "raw_mean": 4.951220423850738,
+        "raw_sd": 0.7162916485100026,
+        "floor_count": 0
+      },
+      "CYP2D6": {
+        "oof_pearson": 0.45501723361636615,
+        "adjusted_pearson": 0.7553286078031678,
+        "target_mean": 3.57,
+        "target_sd": 0.9,
+        "raw_mean": 4.649758976977304,
+        "raw_sd": 0.4004159417862517,
+        "floor_count": 0
+      },
+      "CYP3A4": {
+        "oof_pearson": 0.821597468010195,
+        "adjusted_pearson": 0.8791092907709086,
+        "target_mean": 4.88,
+        "target_sd": 1.1182270178605958,
+        "raw_mean": 4.826081294869853,
+        "raw_sd": 0.9946771523932871,
+        "floor_count": 0
+      }
+    }
+  },
+  "historical_status_note": "Campaign summary was frozen before upload; its not-submitted fields are historical. Later receipt establishes acceptance of raw predictions. Calibrated candidate has no submission receipt in this evidence.",
+  "evidence_sha256": {
+    "/mnt/data/somerra-openadmet-runs/cyp-first-autoresearch-20261031/campaign-results-summary.json": "df008544e56b03558163db3522ba27b3c944e832e44107fec16a40cc4d70edc0",
+    "/mnt/data/somerra-openadmet-runs/cyp-first-autoresearch-20261031/research/manifest.json": "47d8d0f27d7936bc05fbd492e00c78f737f49597422f42b768af47c2f4fb09bb",
+    "/mnt/data/somerra-openadmet-runs/cyp-first-autoresearch-20261031/own-data-calibration/results.json": "7c59f7e9c6dce2bcf3c2a41909c2e562ec80838f59ce671aa547b8c2b4e2750c",
+    "/mnt/data/somerra-openadmet-runs/cyp-first-autoresearch-20261031/historical-workbench-calibration/run_manifest.json": "5b50012514b50e6d2518a3bab2e047a486d179a105d32f9ebba4b959df23445b",
+    "/mnt/data/somerra-openadmet-runs/cyp-first-autoresearch-20261031/historical-prediction-comparison/all-submission-metrics.csv": "b6bc69403d8af2675f80bb9af7db9d6c67121bb2b699fe40bdf3a07937b233de",
+    "/mnt/data/somerra-openadmet-runs/cyp-first-autoresearch-20261031/submission-best-at-cutoff/portal-upload/submission_receipt.json": "cdbacb997a47fca906b13ee22190cd34bfbe32b06e50f4e4617e257bb3884699",
+    "/mnt/data/somerra-openadmet-runs/cyp-first-autoresearch-20261031/research/campaigns/CYP1A2/strategy-registry.json": "9e517b4ca08919ccca580170c79c414bb1e21aa0a21e45b393c9f4b7b0102188",
+    "/mnt/data/somerra-openadmet-runs/cyp-first-autoresearch-20261031/research/campaigns/CYP2C9/strategy-registry.json": "04b3161d9390130febf3db589af826cd68c08267b0c4f5e5fe98d38aabf4ccc6",
+    "/mnt/data/somerra-openadmet-runs/cyp-first-autoresearch-20261031/research/campaigns/CYP2D6/strategy-registry.json": "e865ee0d177c914fbbbef3ccc8b623475d6855161692b14bec53f0e085f15892",
+    "/mnt/data/somerra-openadmet-runs/cyp-first-autoresearch-20261031/research/campaigns/CYP3A4/strategy-registry.json": "1977c18864fbe40ad422e4bf806037fe77e33f1a517f1d21196958416c955c25"
+  }
+}

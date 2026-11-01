@@ -95,3 +95,13 @@ research. Per-trial internal-test reports rank strategies in
 registry and legacy W&B best/campaign summaries remain validation diagnostics
 for replay compatibility, not strategy-selection authority. Historical closed
 campaigns and trial records remain unchanged.
+
+## Scope of autoresearch evidence
+
+Treat selected recipes as hypotheses specific to their recorded split, data,
+evaluator, and adaptive search history, not universal CYP defaults. Report repeat
+variability alongside the best observed score. New splits require fresh matched
+controls; do not transfer incumbent scores or pool incompatible evaluations.
+Keep research scoring, checkpoint-selected OOF, and official submission results
+separate. See [the first campaign learnings](docs/autoresearch-learnings-20261101.md)
+for the evidence and operating policies.
