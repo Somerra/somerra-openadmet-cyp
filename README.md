@@ -274,18 +274,21 @@ three training folds, validation fold 0, and internal-test fold 2 from submissio
 history, budget, and incumbent. Recipes control model inputs, architecture,
 auxiliary tasks, loss, optimizer, and training policy. Private W&B records the
 strategy, actual train/validation losses, and all challenge regression metrics.
-Validation ST-RAE selects each CYP's checkpoint and strategy; lower is better.
-The separate research `test` command freezes that selection and closes the CYP
-search before reporting internal-test metrics. Test scores never rank recipes.
+Validation ST-RAE selects the checkpoint within each run; internal-test ST-RAE
+scores that checkpoint and ranks strategies across runs, separately for each CYP.
+Lower is better. This clarified policy is recorded in AGENTS.md and the runbook.
+Use `python -m somerra_openadmet.cyp_strategy trial|score|status` for adaptive
+strategy selection. Its internal-test ledger is separate from the legacy
+validation-only training registry and campaign telemetry.
 
 Use `bash scripts/run_cyp_research.sh --help` or `python autoresearch.py recipes
 --help` for research. `python submissions.py --help` provides a separate path to
 freeze four selected recipes, replay them across the saved five folds, and build
 validated prediction-only files with private provenance. Neither path uploads.
-Research and build budgets default to zero; only setup and CPU smoke tests are
-enabled. Scores from validation and checkpoint-selected OOF remain development
-results. Internal-test reports describe the frozen selection under this new split;
-historical use of these molecules must still be disclosed.
+Research and build budgets default to zero; full fits need an authorized campaign
+allocation. Validation, adaptively reused internal-test, and checkpoint-selected
+OOF scores are development results. Historical use of the molecules must also be
+disclosed. Official competition test labels and scores do not enter research.
 
 ## Data and licensing
 

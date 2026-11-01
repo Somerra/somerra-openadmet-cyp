@@ -517,67 +517,111 @@ def test_training_never_reads_internal_test_or_logs_test_metrics(data_roots, mon
     assert read(output / "strategy.json")["train_rows"] == 6
 
 
-def test_internal_test_freezes_validation_selection_and_cannot_drive_search(
-    data_roots, monkeypatch
-):
+def test_internal_test_scores_any_completed_trial_and_ranks_strategies(data_roots, monkeypatch):
+    import shutil
+
     from somerra_openadmet import cyp_test
     from somerra_openadmet.cyp_research import accept_result
 
     root = data_roots[0]
     add_internal_test(root)
-    trial = artifact(root, "CYP1A2")
-    job, result = read(trial / "job.json"), read(trial / "result.json")
+    incumbent = artifact(root, "CYP1A2")
+    trial = incumbent.parent / "trial-two"
+    shutil.copytree(incumbent, trial)
+    job = read(trial / "job.json")
+    job.update(trial_id="trial-two", output=str(trial))
+    write(trial / "job.json", job)
+    val = pd.read_csv(root / "validation.csv")
+    ep = tasks_for("CYP1A2")[0]
+    validation_prediction = val[ep].to_numpy() + 0.5
+    saved_validation = pd.read_csv(trial / "validation-predictions.csv")
+    saved_validation[ep] = validation_prediction
+    saved_validation.to_csv(trial / "validation-predictions.csv", index=False)
+    result = read(trial / "result.json")
+    from somerra_openadmet.cyp_research import regression_metrics
+
+    result["metrics"]["ST-RAE"] = regression_metrics(val, validation_prediction, ep)["ST-RAE"]
+    result["validation_predictions_sha256"] = sha256_file(trial / "validation-predictions.csv")
+    write(trial / "result.json", result)
     campaign = root / "campaigns" / "CYP1A2"
-    record = {**job, "status": "complete", "reserved_seconds": 180, "used_seconds": 1}
-    registry = {"trials": [record], "best": {}}
-    accept_result(registry, record, result)
+    best_record = {
+        **read(incumbent / "job.json"),
+        "status": "complete",
+        "reserved_seconds": 180,
+        "used_seconds": 1,
+    }
+    trial_record = {
+        **job,
+        "status": "complete",
+        "reserved_seconds": 180,
+        "used_seconds": 1,
+    }
+    registry = {"trials": [best_record, trial_record], "best": {}}
+    accept_result(registry, best_record, read(incumbent / "result.json"))
     write(campaign / "registry.json", registry)
     calls = []
 
     def predict(path, frame, device="auto"):
         assert set(frame.columns) == {"Molecule_Name", "SMILES", "parent"}
-        assert (campaign / "test-selection.json").exists()
-        calls.append(list(frame.Molecule_Name))
-        # Perfect validation replay, deliberately bad test result.
-        return np.array([float(name[1:]) for name in frame.Molecule_Name]) + (
-            100 if len(calls) == 2 else 0
-        )
+        names = list(frame.Molecule_Name)
+        calls.append((Path(path).name, names))
+        prediction = np.array([float(name[1:]) for name in names])
+        if Path(path).name == "trial" and names[0] == "m2":
+            prediction = prediction + 1
+        if Path(path).name == "trial-two" and names[0] == "m0":
+            prediction = prediction + 0.5
+        return prediction
 
     monkeypatch.setattr(cyp_test, "predict_trial", predict)
     before = (campaign / "registry.json").read_bytes()
-    monkeypatch.setattr(
-        cyp_test, "predict_trial", lambda path, frame, device: np.full(len(frame), 999)
-    )
-    with pytest.raises(ValueError, match="checkpoint replay differs"):
-        cyp_test.evaluate_test(trial, device="cpu", mode="disabled")
-    assert (campaign / "test-selection.json").exists()
-    assert not (campaign / "internal-test" / "report.json").exists()
-    monkeypatch.setattr(cyp_test, "predict_trial", predict)
+    incumbent_report = cyp_test.evaluate_test(incumbent, device="cpu", mode="disabled")
     report = cyp_test.evaluate_test(trial, device="cpu", mode="disabled")
-    assert report["metrics"]["ST-RAE"] > 1
-    assert report["selection_eligible"] is False
+    assert report["metrics"]["ST-RAE"] == pytest.approx(0)
+    assert report["selection_eligible"] is True
+    assert (
+        report["role"] == "adaptive internal-test development; not an independent or official score"
+    )
+    assert incumbent_report["metrics"]["ST-RAE"] > report["metrics"]["ST-RAE"]
     assert (campaign / "registry.json").read_bytes() == before
-    assert calls == [["m0", "m1"], ["m2", "m3"]]
+    assert calls == [
+        ("trial", ["m0", "m1"]),
+        ("trial", ["m2", "m3"]),
+        ("trial-two", ["m0", "m1"]),
+        ("trial-two", ["m2", "m3"]),
+    ]
     assert cyp_test.evaluate_test(trial, device="cpu", mode="disabled") == report
-    assert len(calls) == 2
-    with pytest.raises(ValueError, match="closed by internal-test"):
-        run_trial(root, "CYP1A2", trial / "recipe.py", "must not tune on test", smoke=True)
-    assert status(root)["campaigns"]["CYP1A2"]["closed_for_test"] is True
-    assert status(root)["campaigns"]["CYP2D6"]["closed_for_test"] is False
-    # Also refuse to replace the frozen model if someone changes the registry.
-    result["metrics"]["ST-RAE"] = -1
-    write(trial / "result.json", result)
-    with pytest.raises(ValueError, match="selection is frozen"):
+    assert len(calls) == 4
+    assert (trial / "internal-test" / "selection.json").exists()
+    assert (trial / "internal-test" / "report.json").exists()
+    assert not (campaign / "test-selection.json").exists()
+    strategy_registry = read(campaign / "strategy-registry.json")
+    assert strategy_registry["selection_metric"] == "internal-test/ST-RAE"
+    assert strategy_registry["best"]["CYP1A2"]["trial_id"] == "trial-two"
+    assert len(strategy_registry["trials"]) == 2
+    (trial / "internal-test" / "predictions.csv").write_text("corrupted\n")
+    with pytest.raises(ValueError, match="changed|corrupt|hash|artifact"):
         cyp_test.evaluate_test(trial, device="cpu", mode="disabled")
 
 
-def test_internal_test_rejects_smoke_and_nonincumbents(data_roots):
+def test_internal_test_preserves_historical_closed_campaign(data_roots):
     from somerra_openadmet.cyp_test import evaluate_test
 
     root = data_roots[0]
     add_internal_test(root)
     trial = artifact(root, "CYP1A2")
-    with pytest.raises(ValueError, match="validation incumbent"):
+    campaign = root / "campaigns" / "CYP1A2"
+    write(campaign / "test-selection.json", {"historical": True})
+    with pytest.raises(ValueError, match="Historical campaign is closed"):
+        evaluate_test(trial, device="cpu", mode="disabled")
+
+
+def test_internal_test_rejects_unregistered_and_smoke_trials(data_roots):
+    from somerra_openadmet.cyp_test import evaluate_test
+
+    root = data_roots[0]
+    add_internal_test(root)
+    trial = artifact(root, "CYP1A2")
+    with pytest.raises(ValueError, match="registered|registry"):
         evaluate_test(trial, device="cpu", mode="disabled")
     job = read(trial / "job.json")
     job["smoke"] = True

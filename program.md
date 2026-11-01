@@ -6,13 +6,21 @@ For current CYP strategy discovery, read [research/CYP_PROGRAM.md](research/CYP_
 Use `autoresearch.py recipes prepare|trial|test|status|note`, with one editable recipe
 and independent history per CYP. The agent chooses hypotheses, architecture,
 auxiliary tasks, and loss; the runner executes and records trials against fixed
-internal validation ST-RAE. Campaign launches remain disabled (setup only).
+the shared challenge metric. Checked-in campaign budgets default to zero;
+launches require an authorized campaign allocation.
 
-Research trains on saved Workbench folds 1, 3, and 4, selects models on validation fold 0,
-and reserves fold 2 for internal test. The separate `test` command freezes the
-validation incumbent and closes that CYP search before reporting test metrics. Submission construction is a
-separate `submissions.py plan|fit|build|status` workflow that replays four explicitly
-selected recipes across the five saved folds. Neither path uploads predictions.
+Research trains on saved Workbench folds 1, 3, and 4. Validation fold 0 monitors
+training and selects the checkpoint within each run. Internal-test fold 2 scores
+that checkpoint and ranks strategies across runs, separately for each CYP, by
+lower primary ST-RAE. Internal-test feedback may guide further experiments; these
+are adaptive development scores, not an independent held-out estimate.
+
+Use `python -m somerra_openadmet.cyp_strategy trial|score|status` for the
+adaptive internal-test strategy ledger. The legacy training registry remains
+validation-only; see [the policy and implementation status](research/CYP_PROGRAM.md).
+Submission construction is a separate `submissions.py plan|fit|build|status`
+workflow replaying four explicitly selected recipes across the five saved folds.
+Neither path uploads predictions.
 
 The historical instructions below preserve older contracts; their `train.py`
 interface, 60/20/20 split, and promotion thresholds do not govern CYP recipes.

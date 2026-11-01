@@ -7,7 +7,7 @@ workflow uploads to the challenge or contacts organizers.
 ## Research owns the strategy
 
 The coding agent chooses what to investigate, based on results and available
-internal data. There is no fixed experiment queue or required round-robin order.
+internal data. Maintain an adaptive per-CYP experiment queue; there is no fixed sweep or required round-robin order.
 `campaign.py` belongs to historical workflows; this research path does not use it.
 The runner handles execution, budgets, records, and evaluation. It does not choose
 hypotheses or call another LLM service.
@@ -47,20 +47,46 @@ scalers only on the selected training rows.
 Do not remove difficult validation rows. The other three scored CYPs are not
 auxiliary heads in a specialist recipe; source-specific assays remain distinct.
 
-Select checkpoints and each CYP's incumbent by **lower primary ST-RAE**. This is
+Select checkpoints within each run by **lower validation primary ST-RAE**.
+Score that fixed checkpoint on internal test, then select each CYP's strategy
+incumbent by **lower internal-test primary ST-RAE**. This is
 the challenge's interval-aware error, not the recipe's training loss. Better
 challenge performance means a lower error. The aggregate MA-ST-RAE is the equal
-mean of the four incumbents and is absent until all four exist. Neither a change
+mean of the four incumbents' internal-test scores and is absent until all four
+exist. Keep validation and internal-test metrics explicitly separated. Neither a change
 in loss scale nor an improvement on another CYP can win this CYP's campaign.
 
-Validation is repeatedly used for strategy and checkpoint selection: these are
-**development results, not an independent held-out estimate**. Treat tiny gains
+Validation selects checkpoints; internal test is repeatedly used to score and
+select strategies. Both yield **development results**. Adaptive strategy search
+on internal test means its score is not an independent or unbiased estimate. Treat tiny gains
 as uncertain; the agent may choose stability checks or matched controls rather
 than repeatedly chasing small improvements. A graceful time-cap stop finalizes the
 best fully validated checkpoint, records `stop_reason=time_cap` and any partial
 optimizer steps, and can be selected. A cap reached before any validated epoch,
 a hard process timeout, a failure, or a smoke run cannot become an incumbent.
 Historical artifacts remain unchanged.
+
+## Queue and experiment handoff
+
+On each completed experiment, verify its artifacts, score its fixed
+validation-selected checkpoint on internal test, and record the interpretation.
+Launch the next eligible experiment within the authorized allocation without
+waiting for every concurrent experiment to finish. A monitor alerts the coordinator;
+the coordinator chooses and launches the next hypothesis.
+
+At every launch, refresh the remaining per-CYP queue using completed results:
+add ideas, reprioritize promising hypotheses, and retire weak or redundant ones.
+Retain queue revisions, evidence, parent trials, and reasons for changes. Report
+technical blockers explicitly; a saved queue is not an active scheduler.
+
+Treat representation as a first-class axis: molecular graphs,
+fingerprints/descriptors, available pretrained embeddings such as Mol-JEPA, and
+combinations. Verify asset provenance and adapter smoke/replay checks before use.
+First profile batch size with the model and learning-rate settings held fixed;
+choose the largest batch that improves measured throughput under actual
+concurrency. Then freeze batch size and tune learning rate separately per CYP.
+Repeat throughput profiling when a new representation changes memory or compute.
+Record changed axes explicitly so batch and learning-rate effects are not confounded.
 
 ## Editable recipe interface
 
@@ -142,7 +168,9 @@ spending or rerun an unchanged baseline without a reason.
    hashes, curves, and result. W&B receives private strategy metadata and metrics,
    never source or model uploads.
 4. Inspect training/validation loss, ST-RAE, MAE, R², Spearman's rho, Kendall's tau,
-   and task diagnostics. The runner selects by primary ST-RAE. Record the agent's
+   and task diagnostics. After fixing the validation-selected checkpoint, score
+   it on internal test and rank strategies by primary internal-test ST-RAE under
+   the clarified policy below. Record the agent's
    conclusion and next direction with `note`, including failures and inconclusive
    outcomes. In the note, mark a promoted full trial as `keep`, a completed
    non-improving full trial as `discard`, and a failed/timeout attempt as `crash`;
@@ -154,12 +182,12 @@ spending or rerun an unchanged baseline without a reason.
    and an explicit later submission selection can choose a simpler alternative.
    Keep promising alternatives; the best single-fold score need not be
    the recipe eventually selected for submission.
-5. Continue choosing and running experiments while authorized budget remains and
-   this CYP has not been frozen for internal-test reporting,
+5. Continue choosing and running experiments while authorized budget remains,
    without asking for permission between trials. Stop when interrupted, blocked,
    or out of allocation. Do not reset spending by silently
    creating a new campaign or changing its frozen budget. Full trials remain
-   disabled in the checked-in configuration. This task authorizes setup only.
+   disabled in the checked-in configuration. Use a separately authorized campaign
+   allocation; never infer permission for unbounded trials from this program.
 
 ```bash
 bash scripts/run_cyp_research.sh prepare
@@ -196,35 +224,45 @@ records its interpretation. Results link the strategy and recipe hashes. W&B
 records strategy metadata, loss curves, all five challenge metrics, and selected
 checkpoint summaries. Undefined correlations are null locally and omitted remotely.
 
-## Internal-test report after model selection
+## Internal test scores strategies (policy clarified 2026-11-01)
 
-Use validation ST-RAE for both checkpoint and strategy selection. Once the CYP
-search is finished, explicitly select its recorded validation incumbent for test:
+| Partition | Role | Selection metric |
+| --- | --- | --- |
+| Training: folds 1, 3, 4 | Fit model weights and preprocessing | Editable training objective |
+| Validation: fold 0 | Monitor training, early stopping, choose the checkpoint within a run | Primary validation ST-RAE, minimize |
+| Internal test: fold 2 | Score each fixed checkpoint and rank strategies across runs | Primary internal-test ST-RAE, minimize |
 
-```bash
-bash scripts/run_cyp_research.sh test --trial /absolute/path/to/selected-full-trial
-```
+After a full trial completes, freeze its validation-selected checkpoint and score
+that checkpoint on the entire internal-test cohort. Score each eligible strategy,
+not just the strategy with the lowest validation score. Internal-test feedback
+may guide the agent's next hypothesis and determines each CYP's strategy incumbent.
+This step does not close the campaign; continue within the authorized allocation.
 
-This freezes `test-selection.json` before reading test labels, closes that CYP
-campaign to further trials (including smoke checks), verifies checkpoint replay
-on validation, and evaluates the saved model once on the entire internal-test
-fold. Recipe adapters receive molecular inputs without held-out labels or bounds.
-No retraining, scaling fit, checkpoint selection or calibration occurs on test.
-Smoke/failed/non-incumbent trials are rejected. A failed evaluation may retry the
-same frozen selection; a completed command returns its existing report.
+Do not compare multiple epochs on internal test or choose a different checkpoint
+after seeing its score. Do not use internal-test labels to fit model weights,
+scalers, learned representations or calibration parameters. Strategy search may
+compare choices fitted on eligible training data; keep data preparation and the
+scoring function fixed. Smoke, failed or unscored trials cannot win the strategy
+comparison. Retain recipe/runtime/checkpoint hashes, selected epoch, validation
+metrics, internal-test predictions and all five challenge metrics per trial,
+with distinct validation and internal-test fields in local records and private W&B.
 
-The campaign's `internal-test/` directory retains predictions, a report, and test
-runtime snapshots. Private W&B receives a separate report-only run with all five
-`test/*` challenge metrics; the research registry and validation leaderboard stay
-unchanged. Test metrics are never used to choose recipes, task weights, losses,
-ensembles or postprocessing. Do not start a fresh campaign to tune against exposed
-test results. Any later reuse of that feedback must be reported as development.
+Because internal test guides repeated strategy selection, call these **adaptive
+development scores**, never an unbiased or independent held-out estimate. Disclose
+historical use of the molecules as well. The official competition test remains
+the final external evaluation; its labels and leaderboard feedback do not enter
+autoresearch. The internal score describes the three-fold-trained strategy trial,
+not the later five-fold submission ensemble.
 
-This is a holdout for this new research protocol, not the official competition
-test. Earlier experiments may have trained on or evaluated these molecules;
-disclose that history and do not claim a never-observed or unbiased estimate.
-The report measures the selected three-fold-trained model. Submission refitting
-uses the five-fold construction protocol and has separate development OOF scores.
+Use `python -m somerra_openadmet.cyp_strategy trial|score|status` for adaptive
+research. `trial` runs a GPU fit then scores its fixed validation checkpoint;
+`score` also accepts existing registered full trials. Per-trial `internal-test/`
+artifacts freeze the checkpoint before scoring. `strategy-registry.json` ranks
+strategies by internal-test ST-RAE without closing the campaign. The original
+`registry.json`, legacy `status`, and legacy W&B `best/*`/`campaign/*` summaries
+remain validation-only diagnostics to preserve baseline runtime replay hashes;
+they are not the strategy-selection authority. Historical closed campaigns stay
+closed and historical trial records are not relabeled.
 
 ## Alignment with Karpathy's autoresearch
 
@@ -238,10 +276,10 @@ of the agent-directed experiment loop, with these explicit correspondences:
 | --- | --- |
 | Human-maintained `program.md` directs the agent | Root `program.md` routes here; the agent chooses experiments within the user's scope. |
 | Editable `train.py` | One self-contained recipe per CYP; architecture, representation, loss and optimization are editable. Shared runtime extensions require recorded provenance and smoke/replay checks. |
-| Fixed preparation and evaluation | Saved Workbench assignments, prepared data hashes and fixed evaluator hashes; lower internal-validation ST-RAE selects the incumbent. |
+| Fixed preparation and evaluation | Saved Workbench assignments, prepared data hashes and fixed evaluator hashes; validation ST-RAE selects the checkpoint; internal-test ST-RAE ranks strategies under the clarified policy (runtime update pending). |
 | Baseline, experiment, keep/discard, repeat | Establish a full baseline per CYP, inspect every result, retain or restore the working recipe, and record the next hypothesis. |
 | Git commits plus `results.tsv` | Recipe/runtime snapshots and hashes, per-CYP `registry.json`, trial `result.json` and `notes.jsonl`; local records remain authoritative if W&B fails. No additional TSV is required. |
-| Run until interrupted | Continue within the authorized per-CYP allocation. The current zero allocations authorize setup only. |
+| Run until interrupted | Continue within the authorized per-CYP allocation. Checked-in zero allocations disable full trials; user-authorized campaign configurations supply budgets. |
 
 The compute protocol is deliberately different. Upstream measures 300 seconds
 of training excluding startup/compilation, then evaluates the final model.
@@ -257,8 +295,8 @@ different compute conditions as a controlled architecture comparison. Changing
 the timing or checkpoint-selection protocol is a declared experimental revision.
 
 Four independent objectives, private W&B diagnostics and a separate frozen-recipe
-submission builder are challenge-specific additions. Research uses available internal data; our additional test fold is reserved for
-post-selection reporting. Upstream alignment does not authorize access to official
+submission builder are challenge-specific additions. Research uses available internal data; our additional test fold scores strategies after validation checkpoint selection
+and is adaptively reused during research. Upstream alignment does not authorize access to official
 competition test labels or erase historical use of the internal holdout.
 
 ## Separate submission path
