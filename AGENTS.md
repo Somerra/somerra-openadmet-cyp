@@ -49,3 +49,35 @@ Its resubmission is on hold pending clarification of prediction-reuse eligibilit
 and attribution requirements. A validated file or prior acceptance is not clearance
 to resubmit. Do not contact organizers without user authorization. If required
 attribution conflicts with the submission policy above, stop and explain the conflict.
+
+
+## CYP autoresearch selection policy (2026-11-01)
+
+The user clarified the two-level selection policy. This supersedes earlier CYP
+recipe instructions that used validation to rank strategies and reserved internal
+test for a single report after closing the campaign.
+
+- Preserve saved Workbench assignments: train on folds 1, 3, and 4; validate on
+  fold 0; score strategies on internal-test fold 2. Exclude both held-out parent
+  sets and official blind parents from every training source, including auxiliaries.
+- Training fits model weights and preprocessing. Validation monitors training,
+  early stopping, and checkpoint selection within each run, using primary ST-RAE.
+- Freeze the validation-selected checkpoint for each completed trial, then score
+  that checkpoint on internal test. Lower primary internal-test ST-RAE ranks
+  strategies and selects the incumbent independently for each of the four CYPs.
+  Internal-test feedback may guide subsequent architecture, loss, task-weight,
+  batch-size, learning-rate, and other strategy experiments within the allocation.
+- Never use internal test to choose an epoch/checkpoint within a trial, fit model
+  weights or scalers, or directly fit calibration parameters. Preserve separate
+  validation and internal-test metrics and the exact recipe/checkpoint provenance.
+- Repeated strategy selection makes internal-test scores adaptive development
+  results, not an unbiased or independent held-out estimate. Report prior use of
+  these molecules. Official competition test labels/scores do not enter research;
+  the official competition test remains the final external evaluation.
+- Freeze explicitly selected recipes before five-fold submission construction.
+  Keep prediction-only submission policy and authorization boundaries unchanged.
+
+Implementation status: the merged PR #26 runner still promotes by validation and
+its `test` command closes a campaign. It does not yet implement this clarified
+policy. Update and verify that behavior before using it to rank strategies; do
+not relabel existing validation incumbents as internal-test-selected results.

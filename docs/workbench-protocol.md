@@ -263,17 +263,27 @@ The CYP recipe workflow now uses `autoresearch.py recipes prepare|trial|test|sta
 for agent-directed strategy search. Each CYP has an independent recipe,
 budget and history; architecture, task selection, loss and training policy can
 change. The current research revision uses saved `mt_aux8` folds 1, 3, and 4 for training,
-fold 0 for validation/checkpoint/strategy selection, and fold 2 for internal test.
+fold 0 for training monitoring and checkpoint selection, and fold 2 for internal-test
+strategy scoring and selection (policy clarified 2026-11-01).
 Both held-out folds and official blind parents are excluded from every training
 source. The original fold IDs are preserved; this is a new research contract in
 `runs/cyp-recipes-val0-test2`, leaving the old four-training-fold artifacts intact.
 
-Internal test is scored separately only after freezing the validation incumbent;
-the command closes that CYP campaign to further trials. It never updates the
-incumbent or selects a checkpoint. Do not use its score to revise architecture,
-loss, weights, calibration or recipe selection. Prior experiments may already
-have used these molecules; report that history rather than claiming a globally
-untouched test set. Reusing test feedback would make it a development result.
+After each eligible trial, score its fixed validation-selected checkpoint on
+internal test. Lower primary internal-test ST-RAE ranks strategies independently
+for each CYP; its feedback may guide subsequent strategy experiments. Validation
+never replaces internal test as the strategy-ranking score. Internal test never
+selects checkpoints or fits model weights, scalers or calibration parameters.
+
+Repeated strategy search makes internal-test scores adaptive development results,
+not an independent or unbiased estimate. Prior experiments may already have used
+these molecules; disclose that history. The official competition test remains
+the final external evaluation, with no official labels or leaderboard feedback
+used during autoresearch.
+
+The merged PR #26 runner still promotes on validation and closes the campaign on
+test evaluation. Updating and verifying that behavior is pending; this policy
+change does not alter or relabel historical artifacts.
 
 `submissions.py plan|fit|build|status` is the separate construction path: freeze four
 explicit selected recipes, replay each across all five preserved `mt_aux8` folds,
