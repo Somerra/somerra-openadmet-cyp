@@ -23,8 +23,15 @@ from .download import sha256_file
 from .metrics import soft_threshold_rae
 
 LEGACY_PROTOCOL = "hit-expansion-close-analogs-v2"
-PROTOCOL = "hit-expansion-frozen-bank-v3"
-REPEATS = tuple(range(42, 47))
+FIVE_ROTATION_PROTOCOL = "hit-expansion-frozen-bank-v3"
+PROTOCOL = "hit-expansion-frozen-bank-v4"
+REPEATS = tuple(range(42, 45))
+FROZEN_PROTOCOLS = (FIVE_ROTATION_PROTOCOL, PROTOCOL)
+PROTOCOL_REPEATS = {
+    LEGACY_PROTOCOL: list(range(42, 47)),
+    FIVE_ROTATION_PROTOCOL: list(range(42, 47)),
+    PROTOCOL: list(REPEATS),
+}
 SEED_TARGETS = tuple(e for e in ACTIVITY_ENDPOINTS if not e.startswith("CYP2D6"))
 FINGERPRINT = "Morgan radius 2, 2048 bits, no chirality; standardized stereo-insensitive parent"
 INTERPRETATION = (
@@ -189,9 +196,11 @@ def make_bank(
     minimum_similarity=0.50,
     neighbors=10,
     maximum_hits=None,
-    n_folds=5,
+    n_folds=None,
 ):
     """Select one analog bank; no bank parent ever enters gradient training."""
+    if n_folds is None:
+        n_folds = len(REPEATS)
     if n_folds < 2 or not np.isfinite(minimum_potency):
         raise ValueError("Invalid bank parameters")
     if maximum_hits is not None and maximum_hits < 1:
@@ -447,11 +456,12 @@ def prepare(source_manifest, workbench_root, workbench_hashes, output):
                     "and official blind parents"
                 ),
                 "validation": (
-                    "other four analog-family groups; select this rotation's checkpoint only"
+                    f"other {len(REPEATS) - 1} analog-family groups; "
+                    "select this rotation's checkpoint only"
                 ),
                 "test": (
                     "one analog-family group; one scoring prediction per bank row "
-                    "across five rotations"
+                    f"across {len(REPEATS)} rotations"
                 ),
             },
             "primary_score": "pooled unique cross-fitted predictions; not mean fold ST-RAE",
@@ -495,17 +505,20 @@ def prepare(source_manifest, workbench_root, workbench_hashes, output):
 def verify_bundle(root):
     root = Path(root)
     m = read_json(root / "manifest.json")
-    if m["protocol"] not in [PROTOCOL, LEGACY_PROTOCOL] or m["repeats"] != list(REPEATS):
+    if m["repeats"] != PROTOCOL_REPEATS.get(m["protocol"]):
         raise ValueError("Unexpected benchmark contract")
     verify_hashes(m["file_sha256"], root)
     verify_hashes(m["protected_sha256"])
-    if m["protocol"] == PROTOCOL:
+    if m["protocol"] in FROZEN_PROTOCOLS:
         verify_bank_roles(root)
     return m
 
 
 def verify_bank_roles(root):
     root = Path(root)
+    m = read_json(root / "manifest.json")
+    if m["protocol"] not in FROZEN_PROTOCOLS or m["repeats"] != PROTOCOL_REPEATS[m["protocol"]]:
+        raise ValueError("Unexpected frozen-bank contract")
     bank = pd.read_csv(root / "bank-assignments.csv")
     links = pd.read_csv(root / "bank-analog-links.csv")
     held = set(bank.loc[bank.expansion_fold >= 0, "expansion_parent"])
@@ -519,7 +532,7 @@ def verify_bank_roles(root):
             raise ValueError("Nomination family straddles bank folds")
     test_ids = set()
     train_hashes = set()
-    for fold, repeat in enumerate(REPEATS):
+    for fold, repeat in enumerate(m["repeats"]):
         folder = root / f"repeat-{repeat}"
         expected, _ = rotate_bank(bank, links, fold)
         actual = pd.read_csv(folder / "assignments.csv")
@@ -584,7 +597,7 @@ def audit(root, output):
     comparisons = nearest_rows(blind, official, "official_blind_to_official_training")
     exposure, families, membership, test_tables = [], [], [], []
     checks = {}
-    for seed in REPEATS:
+    for seed in m["repeats"]:
         folder = root / f"repeat-{seed}"
         a, links = [pd.read_csv(folder / n) for n in ["assignments.csv", "analog-links.csv"]]
         frames = {r: pd.read_csv(folder / f"{r}.csv") for r in ["train", "validation", "test"]}
@@ -605,7 +618,7 @@ def audit(root, output):
             raise ValueError("Series isolation audit failed")
         expected_series = (
             {r.analog_parent: (r.series_id, r.partition) for r in links.itertuples()}
-            if m["protocol"] == PROTOCOL
+            if m["protocol"] in FROZEN_PROTOCOLS
             else assign_series(links)
         )
         for row in links.itertuples():
@@ -652,7 +665,7 @@ def audit(root, output):
                 }
             )
     nn = pd.DataFrame(comparisons)
-    if m["protocol"] == PROTOCOL:
+    if m["protocol"] in FROZEN_PROTOCOLS:
         pooled_nn = nn.loc[nn.comparison == "test_to_official_training"].copy()
         pooled_nn["repeat"] = None
         pooled_nn["comparison"] = "pooled_test_to_official_training"
@@ -693,7 +706,7 @@ def audit(root, output):
         "audit_implementation_sha256": sha256_file(Path(__file__)),
         "benchmark_manifest_sha256": sha256_file(root / "manifest.json"),
     }
-    if m["protocol"] == PROTOCOL:
+    if m["protocol"] in FROZEN_PROTOCOLS:
         pooled = pd.concat(test_tables, ignore_index=True)
         if pooled.Molecule_Name.duplicated().any() or reused_for_training.any():
             raise ValueError("Frozen bank duplicated or used for training")
@@ -815,7 +828,7 @@ def family_bootstrap(truth, predictions, n_resamples=1000, seed=42):
 
 
 def evaluate(root, predictions, fit_records, output):
-    """One raw prediction CSV and fit record per repeat; all five are required."""
+    """Require a raw prediction CSV and fit record for every manifest rotation."""
     root, predictions, fit_records, output = map(Path, (root, predictions, fit_records, output))
     if output.exists():
         raise FileExistsError(output)
@@ -826,7 +839,7 @@ def evaluate(root, predictions, fit_records, output):
     results, provenance, test_parents = {}, {}, set()
     truth_tables, prediction_tables = [], []
     appearances = 0
-    for seed in REPEATS:
+    for seed in m["repeats"]:
         name = f"repeat-{seed}"
         record_path = fit_records / f"{name}.json"
         prediction_path = predictions / f"{name}.csv"
@@ -844,7 +857,7 @@ def evaluate(root, predictions, fit_records, output):
             or record.get("scalers_and_task_weights_fit_on") != "train"
         ):
             raise ValueError("Raw predictions and training-only fitted preprocessing required")
-        if m["protocol"] == PROTOCOL and (
+        if m["protocol"] in FROZEN_PROTOCOLS and (
             record.get("analog_bank_used_for_gradient_training") is not False
             or record.get("checkpoint_selection_scope") != "this_rotation_validation_only"
         ):
@@ -868,10 +881,11 @@ def evaluate(root, predictions, fit_records, output):
         }
     values = [r["MA-ST-RAE"] for r in results.values()]
     complete = all(v is not None for v in values)
+    macro_key = "macro_across_rotations" if m["protocol"] == PROTOCOL else "macro_across_all_five"
     result = {
         "interpretation": m["interpretation"],
         "repeats": results,
-        "macro_across_all_five": {
+        macro_key: {
             "mean": float(np.mean(values)),
             "min": min(values),
             "max": max(values),
@@ -889,16 +903,16 @@ def evaluate(root, predictions, fit_records, output):
             "not proof of training behavior."
         ),
     }
-    if m["protocol"] == PROTOCOL:
+    if m["protocol"] in FROZEN_PROTOCOLS:
         pooled_truth = pd.concat(truth_tables, ignore_index=True)
         pooled_predictions = pd.concat(prediction_tables, ignore_index=True)
         if pooled_predictions.Molecule_Name.duplicated().any():
             raise ValueError("Each analog must have exactly one scoring prediction")
         result["primary_pooled_score"] = score_predictions(pooled_truth, pooled_predictions)
         result["family_bootstrap"] = family_bootstrap(pooled_truth, pooled_predictions)
-        result["macro_across_all_five_role"] = "diagnostic only; never substitute for pooled ST-RAE"
+        result[f"{macro_key}_role"] = "diagnostic only; never substitute for pooled ST-RAE"
     output.mkdir(parents=True)
-    if m["protocol"] == PROTOCOL:
+    if m["protocol"] in FROZEN_PROTOCOLS:
         pooled_predictions.to_csv(output / "pooled-raw-predictions.csv", index=False)
     write_json(output / "evaluation.json", result)
     return result

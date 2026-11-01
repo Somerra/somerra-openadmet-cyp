@@ -182,8 +182,11 @@ def test_single_label_and_zero_denominator(tables):
     assert all("denominator" in e["undefined_reason"] for e in result["endpoints"].values())
 
 
-@pytest.fixture
-def prepared(tmp_path, tables, monkeypatch):
+@pytest.fixture(params=["current", "five_rotation_legacy"])
+def prepared(tmp_path, tables, monkeypatch, request):
+    if request.param == "five_rotation_legacy":
+        monkeypatch.setattr(he, "PROTOCOL", he.FIVE_ROTATION_PROTOCOL)
+        monkeypatch.setattr(he, "REPEATS", tuple(range(42, 47)))
     f, blind = tables
     source = tmp_path / "source"
     source.mkdir()
@@ -213,6 +216,9 @@ def prepared(tmp_path, tables, monkeypatch):
     root = tmp_path / "benchmark"
     monkeypatch.chdir(tmp_path)
     he.prepare(prior.name, wb.name, wb_hashes.name, root)
+    if request.param == "five_rotation_legacy":
+        monkeypatch.setattr(he, "PROTOCOL", "hit-expansion-frozen-bank-v4")
+        monkeypatch.setattr(he, "REPEATS", tuple(range(42, 45)))
     return root, wb, hashes
 
 
@@ -253,7 +259,7 @@ def test_evaluate_provenance_and_no_partial_macro(prepared, tmp_path):
     records.mkdir()
     checkpoint = records / "model.bin"
     checkpoint.write_bytes(b"synthetic test fixture")
-    for seed in he.REPEATS:
+    for seed in he.read_json(root / "manifest.json")["repeats"]:
         name = f"repeat-{seed}"
         truth = pd.read_csv(root / name / "test.csv")
         truth[["Molecule_Name", *ACTIVITY_ENDPOINTS]].to_csv(
@@ -274,7 +280,12 @@ def test_evaluate_provenance_and_no_partial_macro(prepared, tmp_path):
             },
         )
     result = he.evaluate(root, predictions, records, tmp_path / "evaluation")
-    assert len(result["repeats"]) == 5
+    assert len(result["repeats"]) == len(m["repeats"])
+    macro_key = (
+        "macro_across_rotations" if m["protocol"] == he.PROTOCOL else "macro_across_all_five"
+    )
+    assert macro_key in result
+    assert result[f"{macro_key}_role"].startswith("diagnostic only")
     assert result["unique_test_parents"] <= result["test_row_appearances"]
     assert result["unique_test_parents"] == result["test_row_appearances"]
     assert result["primary_pooled_score"]["MA-ST-RAE"] == 0
@@ -330,7 +341,7 @@ def test_bank_never_trains_and_each_row_scores_once(prepared):
     held = set(bank.loc[bank.expansion_fold >= 0, "expansion_parent"])
     test_ids, training_hashes = [], set()
     validation_counts = {}
-    for seed in he.REPEATS:
+    for seed in he.read_json(root / "manifest.json")["repeats"]:
         folder = root / f"repeat-{seed}"
         train, val, test = [
             pd.read_csv(folder / f"{r}.csv") for r in ["train", "validation", "test"]
@@ -343,7 +354,9 @@ def test_bank_never_trains_and_each_row_scores_once(prepared):
             validation_counts[mid] = validation_counts.get(mid, 0) + 1
     assert len(training_hashes) == 1
     assert len(test_ids) == len(set(test_ids)) == len(held)
-    assert set(validation_counts.values()) == {4}
+    assert set(validation_counts.values()) == {
+        len(he.read_json(root / "manifest.json")["repeats"]) - 1
+    }
     he.verify_bank_roles(root)
 
 
