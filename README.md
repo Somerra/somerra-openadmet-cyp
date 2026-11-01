@@ -267,8 +267,9 @@ strategy, actual train/validation losses, and all challenge regression metrics.
 Validation ST-RAE selects the checkpoint within each run; internal-test ST-RAE
 scores that checkpoint and ranks strategies across runs, separately for each CYP.
 Lower is better. This clarified policy is recorded in AGENTS.md and the runbook.
-The current runner still ranks by validation and closes a campaign on test;
-implementation alignment is pending.
+Use `python -m somerra_openadmet.cyp_strategy trial|score|status` for adaptive
+strategy selection. Its internal-test ledger is separate from the legacy
+validation-only training registry and campaign telemetry.
 
 Use `bash scripts/run_cyp_research.sh --help` or `python autoresearch.py recipes
 --help` for research. `python submissions.py --help` provides a separate path to

@@ -1,4 +1,4 @@
-"""Report internal-test performance only after freezing validation-based selection."""
+"""Score fixed validation checkpoints for adaptive internal-test strategy selection."""
 
 import shutil
 import time
@@ -26,14 +26,15 @@ def evaluate_test(trial, device="auto", mode=None):
         if manifest["config"].get("test_fold") is None:
             raise ValueError("No internal test fold in this campaign; prepare a fresh revision")
         registry = read(campaign / "registry.json")
-        incumbent = registry["best"].get(cyp, {})
-        if incumbent.get("trial_id") != job["trial_id"] or not any(
+        if (campaign / "test-selection.json").exists():
+            raise ValueError("Historical campaign is closed; preserve its original test selection")
+        if not any(
             t["trial_id"] == job["trial_id"]
             and Path(t["output"]).resolve() == trial
             and t["status"] == "complete"
             for t in registry["trials"]
         ):
-            raise ValueError("Internal test requires the recorded validation incumbent")
+            raise ValueError("Internal test requires a registered completed trial")
         selection = {
             "trial": str(trial),
             "cyp": cyp,
@@ -49,16 +50,16 @@ def evaluate_test(trial, device="auto", mode=None):
                 for name in ["cyp_test.py", "cyp_submission.py"]
             },
         }
-        selection_path = campaign / "test-selection.json"
+        output = trial / "internal-test"
+        output.mkdir(exist_ok=True)
+        selection_path = output / "selection.json"
         if selection_path.exists():
             if read(selection_path) != selection:
                 raise ValueError("Internal-test selection is frozen; cannot replace the model")
         else:
             # Freeze before reading test labels or producing any test feedback.
-            # run_trial shares this lock and refuses new trials once this exists.
+            # Freeze this checkpoint, not the campaign; future strategies remain eligible.
             write(selection_path, selection)
-        output = campaign / "internal-test"
-        output.mkdir(exist_ok=True)
         for name in selection["runtime_sha256"]:
             shutil.copyfile(Path(__file__).parent / name, output / name)
         report_path = output / "report.json"
@@ -68,6 +69,7 @@ def evaluate_test(trial, device="auto", mode=None):
                 "predictions_sha256"
             ] != sha256_file(output / "predictions.csv"):
                 raise ValueError("Internal-test report artifacts changed")
+            record_strategy(campaign, trial, report)
             return report
         started = time.monotonic()
         ep = tasks_for(cyp)[0]
@@ -101,8 +103,8 @@ def evaluate_test(trial, device="auto", mode=None):
             "selection_sha256": sha256_file(selection_path),
             "checkpoint_sha256": result["checkpoint_sha256"],
             "metrics": metrics,
-            "role": "internal test after validation-only model selection; not an official score",
-            "selection_eligible": False,
+            "role": "adaptive internal-test development; not an independent or official score",
+            "selection_eligible": True,
             "predictions_sha256": sha256_file(output / "predictions.csv"),
             "elapsed_seconds": time.monotonic() - started,
             "inference_device": result.get("inference_device", "cuda")
@@ -110,16 +112,61 @@ def evaluate_test(trial, device="auto", mode=None):
             else device,
         }
         write(report_path, report)
+        record_strategy(campaign, trial, report)
         tracker = Tracker(
             output,
             manifest["config"]["wandb"],
             run_id=job["trial_id"] + "-internal-test",
             group=read(campaign / "campaign.json")["campaign_id"],
             cyp=cyp,
-            config={**selection, "workflow": "internal-test"},
+            config={**selection, "workflow": "adaptive-strategy-score"},
             mode=mode or manifest["config"]["wandb"]["mode"],
         )
         values = {f"test/{key}": value for key, value in metrics.items()}
         tracker.log(values)
-        tracker.finish({**values, "selection_eligible": False})
+        tracker.finish({**values, "selection_eligible": True})
         return report
+
+
+def record_strategy(campaign, trial, report):
+    """Update the separate strategy ledger while holding the campaign lock.
+
+    The original registry remains an unchanged training/validation ledger for
+    replay compatibility. It is not the strategy-selection authority.
+    """
+    score = report["metrics"]["ST-RAE"]
+    if not np.isfinite(score):
+        raise ValueError("Nonfinite internal-test score")
+    path = campaign / "strategy-registry.json"
+    registry = (
+        read(path)
+        if path.exists()
+        else {"selection_metric": "internal-test/ST-RAE", "trials": [], "best": {}}
+    )
+    digest = sha256_file(trial / "internal-test" / "report.json")
+    for existing in registry["trials"]:
+        if existing["trial_id"] == report["trial_id"]:
+            if existing["report_sha256"] != digest:
+                raise ValueError("Recorded strategy report changed")
+            return
+    cyp = report["cyp"]
+    old = registry["best"].get(cyp)
+    promoted = old is None or score < old["metrics"]["ST-RAE"] - 1e-12
+    registry["trials"].append(
+        {
+            "trial_id": report["trial_id"],
+            "output": str(trial),
+            "metrics": report["metrics"],
+            "report_sha256": digest,
+            "promoted": promoted,
+        }
+    )
+    if promoted:
+        registry["best"][cyp] = {
+            "trial_id": report["trial_id"],
+            "metrics": report["metrics"],
+            "checkpoint": str(trial / "best.pt"),
+            "strategy_record": str(trial / "strategy.json"),
+            "report": str(trial / "internal-test" / "report.json"),
+        }
+    write(path, registry)

@@ -7,7 +7,7 @@ workflow uploads to the challenge or contacts organizers.
 ## Research owns the strategy
 
 The coding agent chooses what to investigate, based on results and available
-internal data. There is no fixed experiment queue or required round-robin order.
+internal data. Maintain an adaptive per-CYP experiment queue; there is no fixed sweep or required round-robin order.
 `campaign.py` belongs to historical workflows; this research path does not use it.
 The runner handles execution, budgets, records, and evaluation. It does not choose
 hypotheses or call another LLM service.
@@ -65,6 +65,28 @@ best fully validated checkpoint, records `stop_reason=time_cap` and any partial
 optimizer steps, and can be selected. A cap reached before any validated epoch,
 a hard process timeout, a failure, or a smoke run cannot become an incumbent.
 Historical artifacts remain unchanged.
+
+## Queue and experiment handoff
+
+On each completed experiment, verify its artifacts, score its fixed
+validation-selected checkpoint on internal test, and record the interpretation.
+Launch the next eligible experiment within the authorized allocation without
+waiting for every concurrent experiment to finish. A monitor alerts the coordinator;
+the coordinator chooses and launches the next hypothesis.
+
+At every launch, refresh the remaining per-CYP queue using completed results:
+add ideas, reprioritize promising hypotheses, and retire weak or redundant ones.
+Retain queue revisions, evidence, parent trials, and reasons for changes. Report
+technical blockers explicitly; a saved queue is not an active scheduler.
+
+Treat representation as a first-class axis: molecular graphs,
+fingerprints/descriptors, available pretrained embeddings such as Mol-JEPA, and
+combinations. Verify asset provenance and adapter smoke/replay checks before use.
+First profile batch size with the model and learning-rate settings held fixed;
+choose the largest batch that improves measured throughput under actual
+concurrency. Then freeze batch size and tune learning rate separately per CYP.
+Repeat throughput profiling when a new representation changes memory or compute.
+Record changed axes explicitly so batch and learning-rate effects are not confounded.
 
 ## Editable recipe interface
 
@@ -232,13 +254,15 @@ the final external evaluation; its labels and leaderboard feedback do not enter
 autoresearch. The internal score describes the three-fold-trained strategy trial,
 not the later five-fold submission ensemble.
 
-**Implementation status:** this is the desired policy, superseding the previous
-validation-only strategy selection policy. The merged PR #26 implementation still
-promotes on validation and restricts `test` to a validation incumbent, then freezes
-`test-selection.json` and closes that CYP campaign. That command must be updated
-and verified before executing this policy. Do not use it as a per-strategy scorer,
-delete its locks, or reinterpret existing validation scores as internal-test scores.
-Historical trial artifacts and their recorded selection rules remain unchanged.
+Use `python -m somerra_openadmet.cyp_strategy trial|score|status` for adaptive
+research. `trial` runs a GPU fit then scores its fixed validation checkpoint;
+`score` also accepts existing registered full trials. Per-trial `internal-test/`
+artifacts freeze the checkpoint before scoring. `strategy-registry.json` ranks
+strategies by internal-test ST-RAE without closing the campaign. The original
+`registry.json`, legacy `status`, and legacy W&B `best/*`/`campaign/*` summaries
+remain validation-only diagnostics to preserve baseline runtime replay hashes;
+they are not the strategy-selection authority. Historical closed campaigns stay
+closed and historical trial records are not relabeled.
 
 ## Alignment with Karpathy's autoresearch
 

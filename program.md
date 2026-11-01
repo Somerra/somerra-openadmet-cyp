@@ -15,9 +15,9 @@ that checkpoint and ranks strategies across runs, separately for each CYP, by
 lower primary ST-RAE. Internal-test feedback may guide further experiments; these
 are adaptive development scores, not an independent held-out estimate.
 
-The merged runner still ranks strategies on validation and closes a campaign on
-test evaluation. That implementation must be updated before using the clarified
-2026-11-01 policy; see [the policy and implementation status](research/CYP_PROGRAM.md).
+Use `python -m somerra_openadmet.cyp_strategy trial|score|status` for the
+adaptive internal-test strategy ledger. The legacy training registry remains
+validation-only; see [the policy and implementation status](research/CYP_PROGRAM.md).
 Submission construction is a separate `submissions.py plan|fit|build|status`
 workflow replaying four explicitly selected recipes across the five saved folds.
 Neither path uploads predictions.

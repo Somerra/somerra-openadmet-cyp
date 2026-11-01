@@ -281,9 +281,10 @@ these molecules; disclose that history. The official competition test remains
 the final external evaluation, with no official labels or leaderboard feedback
 used during autoresearch.
 
-The merged PR #26 runner still promotes on validation and closes the campaign on
-test evaluation. Updating and verifying that behavior is pending; this policy
-change does not alter or relabel historical artifacts.
+Use `python -m somerra_openadmet.cyp_strategy trial|score|status` for adaptive
+internal-test strategy selection. The original training registry and legacy
+campaign telemetry remain validation-only diagnostics for replay compatibility.
+The new strategy ledger does not alter or relabel historical artifacts.
 
 `submissions.py plan|fit|build|status` is the separate construction path: freeze four
 explicit selected recipes, replay each across all five preserved `mt_aux8` folds,

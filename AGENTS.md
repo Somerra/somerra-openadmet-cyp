@@ -77,7 +77,9 @@ test for a single report after closing the campaign.
 - Freeze explicitly selected recipes before five-fold submission construction.
   Keep prediction-only submission policy and authorization boundaries unchanged.
 
-Implementation status: the merged PR #26 runner still promotes by validation and
-its `test` command closes a campaign. It does not yet implement this clarified
-policy. Update and verify that behavior before using it to rank strategies; do
-not relabel existing validation incumbents as internal-test-selected results.
+Use `python -m somerra_openadmet.cyp_strategy trial|score|status` for adaptive
+research. Per-trial internal-test reports rank strategies in
+`strategy-registry.json` without closing the campaign. The original training
+registry and legacy W&B best/campaign summaries remain validation diagnostics
+for replay compatibility, not strategy-selection authority. Historical closed
+campaigns and trial records remain unchanged.
