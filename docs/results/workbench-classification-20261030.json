@@ -1,0 +1,74 @@
+{
+  "status": "submitted_and_scored",
+  "submitted": true,
+  "macro_mcc_0_5": 0.11564858515320402,
+  "macro_mcc_oof_tuned": 0.2103301496604284,
+  "thresholds": {
+    "CYP2D6_is_TDI": 0.21675058,
+    "CYP3A4_is_TDI": 0.18170112
+  },
+  "submission_sha256": "15c3cc9d1a7b3e486928f5faf511a32ca9e83cb3307219a06a70d1de0da8f2ca",
+  "evaluation_caveat": "Checkpoint-selected OOF; thresholds tuned on the same labels. Development estimates, not independent validation.",
+  "open_source_code": false,
+  "model_report_link": "",
+  "run_dir": "runs/workbench-classification-20261030-v1",
+  "worker_wall_seconds": 167.51428877282888,
+  "official_validation": {
+    "valid": true,
+    "errors": [],
+    "validator_revision": "832ae6d6447b07c2c71059de34d07f1130388247",
+    "source_url": "https://github.com/OpenADMET/CYP-Challenge-Tutorial/blob/832ae6d6447b07c2c71059de34d07f1130388247/validation/tdi_validation.py",
+    "validator_sha256": "e343dc779076b9df302621b66bb1b5ca1a1a19b26e16614d674f4a174d4193ad",
+    "submission_sha256": "15c3cc9d1a7b3e486928f5faf511a32ca9e83cb3307219a06a70d1de0da8f2ca"
+  },
+  "targeted_tests_passed": 11,
+  "folds_completed": 5,
+  "max_checkpoint_replay_error": 0.0,
+  "submission_receipt": {
+    "status": "accepted",
+    "track": "Classification Prediction",
+    "leaderboard_alias": "Somerra",
+    "submit_post_started_utc": "2026-10-30T15:17:01.997153+00:00",
+    "observed_at_utc": "2026-10-30T15:17:03.473455+00:00",
+    "event_id": "49dbfec4b759497792d517a037a9c830",
+    "submission_sha256": "15c3cc9d1a7b3e486928f5faf511a32ca9e83cb3307219a06a70d1de0da8f2ca",
+    "open_source_code": false,
+    "model_report_link": ""
+  },
+  "leaderboard_row": {
+    "Rank": 102,
+    "Username": "Somerra",
+    "Submitted": "2026-10-30 15:17 UTC",
+    "Model Report Link": "Not submitted",
+    "MA-MCC": 0.2506,
+    "MA-Accuracy": 0.5785,
+    "MA-Precision": 0.2702,
+    "MA-Recall": 0.8143,
+    "MA-F1 Score": 0.3786,
+    "Proprietary Data": "No",
+    "Open Code": "No"
+  },
+  "leaderboard_observed_utc": "2026-10-30T15:19:46.724049+00:00",
+  "pr_verification": {
+    "cpu_tests_passed": 205,
+    "cpu_tests_skipped_optional_dependencies": 35,
+    "neural_and_validation_tests_passed": 7,
+    "lint": "passed",
+    "format": "passed",
+    "replay": {
+      "prepared_rows_and_folds_sha256_match": true,
+      "frozen_snapshot_import_and_verify": true,
+      "all_five_checkpoint_replay_max_abs_errors": [
+        2.5310516349463796e-08,
+        2.9632568399051706e-08,
+        2.8675079311035745e-08,
+        1.704559327020405e-08,
+        2.8396606399638813e-08
+      ],
+      "same_thresholds_and_scores": true,
+      "note": "PR isolates existing metric helpers and recursively snapshots package subdirectories; model and submitted predictions unchanged."
+    }
+  },
+  "training_source_sha256": "6ff7ed9d3ee5c2f7790449cf0bcf353d9d680ee0200ff96bef8949bb20c610fa",
+  "pr_source_sha256": "9d63a56ba808c6b95530522f7047655eca621cfa0c12afdafdb94dfad773e146"
+}

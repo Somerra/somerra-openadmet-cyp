@@ -22,13 +22,25 @@ official training labels is a separate, declared experiment axis. Historical
 calibrated results remain preserved, but future submissions using borrowed
 leaderboard-derived constants remain on hold pending eligibility clarification.
 
-The implemented reference runs through `autoresearch.py briford`; generic model
-adapters are next work. The [matched frozen-representation comparison](docs/workbench-representations.md)
-now runs through `autoresearch.py workbench-probe plan|run|status` for CheMeleon,
-Mol-JEPA, and Atom-JEPA on the same Workbench eight-task bundle and five folds.
+Current CYP research uses `autoresearch.py recipes`; see
+[research/CYP_PROGRAM.md](research/CYP_PROGRAM.md). The historical reference runs
+through `autoresearch.py briford`. The completed
+[matched frozen-representation comparison](docs/workbench-representations.md)
+preserves CheMeleon, Mol-JEPA, and Atom-JEPA results on the same Workbench eight-task
+bundle and five folds. Its standalone reproduction module is
+`python -m somerra_openadmet.workbench_probe plan|run|status`, not the active
+autoresearch workflow.
 Use `autoresearch.py molecular run` for the historical
 molecular task described below. Bare `plan`/`run` retain compatibility but warn
 that they invoke the historical 60/20/20 protocol.
+
+## Workbench classification
+
+The [two-head TDI adaptation](docs/workbench-classification.md) keeps the Workbench
+encoder and training schedule, uses masked binary cross-entropy, and averages five
+scaffold-fold models before applying endpoint-specific MCC thresholds. Its first
+750-row prediction-only submission was accepted on October 30. Local OOF scores
+include checkpoint and threshold selection and are development estimates.
 
 ## What is here
 
@@ -253,6 +265,26 @@ See [docs/baseline-research.md](docs/baseline-research.md) for the source audit 
 and the cross-fitted ensemble candidate derived from it.
 [docs/roadmap.md](docs/roadmap.md) describes the planned path toward a competitive
 Somerra model.
+
+## CYP recipe research and submission builds
+
+The [CYP runbook](research/CYP_PROGRAM.md) separates agent-directed strategy discovery with
+three training folds, validation fold 0, and internal-test fold 2 from submission construction. Each CYP has its own recipe,
+history, budget, and incumbent. Recipes control model inputs, architecture,
+auxiliary tasks, loss, optimizer, and training policy. Private W&B records the
+strategy, actual train/validation losses, and all challenge regression metrics.
+Validation ST-RAE selects each CYP's checkpoint and strategy; lower is better.
+The separate research `test` command freezes that selection and closes the CYP
+search before reporting internal-test metrics. Test scores never rank recipes.
+
+Use `bash scripts/run_cyp_research.sh --help` or `python autoresearch.py recipes
+--help` for research. `python submissions.py --help` provides a separate path to
+freeze four selected recipes, replay them across the saved five folds, and build
+validated prediction-only files with private provenance. Neither path uploads.
+Research and build budgets default to zero; only setup and CPU smoke tests are
+enabled. Scores from validation and checkpoint-selected OOF remain development
+results. Internal-test reports describe the frozen selection under this new split;
+historical use of these molecules must still be disclosed.
 
 ## Data and licensing
 

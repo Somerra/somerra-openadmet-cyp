@@ -1,5 +1,22 @@
 # Regression autoresearch task
 
+## Active research entrypoint: CYP recipes
+
+For current CYP strategy discovery, read [research/CYP_PROGRAM.md](research/CYP_PROGRAM.md).
+Use `autoresearch.py recipes prepare|trial|test|status|note`, with one editable recipe
+and independent history per CYP. The agent chooses hypotheses, architecture,
+auxiliary tasks, and loss; the runner executes and records trials against fixed
+internal validation ST-RAE. Campaign launches remain disabled (setup only).
+
+Research trains on saved Workbench folds 1, 3, and 4, selects models on validation fold 0,
+and reserves fold 2 for internal test. The separate `test` command freezes the
+validation incumbent and closes that CYP search before reporting test metrics. Submission construction is a
+separate `submissions.py plan|fit|build|status` workflow that replays four explicitly
+selected recipes across the five saved folds. Neither path uploads predictions.
+
+The historical instructions below preserve older contracts; their `train.py`
+interface, 60/20/20 split, and promotion thresholds do not govern CYP recipes.
+
 ## Current default: Workbench scaffold protocol (2026-10-29)
 
 Follow [the Workbench protocol](docs/workbench-protocol.md) for new regression
@@ -17,8 +34,8 @@ evaluation tools. Borrowed leaderboard calibration constants remain on hold for
 future submissions pending eligibility clarification; preserve historical results.
 
 `autoresearch.py briford prepare|run|status|predict` implements the historical
-Chemprop reference. General specialist and Mol-JEPA adapters are not implemented
-by this change. Use `autoresearch.py molecular plan|run|reproduce|status|prepare`
+Chemprop reference. CYP specialist recipes are described above; a ready-made
+Mol-JEPA recipe is not yet provided. Use `autoresearch.py molecular plan|run|reproduce|status|prepare`
 for the preserved molecular task below. Bare commands retain compatibility, but
 `plan`/`run` now warn that they use the historical 60/20/20 protocol rather than
 Workbench folds. Historical CPU commands use `legacy`; the older fixed-series
@@ -26,10 +43,11 @@ GPU comparison uses `hillclimb`. Do not mutate existing task contracts to switch
 protocols, and do not reuse the completed reproduction's submission authorization.
 
 For the completed three-encoder comparison on Workbench's eight-task bundle, use
-`autoresearch.py workbench-probe plan|run|status --config CONFIG`. Its
+`python -m somerra_openadmet.workbench_probe plan|run|status --config CONFIG`. Its
 [protocol and results](docs/workbench-representations.md) preserve the saved folds,
 shared auxiliary supervision, and raw predictions. It is a frozen-head comparison,
-not a generic encoder fine-tuning or automatic submission workflow.
+not the active CYP recipes workflow, generic encoder fine-tuning, or an automatic
+submission workflow.
 
 ## Historical molecular task (preserved contract)
 

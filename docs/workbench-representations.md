@@ -50,9 +50,9 @@ All three representations inherit this same evaluation limitation.
 ## Entrypoint and artifacts
 
 ```bash
-PYTHONPATH=src python autoresearch.py workbench-probe plan --config /path/to/config.json
-PYTHONPATH=src python autoresearch.py workbench-probe run --config /path/to/config.json
-PYTHONPATH=src python autoresearch.py workbench-probe status --config /path/to/config.json
+PYTHONPATH=src python -m somerra_openadmet.workbench_probe plan --config /path/to/config.json
+PYTHONPATH=src python -m somerra_openadmet.workbench_probe run --config /path/to/config.json
+PYTHONPATH=src python -m somerra_openadmet.workbench_probe status --config /path/to/config.json
 ```
 
 The config supplies protocol `workbench-mt-aux8-frozen-v1`, the pinned data directory,
@@ -72,13 +72,17 @@ and selected epochs. CPU checkpoint replay must match GPU predictions within
 1e-4 for all eight tasks. Inputs are reverified before accepting completed results.
 The runner neither predicts the official blind set nor uploads anything.
 
-## Planned follow-up: specialists for every scored CYP
+## Historical follow-up proposal: specialists for every scored CYP
+
+This proposal records the study's original next-step design, not the current
+research roadmap or a launch authorization. The active workflow is
+`autoresearch.py recipes`, documented in [the CYP program](../research/CYP_PROGRAM.md).
 
 The completed study above used one shared eight-output head per representation.
 It did not test specialists. Workbench's historical CYP2D6-only specialists are
 an inherited recipe choice, not evidence that other CYPs should lack specialists.
 
-The next proposed comparison uses the same `mt_aux8` parent bundle and its exact
+The original proposed comparison uses the same `mt_aux8` parent bundle and its exact
 fold assignments for each of CYP1A2, CYP2C9, CYP2D6, and CYP3A4:
 
 | Arm | Outputs | Question |

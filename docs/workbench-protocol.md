@@ -134,11 +134,12 @@ results using official direct-inhibition labels. Retain curves and selected epoc
 The same held-out fold selects the checkpoint and supplies OOF scores. Consequently
 OOF is **development evaluation**, not an untouched internal test. Checkpoint
 selection, architecture/task-weight search, and OOF tuning of combinations or
-calibration all add adaptivity. We retain four training folds to match the user's
-chosen Workbench workflow and its training coverage. This is a deliberate
+calibration all add adaptivity. Submission construction retains four training
+folds per fit to match Workbench training coverage. The CYP recipe research
+revision below uses three training folds and a separate internal test. This is a deliberate
 comparability tradeoff, not a claim that checkpoint-selected OOF is unbiased or
 that its ranking will transfer to the leaderboard. No independent internal
-held-out estimate exists under this default.
+held-out estimate exists for this checkpoint-selected OOF workflow.
 
 Every comparison must distinguish these results, even when some are unavailable:
 
@@ -281,6 +282,31 @@ support, and validation-selected checkpointing before it qualifies as a matched
 Workbench experiment. No new fit or submission is launched by this documentation.
 
 ## Entrypoint and evidence
+
+The CYP recipe workflow now uses `autoresearch.py recipes prepare|trial|test|status|note`
+for agent-directed strategy search. Each CYP has an independent recipe,
+budget and history; architecture, task selection, loss and training policy can
+change. The current research revision uses saved `mt_aux8` folds 1, 3, and 4 for training,
+fold 0 for validation/checkpoint/strategy selection, and fold 2 for internal test.
+Both held-out folds and official blind parents are excluded from every training
+source. The original fold IDs are preserved; this is a new research contract in
+`runs/cyp-recipes-val0-test2`, leaving the old four-training-fold artifacts intact.
+
+Internal test is scored separately only after freezing the validation incumbent;
+the command closes that CYP campaign to further trials. It never updates the
+incumbent or selects a checkpoint. Do not use its score to revise architecture,
+loss, weights, calibration or recipe selection. Prior experiments may already
+have used these molecules; report that history rather than claiming a globally
+untouched test set. Reusing test feedback would make it a development result.
+
+`submissions.py plan|fit|build|status` is the separate construction path: freeze four
+explicit selected recipes, replay each across all five preserved `mt_aux8` folds,
+then average fold predictions per CYP. Builds explicitly clear the research test
+role and train on four folds per fit; the research test report describes the
+three-fold-trained model, not the subsequent five-fold submission ensemble.
+Checkpoint selection uses primary validation ST-RAE.
+The research and build allocations default to zero; no fit or upload is launched
+by setup. See the [recipe contract and runbook](../research/CYP_PROGRAM.md).
 
 `autoresearch.py` remains the research entrypoint. The existing implementation of
 the historical reference is `autoresearch.py briford prepare|run|status|predict`;
