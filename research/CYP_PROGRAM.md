@@ -34,6 +34,17 @@ recorded, not hash-frozen across a research campaign. Keep evaluation, identitie
 and fold roles unchanged for comparable results. Backend extensions require
 smoke/replay checks before full trials.
 
+## Scope of research conclusions
+
+Every strategy result is specific to its recorded data, saved split, checkpoint
+selection, and search history. The [first campaign learnings](../docs/autoresearch-learnings-20261101.md)
+record 156 scored trials and selected-recipe repeat variability on train folds
+1/3/4, validation 0, and adaptive scoring fold 2. These are candidate strategies,
+not universal CYP defaults or independent estimates. When changing the split or
+data, run fresh matched controls and label the new result separately. Report all
+repeats alongside the best observed score; do not transfer an incumbent score to
+a new evaluation contract or infer a causal effect from an adaptively selected winner.
+
 ## Fixed comparison contract
 
 Use the saved Workbench `mt_aux8` assignments: **train on folds 1, 3, 4**;
