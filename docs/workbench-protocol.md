@@ -211,6 +211,14 @@ development set, not independently validated gains.
 
 ## Calibration experiments and eligibility
 
+**2026-11-02 policy:** prepare historical Workbench calibration alongside the
+immutable raw baseline for future submission candidates. The matched official
+latest-selected comparison improved MA-ST-RAE from 0.7151 to 0.4612, with identical
+base predictions. Follow the [calibration policy](calibration-policy.md) for exact
+constants, candidate-specific OOF correlations, sample-SD cohort normalization,
+flooring, evidence and privacy requirements. Applying the transform requires no
+model retraining. This does not change raw research scoring or authorize uploads.
+
 **Current direction (2026-11-01): prepare the next regression candidate with
 historical Workbench calibration.** The user explicitly lifted the project hold
 on borrowed constants. Apply the transform separately per CYP after fold/model
@@ -260,7 +268,10 @@ The 0.6284 raw OOF score and 0.4349 calibrated official score use different
 populations and pipelines. Their difference does not measure calibration's
 contribution, and transferring another model's local-to-official gap cannot
 establish a roughly 0.3 calibration benefit. A matched raw-versus-calibrated
-evaluation on the same scoring set is needed.
+evaluation on the same scoring set is needed. Such a comparison is now recorded
+for the latest-selected candidate in the [November 2 calibration evidence](calibration-policy.md#matched-official-evidence):
+0.7151 raw versus 0.4612 calibrated. It does not retroactively isolate calibration
+for the different October 28 model.
 
 **Eligibility and authorization are distinct.** The question raised in
 [PR #12](https://github.com/Somerra/somerra-openadmet-cyp/pull/12#discussion_r4406685923)
