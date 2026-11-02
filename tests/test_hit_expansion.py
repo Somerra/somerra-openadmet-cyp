@@ -182,7 +182,7 @@ def test_single_label_and_zero_denominator(tables):
     assert all("denominator" in e["undefined_reason"] for e in result["endpoints"].values())
 
 
-@pytest.fixture(params=["current", "five_rotation_legacy"])
+@pytest.fixture(params=["current", "five_rotation_legacy", "two_rotations"])
 def prepared(tmp_path, tables, monkeypatch, request):
     if request.param == "five_rotation_legacy":
         monkeypatch.setattr(he, "PROTOCOL", he.FIVE_ROTATION_PROTOCOL)
@@ -216,6 +216,10 @@ def prepared(tmp_path, tables, monkeypatch, request):
     root = tmp_path / "benchmark"
     monkeypatch.chdir(tmp_path)
     he.prepare(prior.name, wb.name, wb_hashes.name, root)
+    if request.param == "two_rotations":
+        derived = tmp_path / "two-rotations"
+        he.repartition(root, derived)
+        root = derived
     if request.param == "five_rotation_legacy":
         monkeypatch.setattr(he, "PROTOCOL", "hit-expansion-frozen-bank-v4")
         monkeypatch.setattr(he, "REPEATS", tuple(range(42, 45)))
@@ -282,7 +286,9 @@ def test_evaluate_provenance_and_no_partial_macro(prepared, tmp_path):
     result = he.evaluate(root, predictions, records, tmp_path / "evaluation")
     assert len(result["repeats"]) == len(m["repeats"])
     macro_key = (
-        "macro_across_rotations" if m["protocol"] == he.PROTOCOL else "macro_across_all_five"
+        "macro_across_rotations"
+        if m["protocol"] in (he.PROTOCOL, he.TWO_ROTATION_PROTOCOL)
+        else "macro_across_all_five"
     )
     assert macro_key in result
     assert result[f"{macro_key}_role"].startswith("diagnostic only")
@@ -296,6 +302,35 @@ def test_evaluate_provenance_and_no_partial_macro(prepared, tmp_path):
     he.write_json(path, record)
     with pytest.raises(ValueError, match="test-isolation"):
         he.evaluate(root, predictions, records, tmp_path / "bad-evaluation")
+
+
+def test_repartition_preserves_training_bank_labels_and_source(prepared, tmp_path):
+    root, _, _ = prepared
+    original = he.verify_bundle(root)
+    source_hash = sha256_file(root / "manifest.json")
+    out = tmp_path / "repartitioned"
+    result = he.repartition(root, out)
+    assert result["repeats"] == [42, 43]
+    assert result["fresh_fits_required"]
+    assert sha256_file(root / "manifest.json") == source_hash
+    assert he.verify_bundle(root) == original
+    he.verify_bundle(out)
+    first = root / f"repeat-{original['repeats'][0]}"
+    for repeat in result["repeats"]:
+        assert (out / f"repeat-{repeat}/train.csv").read_bytes() == (
+            first / "train.csv"
+        ).read_bytes()
+
+    def cohort(folder, files):
+        f = pd.concat([pd.read_csv(folder / n, float_precision="round_trip") for n in files])
+        return f.drop(columns="partition").sort_values("Molecule_Name").reset_index(drop=True)
+
+    pd.testing.assert_frame_equal(
+        cohort(first, ["validation.csv", "test.csv"]),
+        cohort(out, ["repeat-42/test.csv", "repeat-43/test.csv"]),
+    )
+    with pytest.raises(FileExistsError):
+        he.repartition(root, out)
 
 
 def test_bank_labels_and_input_order_cannot_change_membership(tables):
