@@ -25,12 +25,14 @@ from .metrics import soft_threshold_rae
 LEGACY_PROTOCOL = "hit-expansion-close-analogs-v2"
 FIVE_ROTATION_PROTOCOL = "hit-expansion-frozen-bank-v3"
 PROTOCOL = "hit-expansion-frozen-bank-v4"
+TWO_ROTATION_PROTOCOL = "hit-expansion-frozen-bank-v5-two-rotations"
 REPEATS = tuple(range(42, 45))
-FROZEN_PROTOCOLS = (FIVE_ROTATION_PROTOCOL, PROTOCOL)
+FROZEN_PROTOCOLS = (FIVE_ROTATION_PROTOCOL, PROTOCOL, TWO_ROTATION_PROTOCOL)
 PROTOCOL_REPEATS = {
     LEGACY_PROTOCOL: list(range(42, 47)),
     FIVE_ROTATION_PROTOCOL: list(range(42, 47)),
     PROTOCOL: list(REPEATS),
+    TWO_ROTATION_PROTOCOL: [42, 43],
 }
 SEED_TARGETS = tuple(e for e in ACTIVITY_ENDPOINTS if not e.startswith("CYP2D6"))
 FINGERPRINT = "Morgan radius 2, 2048 bits, no chirality; standardized stereo-insensitive parent"
@@ -502,6 +504,132 @@ def prepare(source_manifest, workbench_root, workbench_hashes, output):
             shutil.rmtree(staging)
 
 
+def repartition(root, output):
+    """Split an existing bank into two structure-only family groups; retain training."""
+    root, output = Path(root).resolve(), Path(output).resolve()
+    if output.exists():
+        raise FileExistsError("Choose a new output directory; saved splits are immutable")
+    source = verify_bundle(root)
+    if source["protocol"] not in FROZEN_PROTOCOLS:
+        raise ValueError("Repartition requires a frozen analog bank")
+    bank = pd.read_csv(root / "bank-assignments.csv")
+    links = pd.read_csv(root / "bank-analog-links.csv")
+    # Assign families before loading any assay tables or coverage masks.
+    groups = nomination_groups(links)
+    if len(groups) < 2:
+        raise ValueError("Need at least two distinct analog families")
+    loads, membership = [0, 0], {}
+    for members in groups:
+        fold = min(range(2), key=lambda k: (loads[k], k))
+        membership.update({parent: fold for parent in members})
+        loads[fold] += len(members)
+    held = bank.expansion_fold.ge(0)
+    if set(bank.loc[held, "expansion_parent"]) != set(membership):
+        raise ValueError("Bank and nomination families disagree")
+    bank["expansion_fold"] = bank.expansion_parent.map(membership).fillna(-1).astype(int)
+    links["expansion_fold"] = links.analog_parent.map(membership)
+    first = root / f"repeat-{source['repeats'][0]}"
+    wb = pd.read_csv(first / "assignments.csv").set_index("Molecule_Name").workbench_fold
+    evaluation = (
+        pd.concat(
+            [
+                pd.read_csv(first / f"{role}.csv", float_precision="round_trip")
+                for role in ["validation", "test"]
+            ],
+            ignore_index=True,
+        )
+        .sort_values("Molecule_Name")
+        .reset_index(drop=True)
+    )
+    if evaluation.Molecule_Name.duplicated().any() or set(evaluation.Molecule_Name) != set(
+        bank.loc[held, "Molecule_Name"]
+    ):
+        raise ValueError("Source evaluation tables do not cover the bank exactly once")
+    output.parent.mkdir(parents=True, exist_ok=True)
+    staging = Path(tempfile.mkdtemp(prefix=".hit-expansion-two-", dir=output.parent))
+    try:
+        bank.to_csv(staging / "bank-assignments.csv", index=False)
+        links.to_csv(staging / "bank-analog-links.csv", index=False)
+        shutil.copyfile(root / "bank-seed-hits.csv", staging / "bank-seed-hits.csv")
+        details = {}
+        for fold, repeat in enumerate(PROTOCOL_REPEATS[TWO_ROTATION_PROTOCOL]):
+            folder = staging / f"repeat-{repeat}"
+            folder.mkdir()
+            assignments, rotation_links = rotate_bank(bank, links, fold)
+            assignments["workbench_fold"] = assignments.Molecule_Name.map(wb)
+            assignments.to_csv(folder / "assignments.csv", index=False)
+            rotation_links.to_csv(folder / "analog-links.csv", index=False)
+            for name in ["train.csv", "seed-hits.csv", "excluded-training-records.csv"]:
+                shutil.copyfile(first / name, folder / name)
+            frames = {"train": pd.read_csv(folder / "train.csv")}
+            for role in ["validation", "test"]:
+                ids = assignments.loc[assignments.partition == role, "Molecule_Name"]
+                frame = evaluation.loc[evaluation.Molecule_Name.isin(ids)].copy()
+                frame["partition"] = role
+                frame.to_csv(folder / f"{role}.csv", index=False)
+                frames[role] = frame
+            details[str(repeat)] = {
+                **source["details"][str(source["repeats"][0])],
+                "test_fold": fold,
+                "rows": {r: len(f) for r, f in frames.items()},
+                "coverage": {r: coverage(f) for r, f in frames.items()},
+            }
+        for name in ["hit_expansion.py", "cyp_evaluation.py", "metrics.py", "constants.py"]:
+            shutil.copyfile(Path(__file__).parent / name, staging / name)
+        shutil.copyfile(root / "identity.py", staging / "identity.py")
+        shutil.copyfile(root / "source-provenance.json", staging / "source-provenance.json")
+        manifest = {
+            **source,
+            "protocol": TWO_ROTATION_PROTOCOL,
+            "repeats": PROTOCOL_REPEATS[TWO_ROTATION_PROTOCOL],
+            "details": details,
+            "derived_from": {
+                "root": str(root),
+                "manifest_sha256": sha256_file(root / "manifest.json"),
+            },
+            "protected_sha256": {
+                **source["protected_sha256"],
+                str(root / "manifest.json"): sha256_file(root / "manifest.json"),
+                **{str(root / n): h for n, h in source["file_sha256"].items()},
+            },
+            "roles": {
+                "train": "byte-identical to source training; all bank and blind parents excluded",
+                "validation": "the other family group; this rotation's checkpoint selection only",
+                "test": "one family group; each bank row scored once across two rotations",
+            },
+            "interpretation": (
+                "Retrospective development evidence; previously exposed bank, "
+                "not a fresh independent test."
+            ),
+            "limitations": [s for s in source["limitations"] if "validation sets overlap" not in s]
+            + [
+                "Fewer rotations enlarge each test but shrink checkpoint-validation sets.",
+                "Unique evaluation coverage is unchanged; missing assays are not negatives.",
+            ],
+            "repartition_rule": (
+                "Connected nomination families, largest first; assign to smallest "
+                "parent-count group with fold-index tie break; no assay labels or masks."
+            ),
+            "fresh_fits_required": True,
+            "training_launched": False,
+            "submission_authorized": False,
+            "file_sha256": {
+                str(p.relative_to(staging)): sha256_file(p)
+                for p in sorted(staging.rglob("*"))
+                if p.is_file()
+            },
+        }
+        write_json(staging / "manifest.json", manifest)
+        verify_bundle(staging)
+        if output.exists():
+            raise FileExistsError(output)
+        staging.rename(output)
+        return manifest
+    finally:
+        if staging.exists():
+            shutil.rmtree(staging)
+
+
 def verify_bundle(root):
     root = Path(root)
     m = read_json(root / "manifest.json")
@@ -881,7 +1009,11 @@ def evaluate(root, predictions, fit_records, output):
         }
     values = [r["MA-ST-RAE"] for r in results.values()]
     complete = all(v is not None for v in values)
-    macro_key = "macro_across_rotations" if m["protocol"] == PROTOCOL else "macro_across_all_five"
+    macro_key = (
+        "macro_across_rotations"
+        if m["protocol"] in (PROTOCOL, TWO_ROTATION_PROTOCOL)
+        else "macro_across_all_five"
+    )
     result = {
         "interpretation": m["interpretation"],
         "repeats": results,
@@ -927,12 +1059,17 @@ def main():
     p = sub.add_parser("audit")
     for name in ["root", "output"]:
         p.add_argument(f"--{name}", required=True)
+    p = sub.add_parser("repartition")
+    for name in ["root", "output"]:
+        p.add_argument(f"--{name}", required=True)
     p = sub.add_parser("evaluate")
     for name in ["root", "predictions", "fit-records", "output"]:
         p.add_argument(f"--{name}", required=True)
     args = vars(parser.parse_args())
     command = args.pop("command")
-    result = {"prepare": prepare, "audit": audit, "evaluate": evaluate}[command](**args)
+    result = {"prepare": prepare, "repartition": repartition, "audit": audit, "evaluate": evaluate}[
+        command
+    ](**args)
     print(
         json.dumps(
             {

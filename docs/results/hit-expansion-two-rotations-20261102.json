@@ -1,0 +1,286 @@
+{
+  "protocol": "hit-expansion-frozen-bank-v5-two-rotations",
+  "manifest_sha256": "23a254905eb915cc52d38d4ea06c8a73061f1a3b0b94b934eb7f60168b756c1b",
+  "source": {
+    "manifest_sha256": "e29bcdc36cc8eda8c947e651c40f9c939798f604783ce2776862c36a45ba17a5",
+    "root": "/mnt/data/somerra-openadmet-runs/hit-expansion-frozen-bank-v4-20261101"
+  },
+  "repeats": [
+    42,
+    43
+  ],
+  "details": {
+    "42": {
+      "coverage": {
+        "test": {
+          "CYP1A2_pIC50_direct_inhibition": {
+            "ST_RAE_defined": true,
+            "ST_RAE_denominator": 11.22281075,
+            "credible_intervals": 26,
+            "n": 26,
+            "underpowered": false
+          },
+          "CYP2C9_pIC50_direct_inhibition": {
+            "ST_RAE_defined": true,
+            "ST_RAE_denominator": 7.319290721454545,
+            "credible_intervals": 22,
+            "n": 22,
+            "underpowered": false
+          },
+          "CYP2D6_pIC50_direct_inhibition": {
+            "ST_RAE_defined": true,
+            "ST_RAE_denominator": 10.072682795999999,
+            "credible_intervals": 23,
+            "n": 23,
+            "underpowered": false
+          },
+          "CYP3A4_pIC50_direct_inhibition": {
+            "ST_RAE_defined": true,
+            "ST_RAE_denominator": 42.43399688824656,
+            "credible_intervals": 73,
+            "n": 73,
+            "underpowered": false
+          }
+        },
+        "train": {
+          "CYP1A2_pIC50_direct_inhibition": {
+            "ST_RAE_defined": true,
+            "ST_RAE_denominator": 671.7904813379123,
+            "credible_intervals": 1370,
+            "n": 1370,
+            "underpowered": false
+          },
+          "CYP2C9_pIC50_direct_inhibition": {
+            "ST_RAE_defined": true,
+            "ST_RAE_denominator": 390.03516186636637,
+            "credible_intervals": 1247,
+            "n": 1247,
+            "underpowered": false
+          },
+          "CYP2D6_pIC50_direct_inhibition": {
+            "ST_RAE_defined": true,
+            "ST_RAE_denominator": 607.3305427247209,
+            "credible_intervals": 1451,
+            "n": 1451,
+            "underpowered": false
+          },
+          "CYP3A4_pIC50_direct_inhibition": {
+            "ST_RAE_defined": true,
+            "ST_RAE_denominator": 1123.1567863657044,
+            "credible_intervals": 2179,
+            "n": 2179,
+            "underpowered": false
+          }
+        },
+        "validation": {
+          "CYP1A2_pIC50_direct_inhibition": {
+            "ST_RAE_defined": true,
+            "ST_RAE_denominator": 9.572754256500001,
+            "credible_intervals": 16,
+            "n": 16,
+            "underpowered": true
+          },
+          "CYP2C9_pIC50_direct_inhibition": {
+            "ST_RAE_defined": true,
+            "ST_RAE_denominator": 6.383604,
+            "credible_intervals": 16,
+            "n": 16,
+            "underpowered": true
+          },
+          "CYP2D6_pIC50_direct_inhibition": {
+            "ST_RAE_defined": true,
+            "ST_RAE_denominator": 6.585225179842106,
+            "credible_intervals": 19,
+            "n": 19,
+            "underpowered": true
+          },
+          "CYP3A4_pIC50_direct_inhibition": {
+            "ST_RAE_defined": true,
+            "ST_RAE_denominator": 34.88840199373495,
+            "credible_intervals": 83,
+            "n": 83,
+            "underpowered": false
+          }
+        }
+      },
+      "excluded_observations": {
+        "CYP1A2_log2fc_4.9504951e-05M": 109,
+        "CYP1A2_pIC50_TDI_condition": 42,
+        "CYP1A2_pIC50_direct_inhibition": 42,
+        "CYP2C9_log2fc_4.9504951e-05M": 109,
+        "CYP2C9_pIC50_TDI_condition": 38,
+        "CYP2C9_pIC50_direct_inhibition": 38,
+        "CYP2D6_log2fc_4.9504951e-05M": 109,
+        "CYP2D6_pIC50_TDI_condition": 42,
+        "CYP2D6_pIC50_direct_inhibition": 42,
+        "CYP3A4_log2fc_4.9504951e-05M": 109,
+        "CYP3A4_pIC50_TDI_condition": 156,
+        "CYP3A4_pIC50_direct_inhibition": 156,
+        "cyp1a2_max_response": 9,
+        "cyp1a2_pic50_chembl": 8,
+        "cyp1a2_pic50_qhts": 7,
+        "cyp2c19_max_response": 9,
+        "cyp2c19_pic50_chembl": 6,
+        "cyp2c9_max_response": 9,
+        "cyp2c9_pic50_chembl": 1,
+        "cyp2c9_pic50_qhts": 0,
+        "cyp2d6_max_response": 9,
+        "cyp2d6_pic50_chembl": 8,
+        "cyp2d6_pic50_qhts": 6,
+        "cyp3a4_max_response": 9,
+        "cyp3a4_pic50_chembl": 5,
+        "cyp3a4_pic50_qhts": 4
+      },
+      "excluded_training_records": 223,
+      "families": 108,
+      "held_parents": 223,
+      "rows": {
+        "test": 112,
+        "train": 32686,
+        "validation": 111
+      },
+      "test_fold": 0
+    },
+    "43": {
+      "coverage": {
+        "test": {
+          "CYP1A2_pIC50_direct_inhibition": {
+            "ST_RAE_defined": true,
+            "ST_RAE_denominator": 9.572754256500001,
+            "credible_intervals": 16,
+            "n": 16,
+            "underpowered": true
+          },
+          "CYP2C9_pIC50_direct_inhibition": {
+            "ST_RAE_defined": true,
+            "ST_RAE_denominator": 6.383604,
+            "credible_intervals": 16,
+            "n": 16,
+            "underpowered": true
+          },
+          "CYP2D6_pIC50_direct_inhibition": {
+            "ST_RAE_defined": true,
+            "ST_RAE_denominator": 6.585225179842106,
+            "credible_intervals": 19,
+            "n": 19,
+            "underpowered": true
+          },
+          "CYP3A4_pIC50_direct_inhibition": {
+            "ST_RAE_defined": true,
+            "ST_RAE_denominator": 34.88840199373495,
+            "credible_intervals": 83,
+            "n": 83,
+            "underpowered": false
+          }
+        },
+        "train": {
+          "CYP1A2_pIC50_direct_inhibition": {
+            "ST_RAE_defined": true,
+            "ST_RAE_denominator": 671.7904813379123,
+            "credible_intervals": 1370,
+            "n": 1370,
+            "underpowered": false
+          },
+          "CYP2C9_pIC50_direct_inhibition": {
+            "ST_RAE_defined": true,
+            "ST_RAE_denominator": 390.03516186636637,
+            "credible_intervals": 1247,
+            "n": 1247,
+            "underpowered": false
+          },
+          "CYP2D6_pIC50_direct_inhibition": {
+            "ST_RAE_defined": true,
+            "ST_RAE_denominator": 607.3305427247209,
+            "credible_intervals": 1451,
+            "n": 1451,
+            "underpowered": false
+          },
+          "CYP3A4_pIC50_direct_inhibition": {
+            "ST_RAE_defined": true,
+            "ST_RAE_denominator": 1123.1567863657044,
+            "credible_intervals": 2179,
+            "n": 2179,
+            "underpowered": false
+          }
+        },
+        "validation": {
+          "CYP1A2_pIC50_direct_inhibition": {
+            "ST_RAE_defined": true,
+            "ST_RAE_denominator": 11.22281075,
+            "credible_intervals": 26,
+            "n": 26,
+            "underpowered": false
+          },
+          "CYP2C9_pIC50_direct_inhibition": {
+            "ST_RAE_defined": true,
+            "ST_RAE_denominator": 7.319290721454545,
+            "credible_intervals": 22,
+            "n": 22,
+            "underpowered": false
+          },
+          "CYP2D6_pIC50_direct_inhibition": {
+            "ST_RAE_defined": true,
+            "ST_RAE_denominator": 10.072682795999999,
+            "credible_intervals": 23,
+            "n": 23,
+            "underpowered": false
+          },
+          "CYP3A4_pIC50_direct_inhibition": {
+            "ST_RAE_defined": true,
+            "ST_RAE_denominator": 42.43399688824656,
+            "credible_intervals": 73,
+            "n": 73,
+            "underpowered": false
+          }
+        }
+      },
+      "excluded_observations": {
+        "CYP1A2_log2fc_4.9504951e-05M": 109,
+        "CYP1A2_pIC50_TDI_condition": 42,
+        "CYP1A2_pIC50_direct_inhibition": 42,
+        "CYP2C9_log2fc_4.9504951e-05M": 109,
+        "CYP2C9_pIC50_TDI_condition": 38,
+        "CYP2C9_pIC50_direct_inhibition": 38,
+        "CYP2D6_log2fc_4.9504951e-05M": 109,
+        "CYP2D6_pIC50_TDI_condition": 42,
+        "CYP2D6_pIC50_direct_inhibition": 42,
+        "CYP3A4_log2fc_4.9504951e-05M": 109,
+        "CYP3A4_pIC50_TDI_condition": 156,
+        "CYP3A4_pIC50_direct_inhibition": 156,
+        "cyp1a2_max_response": 9,
+        "cyp1a2_pic50_chembl": 8,
+        "cyp1a2_pic50_qhts": 7,
+        "cyp2c19_max_response": 9,
+        "cyp2c19_pic50_chembl": 6,
+        "cyp2c9_max_response": 9,
+        "cyp2c9_pic50_chembl": 1,
+        "cyp2c9_pic50_qhts": 0,
+        "cyp2d6_max_response": 9,
+        "cyp2d6_pic50_chembl": 8,
+        "cyp2d6_pic50_qhts": 6,
+        "cyp3a4_max_response": 9,
+        "cyp3a4_pic50_chembl": 5,
+        "cyp3a4_pic50_qhts": 4
+      },
+      "excluded_training_records": 223,
+      "families": 108,
+      "held_parents": 223,
+      "rows": {
+        "test": 111,
+        "train": 32686,
+        "validation": 112
+      },
+      "test_fold": 1
+    }
+  },
+  "unique_evaluation_parents": 223,
+  "evaluation_parents_used_for_training": 0,
+  "historical_hashes_verified": true,
+  "blind_overlap_by_rotation": {
+    "42": 0,
+    "43": 0
+  },
+  "training_identical_to_v4": true,
+  "training_launched": false,
+  "submission_authorized": false
+}
