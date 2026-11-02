@@ -258,6 +258,10 @@ CPU evaluation, paired cluster bootstrap, auxiliary assay preparation, and optio
 CheMeleon experiments. See [the campaign runbook](docs/regression-campaign.md) for
 commands, results, and outstanding promotion gates.
 
+The [classification improvement plan](docs/classification-campaign.md) records the
+TDI experiment sequence, validation protocol, promotion gates, and paused restart
+checkpoint.
+
 The official tutorial starts with RDKit descriptors and LightGBM but explicitly warns
 that random splits are optimistic and recommends chemistry-aware splits. Public
 competition work independently converges on Morgan fingerprints, tree models,
