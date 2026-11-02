@@ -32,6 +32,14 @@ multiple auxiliary outputs. Keep data preparation and evaluation shared across
 model families. Preserve historical artifacts and contracts. This direction does
 not authorize an upload or change the prediction-only policy above.
 
+Follow the [regression calibration policy](docs/calibration-policy.md), documented
+on 2026-11-02 after a matched official comparison (raw 0.7151; calibrated 0.4612).
+Prepare historical Workbench calibration alongside an immutable raw baseline for
+future regression submission candidates. Apply it once after model averaging;
+reuse saved predictions and OOF evidence without retraining for calibration alone.
+Record any departure as a separate experiment. Preserve raw research comparisons;
+this default does not replace raw strategy scoring or authorize another upload.
+
 Calibration policy updated by explicit user direction on 2026-11-01:
 “Use the historical Workbench constants; change the standing hold.” The prior
 project hold on those constants is lifted. Prepare the next regression candidate

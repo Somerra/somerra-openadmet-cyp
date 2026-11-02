@@ -140,7 +140,10 @@ Its use of unlabeled cohort prediction moments is transductive. See the
 [current calibration protocol](workbench-protocol.md#calibration-experiments-and-eligibility).
 
 That candidate is prepared and validated, not submitted as of this evidence snapshot.
-We have no matched official raw-versus-historical-calibrated score for this model.
+As of this November 1 report, we had no matched official
+raw-versus-historical-calibrated score for this model. **November 2 follow-up:**
+the same raw predictions scored 0.4612 after historical Workbench calibration,
+versus 0.7151 before calibration. See the [calibration policy and matched evidence](calibration-policy.md).
 Do not attribute the full 0.7151 versus 0.4349 historical gap to calibration.
 The project hold was lifted by the user; organizer-specific clearance is not asserted.
 Own-data calibration remains a separate experiment axis.

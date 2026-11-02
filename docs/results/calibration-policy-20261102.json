@@ -1,0 +1,196 @@
+{
+  "MA_ST_RAE_difference": -0.25389999999999996,
+  "artifacts": {
+    "authorized_upload_manifest": {
+      "path": "/mnt/data/somerra-openadmet-runs/cyp-first-autoresearch-20261031/historical-workbench-calibration/portal-upload-20261102/run_manifest.json",
+      "sha256": "55aaf22127d2c8e2bcceccda19265a57df4dc8d4b1e21c1877872f2e9d27832a"
+    },
+    "calibrated_predictions": {
+      "path": "/mnt/data/somerra-openadmet-runs/cyp-first-autoresearch-20261031/historical-workbench-calibration/activity_submission.csv",
+      "sha256": "ea06969322095ab37857ee90faacae10db52cea4929f60a16a58066f32ac06c2"
+    },
+    "calibrated_receipt": {
+      "path": "/mnt/data/somerra-openadmet-runs/cyp-first-autoresearch-20261031/historical-workbench-calibration/portal-upload-20261102/submission_receipt.json",
+      "sha256": "0cd5e01f911059019d5d0b43a0a95b04356107d7c65344e86f2576246d0eb690"
+    },
+    "calibrated_score_observation": {
+      "path": "/mnt/data/somerra-openadmet-runs/cyp-first-autoresearch-20261031/historical-workbench-calibration/portal-upload-20261102/portal-after-submission-15min.json",
+      "sha256": "5230982bac21ff03bc6fa36cec45f94a8a8c54fcf984fe6280d461083374174a"
+    },
+    "calibration_manifest": {
+      "path": "/mnt/data/somerra-openadmet-runs/cyp-first-autoresearch-20261031/historical-workbench-calibration/run_manifest.json",
+      "sha256": "5b50012514b50e6d2518a3bab2e047a486d179a105d32f9ebba4b959df23445b"
+    },
+    "oof_CYP1A2": {
+      "path": "/mnt/data/somerra-openadmet-runs/cyp-first-autoresearch-20261031/submission-best-at-cutoff/CYP1A2-oof.csv",
+      "sha256": "8c2924bf986e1f4377cb7a0f267d9369f1e13a10b97cf83ef4b85484b2ba1247"
+    },
+    "oof_CYP2C9": {
+      "path": "/mnt/data/somerra-openadmet-runs/cyp-first-autoresearch-20261031/submission-best-at-cutoff/CYP2C9-oof.csv",
+      "sha256": "6f6e33225069e6fb7065f38880a7392f7b51a0aea4681f30e713b5343ad4812f"
+    },
+    "oof_CYP2D6": {
+      "path": "/mnt/data/somerra-openadmet-runs/cyp-first-autoresearch-20261031/submission-best-at-cutoff/CYP2D6-oof.csv",
+      "sha256": "922a387a9a5426ee791e101e94f4b12d676debbc114924746866e48621fd9c29"
+    },
+    "oof_CYP3A4": {
+      "path": "/mnt/data/somerra-openadmet-runs/cyp-first-autoresearch-20261031/submission-best-at-cutoff/CYP3A4-oof.csv",
+      "sha256": "38c671c98fb59e8b6dada323691d3a174836119b7450013301215c115f01bfba"
+    },
+    "raw_predictions": {
+      "path": "/mnt/data/somerra-openadmet-runs/cyp-first-autoresearch-20261031/submission-best-at-cutoff/predictions.csv",
+      "sha256": "6d286b67a1a42360b571c5757f8b5fb491e1fbde0d8c692b94ea6ed1beb75fdd"
+    },
+    "raw_receipt": {
+      "path": "/mnt/data/somerra-openadmet-runs/cyp-first-autoresearch-20261031/submission-best-at-cutoff/portal-upload/submission_receipt.json",
+      "sha256": "cdbacb997a47fca906b13ee22190cd34bfbe32b06e50f4e4617e257bb3884699"
+    },
+    "raw_score_observation": {
+      "path": "/mnt/data/somerra-openadmet-runs/cyp-first-autoresearch-20261031/historical-workbench-calibration/portal-upload-20261102/portal-user-requested-rank.json",
+      "sha256": "3ccf99c1f40635aa0736a319d9c555e62ce7104191dd694e41dd492268fd4ae4"
+    }
+  },
+  "calibrated_score": {
+    "observed_utc": "2026-11-02T01:06:18.520286+00:00",
+    "row": {
+      "MA-Kendall's \u03c4": 0.5642,
+      "MA-MAE": 0.6498,
+      "MA-R\u00b2": 0.5993,
+      "MA-ST-RAE": 0.4612,
+      "MA-Spearman's \u03c1": 0.7405,
+      "Model Report Link": "Not submitted",
+      "Open Code": "No",
+      "Proprietary Data": "No",
+      "Rank": 42,
+      "Submitted": "2026-11-02 00:50 UTC",
+      "Username": "Somerra"
+    }
+  },
+  "candidate": "latest-selected CYP specialists; unchanged raw predictions with historical Workbench postprocessing",
+  "changes": [
+    "per-CYP historical calibration only"
+  ],
+  "constants": {
+    "CYP2D6_override": {
+      "mean": 3.57,
+      "sd": 0.9
+    },
+    "floor": 1.0,
+    "oof_factors": {
+      "cyp1a2": 1.32,
+      "cyp2c9": 1.23,
+      "cyp2d6": 1.66,
+      "cyp3a4": 1.07
+    },
+    "population_moments": {
+      "cyp1a2": [
+        4.412,
+        1.553
+      ],
+      "cyp2c9": [
+        4.83,
+        1.101
+      ],
+      "cyp2d6": [
+        3.107,
+        1.599
+      ],
+      "cyp3a4": [
+        4.88,
+        1.272
+      ]
+    },
+    "sample_sd_ddof": 1
+  },
+  "formula": "max(1, target_mean + (prediction - blind_cohort_mean) * target_sd / blind_cohort_sample_sd)",
+  "limitations": [
+    "Leaderboard-informed constants; user authorization is not organizer-specific clearance.",
+    "One matched official comparison; no guarantee for another candidate or independent final-test population.",
+    "Rank is timestamp-specific. OOF correlations reuse checkpoint-selection folds and are development evidence."
+  ],
+  "new_training_runs": 0,
+  "oof_observed_counts": {
+    "CYP1A2": 1412,
+    "CYP2C9": 1285,
+    "CYP2D6": 1493,
+    "CYP3A4": 2335
+  },
+  "parameters": {
+    "CYP1A2": {
+      "adjusted_pearson": 0.7922789229202688,
+      "floor_count": 2,
+      "oof_pearson": 0.6002113052426279,
+      "raw_mean": 5.01730660832859,
+      "raw_sd": 0.6261600783957946,
+      "target_mean": 4.412,
+      "target_sd": 1.2304091672951774
+    },
+    "CYP2C9": {
+      "adjusted_pearson": 0.8789287841598915,
+      "floor_count": 0,
+      "oof_pearson": 0.7145762472844647,
+      "raw_mean": 4.951220423850738,
+      "raw_sd": 0.7162916485100026,
+      "target_mean": 4.83,
+      "target_sd": 0.9677005913600405
+    },
+    "CYP2D6": {
+      "adjusted_pearson": 0.7553286078031678,
+      "floor_count": 0,
+      "oof_pearson": 0.45501723361636615,
+      "raw_mean": 4.649758976977304,
+      "raw_sd": 0.4004159417862517,
+      "target_mean": 3.57,
+      "target_sd": 0.9
+    },
+    "CYP3A4": {
+      "adjusted_pearson": 0.8791092907709086,
+      "floor_count": 0,
+      "oof_pearson": 0.821597468010195,
+      "raw_mean": 4.826081294869853,
+      "raw_sd": 0.9946771523932871,
+      "target_mean": 4.88,
+      "target_sd": 1.1182270178605958
+    }
+  },
+  "policy_date": "2026-11-02",
+  "raw_score": {
+    "observed_utc": "2026-11-02T00:56:58.836195+00:00",
+    "row": {
+      "MA-Kendall's \u03c4": 0.5642,
+      "MA-MAE": 0.8974,
+      "MA-R\u00b2": 0.2154,
+      "MA-ST-RAE": 0.7151,
+      "MA-Spearman's \u03c1": 0.7405,
+      "Model Report Link": "Not submitted",
+      "Open Code": "No",
+      "Proprietary Data": "No",
+      "Rank": 113,
+      "Submitted": "2026-11-01 12:47 UTC",
+      "Username": "Somerra"
+    }
+  },
+  "relative_reduction": 0.35505523702978603,
+  "rows": 750,
+  "score_precision": "portal-rounded values",
+  "status": "verified",
+  "submission_policy": {
+    "another_upload_authorized_by_this_policy": false,
+    "model_report_link": "",
+    "open_source_code": false
+  },
+  "verification": {
+    "calibrated_sha256": "ea06969322095ab37857ee90faacae10db52cea4929f60a16a58066f32ac06c2",
+    "ids_and_smiles_identical": true,
+    "max_abs_difference_from_existing_implementation": {
+      "CYP1A2": 1.7763568394002505e-15,
+      "CYP2C9": 1.7763568394002505e-15,
+      "CYP2D6": 8.881784197001252e-16,
+      "CYP3A4": 1.7763568394002505e-15
+    },
+    "oof_correlations_reproduced": true,
+    "preparation_implementation_sha256": "fefa7185ce7835bd9c6833fad8294ba468e8590ff82ca2eb39c0df3ee7f9ac1f",
+    "raw_sha256": "6d286b67a1a42360b571c5757f8b5fb491e1fbde0d8c692b94ea6ed1beb75fdd",
+    "reviewed_repository_implementation_sha256": "fefa7185ce7835bd9c6833fad8294ba468e8590ff82ca2eb39c0df3ee7f9ac1f"
+  }
+}
