@@ -18,8 +18,12 @@ CYP-specific models with auxiliary tasks, focusing comparisons on architecture,
 task-loss weights, and model-combination weights. OOF scores are development
 evidence; only the challenge supplies official blind-test scores. Retain raw
 predictions as the baseline; calibration learned from our own OOF predictions and
-official training labels is a separate, declared experiment axis. By user direction on 2026-11-01, prepare the next candidate with historical
-Workbench calibration, retaining raw output and borrowed-constant provenance.
+official training labels is a separate, declared experiment axis. Prepare historical
+Workbench calibration alongside raw output for future submission candidates; see
+the [calibration policy](docs/calibration-policy.md) for the exact formula,
+borrowed constants, provenance and evaluation roles. The matched latest-selected
+official comparison improved MA-ST-RAE from 0.7151 to 0.4612 through postprocessing
+alone. This supports preparation of the calibrated variant, not a universal gain.
 The project hold is lifted; this does not establish organizer clearance or authorize
 a new upload. Historical results and receipts remain preserved.
 
