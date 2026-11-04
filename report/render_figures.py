@@ -1,4 +1,5 @@
 """Render the paper figures from the accompanying aggregate evidence."""
+
 import json
 from pathlib import Path
 
@@ -11,13 +12,20 @@ ROOT = Path(__file__).resolve().parent
 DATA = json.loads((ROOT / "figure-data.json").read_text())
 OUT = ROOT / "figures"
 OUT.mkdir(exist_ok=True)
-plt.rcParams.update({
-    "font.family": "serif", "font.serif": ["DejaVu Serif"],
-    "font.size": 8, "pdf.fonttype": 42, "axes.spines.top": False,
-    "axes.spines.right": False, "axes.linewidth": 0.5,
-    "xtick.major.width": 0.5, "ytick.major.width": 0.5,
-    "savefig.facecolor": "white",
-})
+plt.rcParams.update(
+    {
+        "font.family": "serif",
+        "font.serif": ["DejaVu Serif"],
+        "font.size": 8,
+        "pdf.fonttype": 42,
+        "axes.spines.top": False,
+        "axes.spines.right": False,
+        "axes.linewidth": 0.5,
+        "xtick.major.width": 0.5,
+        "ytick.major.width": 0.5,
+        "savefig.facecolor": "white",
+    }
+)
 
 
 def save(fig, name):
@@ -58,8 +66,24 @@ save(fig, "hit-expansion-logic")
 fig, ax = plt.subplots(figsize=(3.35, 1.35))
 pairs = DATA["hit_expansion_results"]
 for i, p in enumerate(pairs):
-    ax.bar(i - 0.17, p["control"], width=0.30, facecolor="white", edgecolor="black", linewidth=0.6, label="Control" if i == 0 else None)
-    ax.bar(i + 0.17, p["selected"], width=0.30, facecolor="0.65", edgecolor="black", linewidth=0.6, label="Selected" if i == 0 else None)
+    ax.bar(
+        i - 0.17,
+        p["control"],
+        width=0.30,
+        facecolor="white",
+        edgecolor="black",
+        linewidth=0.6,
+        label="Control" if i == 0 else None,
+    )
+    ax.bar(
+        i + 0.17,
+        p["selected"],
+        width=0.30,
+        facecolor="0.65",
+        edgecolor="black",
+        linewidth=0.6,
+        label="Selected" if i == 0 else None,
+    )
     for x, v in [(i - 0.17, p["control"]), (i + 0.17, p["selected"])]:
         ax.text(x, v + 0.025, f"{v:.4f}", ha="center", fontsize=7)
 ax.set_xticks(range(len(pairs)), [p["cyp"] for p in pairs])
