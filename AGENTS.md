@@ -1,22 +1,25 @@
 # Standing challenge submission policy
 
-The user requires prediction-only submissions for this challenge.
+Updated by explicit user direction on 2026-11-04: make this repository public
+and publish the method report here before supplying its link to the organizers.
+This supersedes the earlier private-repository, Open Code false, and empty-report-link
+requirements. Historical submission metadata and receipts remain unchanged.
 
-- Keep this repository and our implementation private.
-- Do not emit or upload code, model checkpoints, code links, or report links through
-  challenge submissions, leaderboard metadata, public reports, or organizer messages.
-- Set `open_source_code` / the portal's Open Code checkbox to false.
-- Leave `model_report_link` / Method Report Link empty. This includes third-party
-  reference repositories and attribution links, not just our own repository.
-- Keep source attribution and reproducibility evidence internally in the private
-  repository and local run artifacts.
-- If a submission requirement conflicts with this policy, stop and explain the
-  conflict rather than publishing anything or weakening the policy.
-- Respect the portal's cooldown and preserve submission receipts. A new submission
-  does not imply that earlier metadata has been deleted.
+- Keep the source code and published report accessible in this repository.
+- For the current organizer handoff, declare Open Code true and use the public
+  report link once verified. A historical receipt is not evidence of new acceptance.
+- Keep credentials, organizer correspondence, local run artifacts, prediction
+  files, and model checkpoints out of the public release unless separately authorized.
+- Preserve source attribution, third-party notices, and reproducibility evidence.
+- Keep a brief, accurate postprocessing disclosure in the paper; detailed
+  calibration constants and provenance belong in the accompanying reproducibility note.
+- Respect the portal's cooldown and preserve submission receipts. Repository
+  publication does not authorize another prediction upload or sending the pending
+  organizer email; the user requested a draft before sending.
 
-This policy was explicitly established by the user on 2026-10-24 and remains in
-force unless the user changes it.
+Historical privacy instructions below and in research documents describe their
+original scope. The publication policy above governs the present release; all
+scientific evaluation and data-isolation requirements remain in force.
 
 ## Default regression research protocol (2026-10-29)
 

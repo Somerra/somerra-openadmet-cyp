@@ -156,10 +156,12 @@ artifacts and historical evaluation contracts remain preserved.
    Checkpoint-selected OOF, OOF-tuned results and repeatedly selected strategies
    are development evidence. Conditional prediction bootstraps do not capture
    model or calibrator fitting uncertainty.
-6. Upload only when authorized, respecting the live portal cooldown. Send the
-   prediction CSV only, Open Code false, report link empty. Keep all code, reports,
-   attribution and checkpoints private. Preserve receipts and timestamped score
-   observations; this policy itself authorizes no further submission.
+6. Upload only when authorized, respecting the live portal cooldown. Under the
+   November 4 publication policy, code and the method report are public; use
+   Open Code true and the verified public report link for the current organizer
+   handoff. Keep checkpoints and private run artifacts out of the release.
+   Preserve receipts and timestamped score observations; this policy itself
+   authorizes no further submission or organizer email.
 
 The historical preparation manifest remains an immutable pre-upload record. Its
 `prepared_not_submitted` status is superseded operationally by the separate

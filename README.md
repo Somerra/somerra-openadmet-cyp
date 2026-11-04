@@ -9,6 +9,16 @@ Inhibition Blind Challenge:
 
 The structure track is intentionally out of scope for this first phase.
 
+## Method report
+
+The [two-page method report](report/method-report.pdf) describes our research
+campaigns, molecular representations, hit-expansion evaluation, and final
+Chemprop ensemble. [LaTeX source and figure data](report/README.md) are included,
+with exact prediction postprocessing in the [reproducibility note](report/reproducibility.md).
+Internal results are development estimates; no official score for the final
+candidate is claimed. Code and report publication were authorized on November 4,
+2026; older privacy statements in research notes describe historical policy.
+
 ## Current regression workflow
 
 Use the [Workbench scaffold-fold protocol](docs/workbench-protocol.md) as the

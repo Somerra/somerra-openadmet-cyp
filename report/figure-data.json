@@ -1,0 +1,89 @@
+{
+  "audit_date": "2026-11-04",
+  "counting_rules": [
+    "One completed scored run is one evaluation, including successful confirmation/repeat runs. A multi-fold configuration remains one evaluation.",
+    "Recipe groups collapse recorded repeats within a campaign: recipe hash plus CYP for CYP-first; proposal IDs for rotation campaigns; configured recipe entries for earlier campaigns and Workbench. Same idea on a different split remains a different campaign-local entry.",
+    "Canonical output paths deduplicate alternate registries and symlinks. Four-hour results are counted through their registry only; auxiliary-series outputs likewise counted once.",
+    "Interrupted attempts/resumes are not extra completed evaluations; count only their successfully completed result. Smoke tests, pending jobs, failed/incomplete runs, exports, submission refits, repeated postprocessing and reference reconstructions are excluded.",
+    "Implied fit count expands completed evaluations by their recorded fold/rotation multiplicity. It is not a GPU-hour or independent-sample count."
+  ],
+  "totals": {
+    "completed_scored_evaluations": 540,
+    "within_campaign_recipe_groups": 433,
+    "implied_completed_model_fits": 1543
+  },
+  "campaigns": [
+    {
+      "label": "Data ablations (Oct 24)",
+      "campaign": "2026-10-24 data ablations",
+      "completed_scored_evaluations": 54,
+      "within_campaign_recipe_groups": 54,
+      "implied_completed_model_fits": 270
+    },
+    {
+      "label": "Hill climbing (Oct 26)",
+      "campaign": "2026-10-26 hill climb (both versions)",
+      "completed_scored_evaluations": 4,
+      "within_campaign_recipe_groups": 4,
+      "implied_completed_model_fits": 4
+    },
+    {
+      "label": "Autoresearch (Oct 27)",
+      "campaign": "2026-10-27 autoresearch (including four-hour search)",
+      "completed_scored_evaluations": 40,
+      "within_campaign_recipe_groups": 40,
+      "implied_completed_model_fits": 40
+    },
+    {
+      "label": "CYP-first (Oct 31)",
+      "campaign": "2026-10-31 CYP-first search",
+      "completed_scored_evaluations": 156,
+      "within_campaign_recipe_groups": 141,
+      "implied_completed_model_fits": 156
+    },
+    {
+      "label": "Three rotations (Nov 2)",
+      "campaign": "hit-expansion-autoresearch-20261102",
+      "completed_scored_evaluations": 71,
+      "within_campaign_recipe_groups": 51,
+      "implied_completed_model_fits": 213
+    },
+    {
+      "label": "CYP2D6 follow-up (Nov 2)",
+      "campaign": "cyp2d6-followup-20261102",
+      "completed_scored_evaluations": 34,
+      "within_campaign_recipe_groups": 26,
+      "implied_completed_model_fits": 102
+    },
+    {
+      "label": "Two rotations (Nov 2)",
+      "campaign": "equal-cyp-two-rotations-20261102",
+      "completed_scored_evaluations": 159,
+      "within_campaign_recipe_groups": 95,
+      "implied_completed_model_fits": 318
+    },
+    {
+      "label": "Workbench (Nov 3)",
+      "campaign": "2026-11-03 Workbench search",
+      "completed_scored_evaluations": 22,
+      "within_campaign_recipe_groups": 22,
+      "implied_completed_model_fits": 440
+    }
+  ],
+  "hit_expansion_results": [
+    {
+      "cyp": "CYP1A2",
+      "control": 0.8222184578359326,
+      "selected": 0.654703566027256,
+      "control_id": "control-cyp1a2",
+      "selected_id": "a2-atom-primary6-huber-lrhalf-no-qhts"
+    },
+    {
+      "cyp": "CYP2C9",
+      "control": 0.42005388375578406,
+      "selected": 0.33602894591322985,
+      "control_id": "control-cyp2c9",
+      "selected_id": "c9-latest-no-tdi"
+    }
+  ]
+}
